@@ -1,0 +1,3 @@
+web: uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers --timeout-graceful-shutdown 10
+worker: python -m clefs.worker
+release: python -m clefs.migrate up

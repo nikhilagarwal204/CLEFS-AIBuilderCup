@@ -1,0 +1,19 @@
+# Amenity issuance log kept by housekeeping (store to floor closet, cart or
+# guest request), usually an Excel sheet per week.
+#
+# UNVERIFIED: a house-made sheet; these are the likely column names.
+source_code: issuance
+label: Amenity issuance log
+kind: ISSUANCE
+unverified: true
+detect: [item, qty]
+fields:
+  issued_at: [date, issued at, issue date, date time, time]
+  item: [item, item name, sku, product, amenity]
+  qty: [qty, quantity, issued qty, units]
+  floor: [floor, to floor]
+  shift: [shift]
+  staff_name: [staff, issued by, attendant, name, staff name]
+  reason: [reason, purpose]
+  location: [location, from, store, to]
+  request_ref: [request, request id, request no]

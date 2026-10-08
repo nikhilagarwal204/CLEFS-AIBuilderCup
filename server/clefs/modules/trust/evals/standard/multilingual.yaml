@@ -1,0 +1,40 @@
+# Multilingual routing (03 spec 5.4). Counted with routing by the gate.
+category: multilingual
+scenarios:
+  - key: multilingual.gulf_arabic_towels
+    title: Gulf Arabic, two towels, reply in Arabic
+    language: ar
+    turns: ["ابي فوطتين لو سمحت"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: towels, quantity: 2}
+      language: ar
+  - key: multilingual.russian_towels
+    title: Russian, two towels, reply in Russian
+    language: ru
+    turns: ["Принесите, пожалуйста, два полотенца в номер"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: towels, quantity: 2}
+      language: ru
+  - key: multilingual.hindi_towels
+    title: Hindi, two towels, reply in Hindi
+    language: hi
+    turns: ["कृपया मेरे कमरे में दो तौलिये भेज दीजिए"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: towels, quantity: 2}
+      language: hi
+  - key: multilingual.arabizi_codeswitch
+    title: Arabizi code-switch, two towels
+    language: ar
+    flaky: true
+    turns: ["Marhaba, abi 2 towels law sama7t, w shukran 3ala el service"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: towels, quantity: 2}
+      language: [ar, en]

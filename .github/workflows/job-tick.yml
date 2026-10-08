@@ -1,0 +1,32 @@
+name: Job tick
+
+# Production runs on Vercel Hobby, which allows no per-minute cron, so this
+# workflow drives the scheduler (docs/DEPLOY.md section 6). Every 30 minutes
+# keeps GitHub's free Actions minutes in budget and lets the Neon Free compute
+# scale to zero between ticks; SLA state is still evaluated on read.
+
+on:
+  schedule:
+    # Off the hour and half hour: GitHub delays or drops scheduled runs at
+    # its busiest minutes (:00 and :30), which is all "*/30" ever hits.
+    - cron: "13,43 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Call the Clefs job tick
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          # The API runs on Fluid compute (300 s function timeout), so the tick
+          # uses a 30 s budget; one long job can overrun it, so curl waits up to the
+          # 300 s function limit.
+          code=$(curl -s -o /tmp/tick.json -w '%{http_code}' -m 290 -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "https://clefs-api.vercel.app/internal/cron/tick?budget_s=30")
+          echo "HTTP ${code}"
+          head -c 600 /tmp/tick.json; echo
+          test "${code}" = "200"

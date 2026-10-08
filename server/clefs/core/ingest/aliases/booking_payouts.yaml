@@ -1,0 +1,29 @@
+# Booking.com Payments by Booking.com payout report (Finance > Payouts, the
+# per-reservation breakdown of a bank transfer).
+#
+# UNVERIFIED: the column names follow the Payments API field names
+# (ota-formats.md 1.3: total_amount_paid, commissionable_price, partner_payout)
+# rendered the way the extranet usually titles them. Validate on a real file.
+source_code: booking_payouts
+label: Booking.com payouts
+kind: OTA_PAYOUT
+ota_code: BOOKING
+unverified: true
+detect: [payout id, reservation number]
+fields:
+  payout_ref: [payout id, payout reference, payout number, transfer id]
+  payout_date: [payout date, date paid, transfer date, payment date]
+  ota_res_id: [reservation number, book number, booking number, reservation id]
+  guest_name: [guest name, guest name s, booker name]
+  check_in: [check in, arrival]
+  check_out: [check out, departure]
+  total_amount_paid_minor: [gross amount, total amount paid, amount paid by guest, reservation amount]
+  commissionable_minor: [commissionable amount, commissionable price]
+  commission_minor: [commission, commission amount]
+  charges_minor: [payments service fee, payment charge, payment charges, transaction fee, charges]
+  partner_payout_minor: [payable amount, net amount, payout amount, amount paid out, net payout, total payout]
+  line_kind: [type, transaction type, line type]
+  payout_type: [payout type]
+  currency: [currency, payout currency]
+  bank_transfer_reference: [bank transfer reference, bank reference, reference]
+  event_date: [event date, transaction date]

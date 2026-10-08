@@ -1,0 +1,52 @@
+{
+ "id": "pplx_fixture",
+ "model": "sonar",
+ "object": "chat.completion",
+ "choices": [
+  {
+   "index": 0,
+   "message": {
+    "role": "assistant",
+    "content": "For a short business trip in Downtown Dubai, consider:\n\n- **Rove Downtown**: Fast Wi-Fi and a 24-hour gym [1].\n- **Test Hotel Dubai**: Quiet rooms near the Dubai Mall metro [2][3].\n- **Grand Plaza Hotel**: Large meeting rooms [4].\n"
+   },
+   "finish_reason": "stop"
+  }
+ ],
+ "search_results": [
+  {
+   "title": "Rove Downtown - Expedia",
+   "url": "https://www.expedia.com/Dubai-Hotels-Rove-Downtown.h1.Hotel-Information",
+   "date": "2026-08-01",
+   "snippet": "..."
+  },
+  {
+   "title": "Test Hotel Dubai official site",
+   "url": "https://testhoteldubai.example/",
+   "date": null,
+   "snippet": "..."
+  },
+  {
+   "title": "Test Hotel Dubai reviews",
+   "url": "https://www.tripadvisor.com/Hotel_Review-test.html",
+   "date": null,
+   "snippet": "..."
+  },
+  {
+   "title": "Grand Plaza on Reddit",
+   "url": "https://www.reddit.com/r/dubai/comments/x",
+   "date": null,
+   "snippet": "..."
+  },
+  {
+   "title": "Dubai travel guide",
+   "url": "https://en.wikipedia.org/wiki/Downtown_Dubai",
+   "date": null,
+   "snippet": "..."
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 20,
+  "completion_tokens": 90,
+  "search_context_size": "low"
+ }
+}

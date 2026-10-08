@@ -1,0 +1,20 @@
+# Booking-engine attribution export (04 spec D2): booking reference, utm_*,
+# promo code and landing URL, matched to direct reservations at commit.
+#
+# UNVERIFIED: booking engines (SynXis, SiteMinder, Simplotel, D-EDGE) name
+# these differently; the utm_* names are the standard ones.
+source_code: booking_engine_attribution
+label: Booking engine attribution
+kind: BOOKING_ENGINE_ATTRIBUTION
+unverified: true
+detect: [utm source]
+fields:
+  booking_ref: [booking ref, booking reference, confirmation, confirmation number, reservation id, booking id,
+                itinerary id]
+  utm_source: [utm source, source]
+  utm_medium: [utm medium, medium]
+  utm_campaign: [utm campaign, campaign]
+  utm_term: [utm term, term, keyword]
+  utm_content: [utm content, content]
+  promo_code: [promo code, promotion code, coupon, voucher]
+  landing_url: [landing url, landing page, entry page]

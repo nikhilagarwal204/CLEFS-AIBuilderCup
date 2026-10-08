@@ -1,0 +1,30 @@
+# Expedia Partner Central "Download a reservations report" (and the Hotel
+# Collect invoice detail).
+#
+# UNVERIFIED: Expedia does not publish these headers (ota-formats.md 3). The
+# names below are the usual Partner Central wording; validate on a real file.
+source_code: expedia_reservations
+label: Expedia reservations report
+kind: OTA_STATEMENT
+ota_code: EXPEDIA
+unverified: true
+detect: [reservation id, guest, booking amount]
+transforms:
+  commission_pct: {pct_to_ratio: true}
+fields:
+  ota_res_id: [reservation id, itinerary number, confirmation number, expedia id, booking id]
+  guest_name: [guest, guest name, traveler name]
+  check_in: [check in, arrival date, check in date]
+  check_out: [check out, departure date, check out date]
+  booked_at: [booked, booking date, booked date]
+  line_status: [status, reservation status]
+  room_nights: [room nights, nights, length of stay]
+  room_type: [room, room type]
+  rate_plan: [rate plan, rate plan name]
+  collect_model: [payment type, business model, payment model]
+  gross_minor: [booking amount, total amount, gross amount, amount]
+  commissionable_minor: [commissionable amount]
+  commission_pct: [commission pct, commission rate, compensation pct]
+  commission_minor: [commission, commission amount, compensation amount]
+  currency: [currency]
+  booker_country: [point of sale, country]

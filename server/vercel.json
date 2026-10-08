@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "regions": [
+    "sin1"
+  ],
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python",
+      "config": {
+        "excludeFiles": "{tests/**,**/__pycache__/**,.venv/**,.pytest_cache/**,.mypy_cache/**,.env,.env.*}"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "main.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/internal/cron/tick",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "count": 6,
+  "overflow": false,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "phqGitex2026", "title": "GITEX Global 2026", "category": "expos", "state": "active",
+      "start": "2026-12-07T05:00:00Z", "end": "2026-12-11T13:00:00Z", "timezone": "Asia/Dubai",
+      "start_local": "2026-12-07T09:00:00", "end_local": "2026-12-11T17:00:00",
+      "geo": {"geometry": {"type": "Point", "coordinates": [55.1480, 24.9640]}},
+      "entities": [{"entity_id": "v1", "name": "Dubai Exhibition Centre", "type": "venue",
+                    "formatted_address": "Expo City Dubai, Dubai, UAE"}],
+      "rank": 88, "local_rank": 95, "phq_attendance": 180000,
+      "predicted_event_spend_industries": {"accommodation": 45000000.5, "hospitality": 12000000},
+      "updated": "2026-09-20T10:00:00Z", "first_seen": "2025-12-01T00:00:00Z"
+    },
+    {
+      "id": "phqBig52026", "title": "The Big 5 Global", "category": "expos", "state": "active",
+      "start": "2026-11-23T06:00:00Z", "end": "2026-11-26T14:00:00Z", "timezone": "Asia/Dubai",
+      "start_local": "2026-11-23T10:00:00", "end_local": "2026-11-26T18:00:00",
+      "geo": {"geometry": {"type": "Point", "coordinates": [55.2872, 25.2279]}},
+      "entities": [{"entity_id": "v2", "name": "Dubai World Trade Centre", "type": "venue"}],
+      "rank": 80, "local_rank": 90, "phq_attendance": 65000,
+      "updated": "2026-09-18T08:00:00Z"
+    },
+    {
+      "id": "phqEidFitr2027", "title": "Eid al-Fitr", "category": "public-holidays", "state": "active",
+      "start": "2027-03-09T20:00:00Z", "end": "2027-03-10T19:59:59Z", "timezone": "Asia/Dubai",
+      "start_local": "2027-03-10T00:00:00", "end_local": "2027-03-10T23:59:59",
+      "rank": 90, "updated": "2026-09-10T00:00:00Z"
+    },
+    {
+      "id": "phqColdplay", "title": "Coldplay - Music of the Spheres", "category": "concerts", "state": "active",
+      "start": "2026-11-14T16:00:00Z", "end": "2026-11-14T20:00:00Z", "timezone": "Asia/Dubai",
+      "start_local": "2026-11-14T20:00:00", "end_local": "2026-11-15T00:00:00",
+      "geo": {"geometry": {"type": "Point", "coordinates": [55.2622, 25.2049]}},
+      "entities": [{"entity_id": "v3", "name": "Coca-Cola Arena", "type": "venue"}],
+      "rank": 70, "local_rank": 85, "phq_attendance": 17000,
+      "updated": "2026-09-21T12:00:00Z"
+    },
+    {
+      "id": "phqDup", "title": "GITEX Global duplicate", "category": "expos", "state": "deleted",
+      "deleted_reason": "duplicate", "start": "2026-12-07T05:00:00Z", "end": "2026-12-11T13:00:00Z",
+      "timezone": "Asia/Dubai", "rank": 88, "updated": "2026-09-19T00:00:00Z"
+    },
+    {
+      "id": "phqDesignWeek", "title": "Dubai Design Week", "category": "festivals", "state": "predicted",
+      "start": "2026-11-09T06:00:00Z", "end": "2026-11-14T16:00:00Z", "timezone": "Asia/Dubai",
+      "start_local": "2026-11-09T10:00:00", "end_local": "2026-11-14T20:00:00",
+      "geo": {"geometry": {"type": "Point", "coordinates": [55.2961, 25.1880]}},
+      "rank": 62, "phq_attendance": 90000, "updated": "2026-09-15T00:00:00Z"
+    }
+  ]
+}

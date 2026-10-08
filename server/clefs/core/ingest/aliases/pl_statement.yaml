@@ -1,0 +1,22 @@
+# Monthly P&L export from an accounting package (Xero, QuickBooks, Zoho Books,
+# Tally) or a management-accounts spreadsheet (04 spec 6.3, D4).
+#
+# A file with several month columns ("Oct 2025", "Nov 2025") is split into one
+# row per account per month: the month columns are found by their headers,
+# not mapped here. Section headers (Income / الإيرادات, Cost of Sales,
+# Operating Expenses / المصروفات) set `section`.
+#
+# UNVERIFIED: account column names vary per package; these are the usual ones.
+source_code: pl_statement
+label: Profit and loss statement
+kind: PL_STATEMENT
+unverified: true
+detect: [account]
+fields:
+  code: [account code, code, account no, account number, gl code]
+  name: [account, account name, particulars, description, line item, name, الحساب]
+  group_raw: [group, account group, category, parent account]
+  type_raw: [type, account type, class]
+  section: [section]
+  period_month: [month, period]
+  amount_minor: [amount, total, balance, net, value]

@@ -1,0 +1,16 @@
+# Trial balance export for one month (04 spec D4): debit and credit per
+# account, for the period_month given at upload.
+#
+# UNVERIFIED: the usual accounting-package column names.
+source_code: trial_balance
+label: Trial balance
+kind: TRIAL_BALANCE
+unverified: true
+detect: [debit, credit]
+fields:
+  code: [account code, code, account no, account number, gl code]
+  name: [account, account name, particulars, description, name, الحساب]
+  group_raw: [group, account group, category]
+  type_raw: [type, account type, class]
+  debit_minor: [debit, debits, dr, debit amount, مدين]
+  credit_minor: [credit, credits, cr, credit amount, دائن]

@@ -1,0 +1,110 @@
+# Chinese safety lexicon (Simplified, with Traditional variants where the
+# characters differ). Format: see en.yml. Chinese has no spaces, so patterns
+# match as substrings; the guards carry the idioms that would otherwise fire
+# ("热死了" = "it is so hot", "笑死了" = "so funny": nobody died).
+language: zh
+boundary: none
+kinds:
+  medical:
+    patterns:
+      - (救护车|救護車)
+      - (心脏病|心臟病)
+      - (晕倒|暈倒|昏倒|昏迷)
+      - (不能呼吸|无法呼吸|無法呼吸|喘不过气|喘不過氣|呼吸困难|呼吸困難)
+      - (流血|大出血)
+      - (抽搐|癫痫|癲癇)
+      - (中风|中風)
+      - (过敏反应|過敏反應|严重过敏|嚴重過敏)
+      - 窒息
+      - 急救
+      - (需要医生|需要醫生|叫医生|叫醫生)
+      - (中毒|溺水)
+  fire:
+    patterns:
+      - (着火|著火|起火|失火|火灾|火災)
+      - (冒烟|冒煙|浓烟|濃煙|烟雾|煙霧)
+      - (煤气泄漏|煤氣洩漏|燃气泄漏|燃氣洩漏|漏气|漏氣)
+      - (烧焦味|燒焦味|有烟味|有煙味)
+    guards:
+      - (消防通道|防火门|防火門|火灾演习|火災演習)
+  sparks_flooding:
+    patterns:
+      - 火花
+      - (漏电|漏電|触电|觸電)
+      - (电线外露|電線外露)
+      - 短路
+      - (水漫|淹水|漏水严重|漏水嚴重)
+      - (水管爆裂|爆管)
+      - (天花板塌|天花板掉)
+  violence:
+    patterns:
+      - (打人|打我|打她|打他)
+      - (袭击|襲擊|攻击我|攻擊我)
+      - (有枪|有槍|拿着刀|拿著刀|持刀)
+      - (威胁|威脅)
+      - (杀了我|殺了我|要杀|要殺)
+      - (炸弹|炸彈)
+      - (枪击|槍擊|开枪|開槍)
+      - 捅
+      - (强奸|強姦)
+      - 打架
+      - (闯入|闖入)
+  missing_child:
+    patterns:
+      - (孩子|儿子|兒子|女儿|女兒|小孩)(不见了|不見了|丢了|丟了|走丢|走丟|失踪|失蹤)
+      - (找不到)(我的)?(孩子|儿子|兒子|女儿|女兒|小孩)
+      - (走失|失踪儿童|失蹤兒童)
+  death:
+    patterns:
+      - (死了|死人)
+      - (尸体|屍體)
+      - 去世
+      - (自杀|自殺)
+      - 想死
+    guards:
+      - (笑|累|热|熱|冷|饿|餓|困|烦|煩|吵|忙|渴|气|氣|无聊|無聊)死(了|我了|人了)?
+      - (手机|手機|电池|電池|电脑|電腦)死了
+  lift_entrapment:
+    patterns:
+      - (困在电梯|困在電梯|被困电梯|被困電梯|电梯里被困|電梯裡被困)
+      - (卡在电梯|卡在電梯|电梯卡住|電梯卡住)
+  drugs:
+    patterns:
+      - (毒品|吸毒|大麻|可卡因|海洛因|冰毒)
+  harassment:
+    patterns:
+      - (骚扰|騷擾)
+      - 性侵
+      - (摸我|猥亵|猥褻)
+      - (偷拍|跟踪我|跟蹤我)
+  theft:
+    patterns:
+      - (被偷|偷了|失窃|失竊|被盗|被盜|小偷|抢劫|搶劫)
+  lost_document:
+    patterns:
+      - (护照|護照|身份证|身份證)(丢|丟|不见|不見|被偷)
+      - (丢了|丟了)(护照|護照|身份证|身份證)
+  police:
+    patterns:
+      - (报警|報警|警察)
+  legal:
+    patterns:
+      - (律师|律師)
+      - 起诉
+      - 起訴
+      - (法律行动|法律行動|告你们|告你們)
+  chargeback:
+    patterns:
+      - 拒付
+      - (信用卡争议|信用卡爭議)
+      - (重复扣款|重複扣款|多扣)
+  refund:
+    patterns:
+      - (退款|退钱|退錢)
+      - (赔偿|賠償)
+  complaint:
+    patterns:
+      - 投诉
+      - 投訴
+      - (找经理|找經理|叫经理|叫經理)
+      - (太差了|不可接受)

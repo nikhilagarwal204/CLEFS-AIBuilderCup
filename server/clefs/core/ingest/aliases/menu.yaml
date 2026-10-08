@@ -1,0 +1,30 @@
+# An F&B menu sheet for Upsell (in-room dining, pool bar, minibar), usually
+# kept by the F&B manager in Excel or exported from the POS item list.
+#
+# UNVERIFIED: a house-made sheet; these are the likely column names (the ones
+# the menu CSV importer accepted before menus moved onto core/ingest). No
+# `detect` terms: a menu is never recognised from an emailed attachment, a
+# person labels the upload as MENU.
+source_code: menu
+label: F&B menu
+kind: MENU
+unverified: true
+fields:
+  outlet: [outlet, outlet key, outlet code]
+  outlet_name: [outlet name, restaurant, venue]
+  sku: [sku, code, plu, item code]
+  category: [category, section, category en, section en]
+  category_ar: [category ar, section ar, arabic category, arabic section]
+  name_en: [name en, name, item, item name, name english, english name]
+  name_ar: [name ar, name arabic, arabic name]
+  desc_en: [desc en, description, desc, description en]
+  desc_ar: [desc ar, description ar, arabic description]
+  price: [price, price aed, amount, unit price]
+  available_from: [available from, from]
+  available_to: [available to, to, available until]
+  days: [days, days available]
+  dietary: [dietary, tags, diet]
+  alcohol: [alcohol, is alcohol, alcoholic]
+  prep_min: [prep min, prep, prep time]
+  active: [active]
+  sort: [sort, sort order]

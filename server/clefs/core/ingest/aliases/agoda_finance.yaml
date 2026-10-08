@@ -1,0 +1,31 @@
+# Agoda YCS Finance > All transactions export (and Bookings > Reservations CSV).
+#
+# UNVERIFIED: Agoda publishes no header list (ota-formats.md 2: "Booking ID,
+# Customer name, Check-in/out, Room type, Rate plan, Payment model, Total
+# inclusive, Commission, Net inclusive, Currency" are practitioner guesses).
+source_code: agoda_finance
+label: Agoda finance transactions
+kind: OTA_STATEMENT
+ota_code: AGODA
+unverified: true
+detect: [booking id, net inclusive]
+transforms:
+  commission_pct: {pct_to_ratio: true}
+fields:
+  ota_res_id: [booking id, booking no, agoda booking id, reservation id]
+  guest_name: [customer name, guest name, customer first name]
+  check_in: [check in, check in date, arrival]
+  check_out: [check out, check out date, departure]
+  booked_at: [booking date, booked date]
+  line_status: [status, booking status, transaction status]
+  room_nights: [room nights, nights, no of nights]
+  rooms: [no of rooms, rooms]
+  room_type: [room type]
+  rate_plan: [rate plan, rate plan name]
+  collect_model: [payment model, payment type]
+  gross_minor: [total inclusive, reference sell rate, sell inclusive amt, total amount, rsr]
+  commission_pct: [commission pct, commission rate, compensation pct]
+  commission_minor: [commission, commission amount, compensation]
+  commissionable_minor: [commissionable amount]
+  currency: [currency, rate currency]
+  remarks: [remarks, manual adjustment reason]

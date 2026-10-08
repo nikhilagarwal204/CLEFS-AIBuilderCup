@@ -1,0 +1,19 @@
+{
+  "results": [
+    {"date": "2026-12-07",
+     "phq_attendance_conferences": {"stats": {"sum": 12000, "count": 2}},
+     "phq_attendance_expos": {"stats": {"sum": 180000, "count": 1}},
+     "phq_attendance_sports": {"stats": {"sum": 0, "count": 0}},
+     "phq_attendance_concerts": {"stats": {"sum": 3500, "count": 1}},
+     "phq_attendance_festivals": {"stats": {"sum": 0, "count": 0}},
+     "phq_rank_public_holidays": {"rank_levels": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}}},
+    {"date": "2026-12-02",
+     "phq_attendance_conferences": {"stats": {"sum": 0, "count": 0}},
+     "phq_attendance_expos": {"stats": {"sum": 0, "count": 0}},
+     "phq_attendance_sports": {"stats": {"sum": 0, "count": 0}},
+     "phq_attendance_concerts": {"stats": {"sum": 0, "count": 0}},
+     "phq_attendance_festivals": {"stats": {"sum": 25000, "count": 1}},
+     "phq_rank_public_holidays": {"rank_levels": {"1": 0, "2": 0, "3": 0, "4": 1, "5": 0}}},
+    {"date": "not-a-date"}
+  ]
+}

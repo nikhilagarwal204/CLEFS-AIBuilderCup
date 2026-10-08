@@ -1,0 +1,3400 @@
+{
+  "anchor": "2026-09-27",
+  "hotel": "demo-deira-crest",
+  "plants": [
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "1212.37",
+      "expected_minor": 121237,
+      "fingerprints": [
+        "00d90c6579abdba1a613c624baebd468d92e614e",
+        "02275e197a1687c60657221d9e0da5f02ef72983",
+        "058559d4cde8566744fb6365c05e1dfbc7f5eff4",
+        "0aa8848fd57149e8ece4c86b42b9f9292153cfb1",
+        "11b6627cd38578dd2bcf16ddefd95405608e89fd",
+        "13a072af7499f60355092583f54e2919ce766c1f",
+        "17c041a25109dee67380388a43756c563d5d4087",
+        "195033f7efbd0861e85986d1eeb468d1e8fbe486",
+        "1a9564e60035d6742e673cbaa6d1688613d9c2e6",
+        "1bd9d6b55825e3323b1b6b730c6928056c6e5d72",
+        "1f492c68207750a4efe22e2d492739def9397657",
+        "1fb021e47c0e62fad5c1c15482511ddcdf113f88",
+        "207e5eb19681c5d497a2c3c6cb235f9ce4668242",
+        "28f8dda069d5c00122fce653ecb84a69970dca19",
+        "29730222974949197ff52a9b158c90d89ef45a4d",
+        "2ba0346a10e0009e340726d1078279153f6b0a16",
+        "2ddb52a2faca7832cbb9d9aab801dcf60f7ebd38",
+        "31c6619853a8ddaadfac7be439b2b0981ad1b210",
+        "321e52c0e29e3b390e6231cc3fd13d2f844c3988",
+        "3400f5821adc8cb2781ebfee0d7564ff5ff890f9",
+        "343623f3dd5daa953812ea85cf8f61444756cba9",
+        "376f7698f5435c1fe1bbddf7790588f711e2cd90",
+        "383e7bef2365f819ba2d0de579623e07ded1a970",
+        "3a10b793b2a7b2cfcab81c1cf0f6f5f7324c5b87",
+        "3bd84c8d610ad7d663bcda5b215fdb66d557e6ff",
+        "3cc250d4feea884ff8328132e79ede2084d2e102",
+        "3ce16351d4ce7830325d9e59921f8c265e57982b",
+        "3ff160a68bba6a86a4cb8eecbd2c06417863e045",
+        "3ff3fa6ca1a54aedca4ded3d1327c85583f713ba",
+        "407ec01ea76a7aa5f4f7667a6bc54533726d78ff",
+        "415aa788f8d899b0e7bce681f39bb4ec34ac46d5",
+        "418d0c8dd5a8861cb98c4b198a71f35bb029589e",
+        "4287204f0f01d9b2c756e9b34261df09c5bf1281",
+        "42b15ef6ce73ec3e3c1b0730eba1fc65ad6d40bc",
+        "43f91d62869ffdf4d7153cc941137eda33c56719",
+        "484eb63bee41edc8bf8b54aee352f6dd0c93c517",
+        "4923a03024740fcf4bcdcf16bc177b3b87eb458b",
+        "49c5af39d956959d2731491b1269a007936bec64",
+        "4be8cebc2605286d2463809f53771554fa969716",
+        "4ce6ae8cb226e75ea33a3b03770383d66ad5fad8",
+        "50d7cdb071a4601ad9e7380ba2f6b916ecffc30a",
+        "532c11b2b001691998a783527f95f6850df12610",
+        "61c240545280c699a737a8062af065be4758fa8a",
+        "64b56739765bbb8a5c596f5c45d34db6bc9632bc",
+        "71a8796c836e78bfda480bb0e1517af1c48daa80",
+        "73d2b91c8e94c7feb39d7898503786fc19b0d175",
+        "785fb994403ec14dcd5a7594aaeeaafee9480320",
+        "7b00975f1ef7ae59898b25050b918629e2d726c4",
+        "7d5389cef8402814b934f5e84a4199317cf85c40",
+        "7d68f88b44da14961c65e3a86e026f32a00b09de",
+        "80a6f51f569af1a7686c5f19e3b99ad126cd1aa4",
+        "811ffd97b8d4f09df2f9888eb1d8ea158bd58973",
+        "81625935b9f5562ab6083f1552e6f8d59eff5206",
+        "8252cf7eb896c7736cc7e5b4f866e4dd6aa4a027",
+        "840db12740f51127ee8c568907aaea21f46a8095",
+        "85620ba4d87002d3f8775638fae646026c92ac7d",
+        "8f985149672b315a965dc69b1d944e20ddaa4816",
+        "91d45dadb8a24c0247c111a4fc7a01a035086fca",
+        "9fd89a7499b176ca826c3f8d0b28b04bd6036635",
+        "a0c52a732102ad3949affd0225b24b4c9a5314f2",
+        "aaeeb872b6f90dd2c3cbba86e8b23cc3a5a0fc81",
+        "ae65c34e2e0a5ca0522c736e362a8fde5f5b28a9",
+        "b401f5355675c5be6286606f15e25a936a92eb45",
+        "b6c78fd913a7fd5752e5001e8bafb1529f351ff4",
+        "b6d6079449095cd77d40577e885bc02a7070af64",
+        "bddc87af7fc636531ff8ffd67f4fa7ea6ca8c273",
+        "c0bf249293aa76efce3f19e28c999690580ada32",
+        "c1f4e074dc8caccee9d359203c53a1ad47b120cf",
+        "cb2a18697b042d4bf9bbb3ef56070d3c7710d43f",
+        "cc336301093df167ec565b1f0ab2b1b2003304f0",
+        "cdfc99cb6d9ec09f81d80e961605f10263b77f4d",
+        "cfa35f7b0259d1765ee5903f244c9b6b777b2ac9",
+        "d47068d991d1aec4540e92a1001048fa6f923bd1",
+        "d98ed7df33ce3667099788c55a3758ddf2d220a5",
+        "dc802cddf2ed43e6e2133ccbb22be36d0508c452",
+        "e1a81cfb32e8a5b4b07f91b3ed97e0972149a68a",
+        "e9fa7cc56163d17e259757bf718b75c1225d4f5f",
+        "ec3189bae352e27d400c1978a58f021b6ecee0f2",
+        "eee0c64c3f9b4f39faabd4482f877bd735384a55",
+        "f20d5010fff15a35281c2a7a053e470b69f92474",
+        "f7e7c910084f58c06285ae13544639d799afad8c",
+        "fd896800c3a3ee0166cfec5fb551f09869033930"
+      ],
+      "ids": {
+        "doc_no": "AGD-202608-7731",
+        "lines": 82
+      },
+      "key": "L1:AGODA:structural",
+      "klass": "STRUCTURAL",
+      "note": "by design: commission on the tax-inclusive RSR (net ADR input, not a claim)",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "18.71",
+      "expected_minor": 1871,
+      "fingerprints": [
+        "82ab915dd68277a9311e10f33d76ab122c62c60f"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4036209858"
+        ],
+        "pms_res_ids": [
+          "RC900003"
+        ]
+      },
+      "key": "L1:BOOKING:4036209858",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "14.72",
+      "expected_minor": 1472,
+      "fingerprints": [
+        "9e8abf958ca4feb5a01451b2b9542bd7aa1fd4df"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4111964344"
+        ],
+        "pms_res_ids": [
+          "RC900011"
+        ]
+      },
+      "key": "L1:BOOKING:4111964344",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "19.63",
+      "expected_minor": 1963,
+      "fingerprints": [
+        "04ce718ce0dd76d2742a992e59f7ab68000dead4"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4134541411"
+        ],
+        "pms_res_ids": [
+          "RC900024"
+        ]
+      },
+      "key": "L1:BOOKING:4134541411",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "9.35",
+      "expected_minor": 935,
+      "fingerprints": [
+        "33399917d14481eda44f8623ef3bd4f8a3083221"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4234225316"
+        ],
+        "pms_res_ids": [
+          "RC900019"
+        ]
+      },
+      "key": "L1:BOOKING:4234225316",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "16.80",
+      "expected_minor": 1680,
+      "fingerprints": [
+        "d0c91f660e8663a9a5d99e3bf5923c2fbde192cc"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4240045946"
+        ],
+        "pms_res_ids": [
+          "RC900002"
+        ]
+      },
+      "key": "L1:BOOKING:4240045946",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "10.62",
+      "expected_minor": 1062,
+      "fingerprints": [
+        "1eec6ea2b71b75674493734f9ff2d82146cae12f"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4264318326"
+        ],
+        "pms_res_ids": [
+          "RC900007"
+        ]
+      },
+      "key": "L1:BOOKING:4264318326",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "11.20",
+      "expected_minor": 1120,
+      "fingerprints": [
+        "6b56cbe20b104f5c2bc57b67a3d2202aea558d37"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4291298769"
+        ],
+        "pms_res_ids": [
+          "RC900004"
+        ]
+      },
+      "key": "L1:BOOKING:4291298769",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "15.24",
+      "expected_minor": 1524,
+      "fingerprints": [
+        "e07f57b4dac83c93bf07e2c05f07d570f8568d38"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4316310178"
+        ],
+        "pms_res_ids": [
+          "RC900008"
+        ]
+      },
+      "key": "L1:BOOKING:4316310178",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "11.20",
+      "expected_minor": 1120,
+      "fingerprints": [
+        "00f43805bddd530a29f7f98c5c5548a3f9237278"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4325271737"
+        ],
+        "pms_res_ids": [
+          "RC900001"
+        ]
+      },
+      "key": "L1:BOOKING:4325271737",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "10.62",
+      "expected_minor": 1062,
+      "fingerprints": [
+        "67ad5ca64961b5fe0b3a4e61ee9b5b8f89a323c9"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4346344190"
+        ],
+        "pms_res_ids": [
+          "RC900016"
+        ]
+      },
+      "key": "L1:BOOKING:4346344190",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "21.25",
+      "expected_minor": 2125,
+      "fingerprints": [
+        "d172dd555790bf041442552998d1611a55eea7aa"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4359590589"
+        ],
+        "pms_res_ids": [
+          "RC900006"
+        ]
+      },
+      "key": "L1:BOOKING:4359590589",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "10.62",
+      "expected_minor": 1062,
+      "fingerprints": [
+        "99542ff0f641c064a10aee16ae9d52da4420f794"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4392006359"
+        ],
+        "pms_res_ids": [
+          "RC900010"
+        ]
+      },
+      "key": "L1:BOOKING:4392006359",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "15.93",
+      "expected_minor": 1593,
+      "fingerprints": [
+        "29247745bcfb6e489681c20e142b1b0a11b9f7ea"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4426123567"
+        ],
+        "pms_res_ids": [
+          "RC900020"
+        ]
+      },
+      "key": "L1:BOOKING:4426123567",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "20.32",
+      "expected_minor": 2032,
+      "fingerprints": [
+        "e5e7394eaa8c9c1b9b4fff21679941097288bab7"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4427664462"
+        ],
+        "pms_res_ids": [
+          "RC900021"
+        ]
+      },
+      "key": "L1:BOOKING:4427664462",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "14.72",
+      "expected_minor": 1472,
+      "fingerprints": [
+        "37d0b5a2812d960d41cecedb8e73a2e2c351dad7"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4467305961"
+        ],
+        "pms_res_ids": [
+          "RC900017"
+        ]
+      },
+      "key": "L1:BOOKING:4467305961",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "9.35",
+      "expected_minor": 935,
+      "fingerprints": [
+        "5af9ceb2677ebf9ccf32503f466e7bbaa1104546"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4476516066"
+        ],
+        "pms_res_ids": [
+          "RC900025"
+        ]
+      },
+      "key": "L1:BOOKING:4476516066",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "22.40",
+      "expected_minor": 2240,
+      "fingerprints": [
+        "37631fbe5bb3eac4e67b06f6026ca3dae20e825b"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4598753679"
+        ],
+        "pms_res_ids": [
+          "RC900012"
+        ]
+      },
+      "key": "L1:BOOKING:4598753679",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "10.16",
+      "expected_minor": 1016,
+      "fingerprints": [
+        "222543a3a9fd6b42c767f82129e923ccef70009a"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4602665178"
+        ],
+        "pms_res_ids": [
+          "RC900022"
+        ]
+      },
+      "key": "L1:BOOKING:4602665178",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "16.80",
+      "expected_minor": 1680,
+      "fingerprints": [
+        "670d95c00c32b2dc58f3e7e354ee90a9cf0ee7e8"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4605718815"
+        ],
+        "pms_res_ids": [
+          "RC900005"
+        ]
+      },
+      "key": "L1:BOOKING:4605718815",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "22.40",
+      "expected_minor": 2240,
+      "fingerprints": [
+        "a8c87723be6e7b9607376004f9d6f5ae7de0ebc9"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4735876203"
+        ],
+        "pms_res_ids": [
+          "RC900015"
+        ]
+      },
+      "key": "L1:BOOKING:4735876203",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "16.80",
+      "expected_minor": 1680,
+      "fingerprints": [
+        "b1cdae5982aeb4606948a17eb009de433d7b6ecc"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4753949696"
+        ],
+        "pms_res_ids": [
+          "RC900014"
+        ]
+      },
+      "key": "L1:BOOKING:4753949696",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "19.63",
+      "expected_minor": 1963,
+      "fingerprints": [
+        "bc141d8c783d52083e142589682b6e51603a6ac8"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4797933674"
+        ],
+        "pms_res_ids": [
+          "RC900018"
+        ]
+      },
+      "key": "L1:BOOKING:4797933674",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "23.56",
+      "expected_minor": 2356,
+      "fingerprints": [
+        "4650d3871cee9e64510818dd478ed581c394b39e"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4905895390"
+        ],
+        "pms_res_ids": [
+          "RC900009"
+        ]
+      },
+      "key": "L1:BOOKING:4905895390",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "9.81",
+      "expected_minor": 981,
+      "fingerprints": [
+        "b5d952fc17b95e3c17665a4d2a5a64a4c1b232ba"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4908646453"
+        ],
+        "pms_res_ids": [
+          "RC900013"
+        ]
+      },
+      "key": "L1:BOOKING:4908646453",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1",
+      "expected": "17.67",
+      "expected_minor": 1767,
+      "fingerprints": [
+        "530c715bfa11ec43a62a71b7faf41e3cdc09ee1a"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4916137483"
+        ],
+        "pms_res_ids": [
+          "RC900023"
+        ]
+      },
+      "key": "L1:BOOKING:4916137483",
+      "klass": "RECOVERABLE",
+      "note": "commission on the full gross while MF and TD are configured as charges",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L10",
+      "expected": "85.00",
+      "expected_minor": 8500,
+      "fingerprints": [
+        "26238f967e298e09c042395226f74ac508e902eb"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4370011674"
+        ],
+        "pms_res_ids": [
+          "RC900053"
+        ]
+      },
+      "key": "L10:BOOKING:4370011674",
+      "klass": "RECOVERABLE",
+      "note": "payout line below gross - commission - fee",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L10",
+      "expected": "142.00",
+      "expected_minor": 14200,
+      "fingerprints": [
+        "b26681ff8f4c57df68a77c36c889d5e888cbae67"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4793210741"
+        ],
+        "pms_res_ids": [
+          "RC900054"
+        ]
+      },
+      "key": "L10:BOOKING:4793210741",
+      "klass": "RECOVERABLE",
+      "note": "payout line below gross - commission - fee",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L10",
+      "expected": "1240.00",
+      "expected_minor": 124000,
+      "fingerprints": [
+        "1bb324835d4fe9f2b2b5a37a9655b94f3d133b2d"
+      ],
+      "ids": {
+        "payout_ref": "PO-20260903"
+      },
+      "key": "L10:bank:PO-20260903",
+      "klass": "RECOVERABLE",
+      "note": "bank credit AED 1,240 below the payout less the AED 25 fee",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "6adcb337efe8251977349deeb1f07bc969de5fe2"
+      ],
+      "decoy_ids": {
+        "payout_ref": "PO-20260924"
+      },
+      "detector": "L10",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L10:decoys:bank-fee",
+      "klass": "DECOY",
+      "note": "credit = payout - the expected AED 25 bank fee",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L11",
+      "expected": "19.08",
+      "expected_minor": 1908,
+      "fingerprints": [
+        "5d62b5afd63df0135577e342aa07fe3961ba66b4"
+      ],
+      "ids": {
+        "payout_ref": "PO-EUR-20260917-6083"
+      },
+      "key": "L11:PO-EUR-20260917-6083",
+      "klass": "PREVENTABLE",
+      "note": "EUR converted with a 2.5% spread",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L11",
+      "expected": "11.39",
+      "expected_minor": 1139,
+      "fingerprints": [
+        "90c46ed8bc30d801537e044263e8f5b4dd8635f2"
+      ],
+      "ids": {
+        "payout_ref": "PO-USD-20260910-8643"
+      },
+      "key": "L11:PO-USD-20260910-8643",
+      "klass": "PREVENTABLE",
+      "note": "USD converted at 3.61 (peg 3.6725)",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "f31b8319512ebd2e84a641112da4ea4d327f95f8"
+      ],
+      "decoy_ids": {
+        "payout_ref": "PO-USD-20260924-6485"
+      },
+      "detector": "L11",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L11:decoys:peg",
+      "klass": "DECOY",
+      "note": "USD converted at the 3.6725 peg",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L12",
+      "expected": "90.00",
+      "expected_minor": 9000,
+      "fingerprints": [
+        "2c16532d9dca756d8c72c8cb94a233f04d9d4374"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4319941289"
+        ],
+        "pms_res_ids": [
+          "RC900056"
+        ]
+      },
+      "key": "L12:BOOKING:4319941289",
+      "klass": "RECOVERABLE",
+      "note": "AED 600 refunded, commission not reduced",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L12",
+      "expected": "90.00",
+      "expected_minor": 9000,
+      "fingerprints": [
+        "6ffd2145d1a3d13dbcca8d24f6c88917db275547"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4811628444"
+        ],
+        "pms_res_ids": [
+          "RC900057"
+        ]
+      },
+      "key": "L12:BOOKING:4811628444",
+      "klass": "RECOVERABLE",
+      "note": "AED 600 refunded, commission not reduced",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L13",
+      "expected": "1179.34",
+      "expected_minor": 117934,
+      "fingerprints": [
+        "347f1f5ec96bef5f0bbe878477919706edc5824f"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4475543593"
+        ],
+        "pms_res_ids": [
+          "RC900060"
+        ]
+      },
+      "key": "L13:BOOKING:4475543593",
+      "klass": "RECOVERABLE",
+      "note": "chargeback aged 95 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L13",
+      "expected": "1346.19",
+      "expected_minor": 134619,
+      "fingerprints": [
+        "832572867d8da917cab7e5004a7e0a2887f39220"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4528441792"
+        ],
+        "pms_res_ids": [
+          "RC900058"
+        ]
+      },
+      "key": "L13:BOOKING:4528441792",
+      "klass": "RECOVERABLE",
+      "note": "chargeback aged 20 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L13",
+      "expected": "1049.58",
+      "expected_minor": 104958,
+      "fingerprints": [
+        "835b24d6ab7ad5c182195875558e5cf98ab49cce"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4757399449"
+        ],
+        "pms_res_ids": [
+          "RC900059"
+        ]
+      },
+      "key": "L13:BOOKING:4757399449",
+      "klass": "RECOVERABLE",
+      "note": "chargeback aged 55 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L14",
+      "expected": "51.28",
+      "expected_minor": 5128,
+      "fingerprints": [
+        "c7f58948e45b0a4f58a7012326c23f2c0f957069"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4293513649"
+        ],
+        "pms_res_ids": [
+          "RC900076"
+        ]
+      },
+      "key": "L14:BOOKING:4293513649",
+      "klass": "RECOVERABLE",
+      "note": "PMS no-show: mark it in the extranet within 48 h of check-out",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L14",
+      "expected": "66.05",
+      "expected_minor": 6605,
+      "fingerprints": [
+        "edbedc9a50b62df43409ce0cf557acf8f7523226"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4602658777"
+        ],
+        "pms_res_ids": [
+          "RC900075"
+        ]
+      },
+      "key": "L14:BOOKING:4602658777",
+      "klass": "RECOVERABLE",
+      "note": "PMS no-show: mark it in the extranet within 48 h of check-out",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L14",
+      "expected": "136.80",
+      "expected_minor": 13680,
+      "fingerprints": [
+        "27ddcec8399c74b992542f3eff72a2550306b00c"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7257064774"
+        ],
+        "pms_res_ids": [
+          "RC900077"
+        ]
+      },
+      "key": "L14:EXPEDIA:7257064774",
+      "klass": "RECOVERABLE",
+      "note": "Hotel Collect stay shortened: report it by the 4th, 12:00",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L15",
+      "expected": "556.83",
+      "expected_minor": 55683,
+      "fingerprints": [
+        "402431f3069a8a15e1deec73619ba71995e1e266"
+      ],
+      "ids": {
+        "month": "2026-08",
+        "ota": "AGODA"
+      },
+      "key": "L15:AGODA:2026-08",
+      "klass": "COMPLIANCE",
+      "note": "self-account 5% VAT on commission invoiced from abroad",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L15",
+      "expected": "2400.70",
+      "expected_minor": 240070,
+      "fingerprints": [
+        "739237eb74a138598d38d85e0b999d1dba5b503b"
+      ],
+      "ids": {
+        "month": "2026-06",
+        "ota": "BOOKING"
+      },
+      "key": "L15:BOOKING:2026-06",
+      "klass": "COMPLIANCE",
+      "note": "self-account 5% VAT on commission invoiced from abroad",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L15",
+      "expected": "2255.60",
+      "expected_minor": 225560,
+      "fingerprints": [
+        "0cd87d1e793c04cbba24954fbeec39fac2c5f535"
+      ],
+      "ids": {
+        "month": "2026-07",
+        "ota": "BOOKING"
+      },
+      "key": "L15:BOOKING:2026-07",
+      "klass": "COMPLIANCE",
+      "note": "self-account 5% VAT on commission invoiced from abroad",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L15",
+      "expected": "2116.00",
+      "expected_minor": 211600,
+      "fingerprints": [
+        "982a7aba8d831e51dd136e90a47fe1e8cf977857"
+      ],
+      "ids": {
+        "month": "2026-08",
+        "ota": "BOOKING"
+      },
+      "key": "L15:BOOKING:2026-08",
+      "klass": "COMPLIANCE",
+      "note": "self-account 5% VAT on commission invoiced from abroad",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L15",
+      "expected": "237.14",
+      "expected_minor": 23714,
+      "fingerprints": [
+        "dee7a56396c0dc0fffba732cc3dbbe73f84d8be3"
+      ],
+      "ids": {
+        "month": "2026-08",
+        "ota": "EXPEDIA"
+      },
+      "key": "L15:EXPEDIA:2026-08",
+      "klass": "COMPLIANCE",
+      "note": "self-account 5% VAT on commission invoiced from abroad",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L1b",
+      "expected": "1359.12",
+      "expected_minor": 135912,
+      "fingerprints": [
+        "9cb3ce2a6e2b748353738590e7c7125c64672f5d"
+      ],
+      "ids": {
+        "doc_no": "BDC-202606-40102",
+        "lines": 245
+      },
+      "key": "L1b:BOOKING:2026-07",
+      "klass": "PREVENTABLE",
+      "note": "MF and TD not configured as charges before 1 Aug: commission on them each month",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L2",
+      "expected": "32.33",
+      "expected_minor": 3233,
+      "fingerprints": [
+        "0022c63c858316a8f73966f898a27f7d38213eef"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4209456273"
+        ],
+        "pms_res_ids": [
+          "RC900028"
+        ]
+      },
+      "key": "L2:BOOKING:4209456273",
+      "klass": "RECOVERABLE",
+      "note": "18% after Preferred ended on 31 Jul",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L2",
+      "expected": "30.76",
+      "expected_minor": 3076,
+      "fingerprints": [
+        "b816257190c613c08545262ffd443208330b9f16"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4418585988"
+        ],
+        "pms_res_ids": [
+          "RC900031"
+        ]
+      },
+      "key": "L2:BOOKING:4418585988",
+      "klass": "RECOVERABLE",
+      "note": "18% after Preferred ended on 31 Jul",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L2",
+      "expected": "28.68",
+      "expected_minor": 2868,
+      "fingerprints": [
+        "3ecf55bc7d95b03a4031cc30e768f0fa1b66ba87"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4619871705"
+        ],
+        "pms_res_ids": [
+          "RC900030"
+        ]
+      },
+      "key": "L2:BOOKING:4619871705",
+      "klass": "RECOVERABLE",
+      "note": "18% after Preferred ended on 31 Jul",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L2",
+      "expected": "37.02",
+      "expected_minor": 3702,
+      "fingerprints": [
+        "be61823575a8cea9bf1a4887f1d34129737450bf"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4744226730"
+        ],
+        "pms_res_ids": [
+          "RC900029"
+        ]
+      },
+      "key": "L2:BOOKING:4744226730",
+      "klass": "RECOVERABLE",
+      "note": "18% after Preferred ended on 31 Jul",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L2",
+      "expected": "37.02",
+      "expected_minor": 3702,
+      "fingerprints": [
+        "3f9e1eacd17a945fa055754f1d90b6cff3b8cf41"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4805484871"
+        ],
+        "pms_res_ids": [
+          "RC900027"
+        ]
+      },
+      "key": "L2:BOOKING:4805484871",
+      "klass": "RECOVERABLE",
+      "note": "18% after Preferred ended on 31 Jul",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L2",
+      "expected": "32.33",
+      "expected_minor": 3233,
+      "fingerprints": [
+        "0d8ed280cecb1adf7107392a6c2d28f1198d5bf1"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4926258447"
+        ],
+        "pms_res_ids": [
+          "RC900026"
+        ]
+      },
+      "key": "L2:BOOKING:4926258447",
+      "klass": "RECOVERABLE",
+      "note": "18% after Preferred ended on 31 Jul",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "863c72eb32ea94ea1e49252d39997505a1aba47a",
+        "bfe8aaf0c9dfb719c28c5e14f21233f1ede7c835",
+        "c440d11258ba73a99ad334440bc3bbea513de2e5",
+        "f34cd52455deb09a720f2de2f9d89b099fe0316b",
+        "f5eea49ec8ab1a14d9aa336b3edd3f9850bff171"
+      ],
+      "decoy_ids": {
+        "ota_res_ids": [
+          "4711374574",
+          "4910815743",
+          "4826416843",
+          "4826835116",
+          "4889034133"
+        ],
+        "pms_res_ids": [
+          "RC900032",
+          "RC900033",
+          "RC900034",
+          "RC900035",
+          "RC900036"
+        ]
+      },
+      "detector": "L2",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L2:decoys:preferred-active",
+      "klass": "DECOY",
+      "note": "18% on July stays while Preferred (+3) was active: due",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L3",
+      "expected": "157.94",
+      "expected_minor": 15794,
+      "fingerprints": [
+        "2d0bd48b09252dfef22fa0525f13451e00b3432d"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "971396310"
+        ],
+        "pms_res_ids": [
+          "RC900040"
+        ]
+      },
+      "key": "L3:AGODA:971396310",
+      "klass": "RECOVERABLE",
+      "note": "PMS no-show, commission charged",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L3",
+      "expected": "102.56",
+      "expected_minor": 10256,
+      "fingerprints": [
+        "08a4214b18e4f8a7d2d223e4fd41b00e6d948a2e"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4059222474"
+        ],
+        "pms_res_ids": [
+          "RC900038"
+        ]
+      },
+      "key": "L3:BOOKING:4059222474",
+      "klass": "RECOVERABLE",
+      "note": "PMS no-show, commission charged; credited by BDC-CN-202608-0033, so RECOVERED",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L3",
+      "expected": "95.61",
+      "expected_minor": 9561,
+      "fingerprints": [
+        "7e482532cef9e76531c08d3be3bbc41411cd436d"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4890734787"
+        ],
+        "pms_res_ids": [
+          "RC900037"
+        ]
+      },
+      "key": "L3:BOOKING:4890734787",
+      "klass": "RECOVERABLE",
+      "note": "PMS no-show, commission charged; credited by BDC-CN-202608-0033, so RECOVERED",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L3",
+      "expected": "143.41",
+      "expected_minor": 14341,
+      "fingerprints": [
+        "c42761a6dc4f5ab9aa3c8b4a71ccf327ec0bf186"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4969558972"
+        ],
+        "pms_res_ids": [
+          "RC900039"
+        ]
+      },
+      "key": "L3:BOOKING:4969558972",
+      "klass": "RECOVERABLE",
+      "note": "waived cancellation charged",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L3",
+      "expected": "118.80",
+      "expected_minor": 11880,
+      "fingerprints": [
+        "4ffb4ba06eb2d1d8c8200b053fffe929419a250d"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7292423727"
+        ],
+        "pms_res_ids": [
+          "RC900041"
+        ]
+      },
+      "key": "L3:EXPEDIA:7292423727",
+      "klass": "RECOVERABLE",
+      "note": "PMS no-show, commission charged",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "ade28e11e7e5e3d9df902998ec98203a11fce290"
+      ],
+      "decoy_ids": {
+        "ota_res_ids": [
+          "4948127104"
+        ],
+        "pms_res_ids": [
+          "RC900042"
+        ]
+      },
+      "detector": "L3",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L3:decoys:fee-collected",
+      "klass": "DECOY",
+      "note": "no-show fee collected, commission on the fee only",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L4",
+      "expected": "102.56",
+      "expected_minor": 10256,
+      "fingerprints": [
+        "21d3077deb5eade6542ff2e55798374091acb3fc"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4158067228"
+        ],
+        "pms_res_ids": [
+          "RC900045"
+        ]
+      },
+      "key": "L4:BOOKING:4158067228",
+      "klass": "RECOVERABLE",
+      "note": "5 nights booked, 3 stayed, OTA still reports 5",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L4",
+      "expected": "132.11",
+      "expected_minor": 13211,
+      "fingerprints": [
+        "02ad508174c5e9ea5da9c5ead3a706248f474e19"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4557669126"
+        ],
+        "pms_res_ids": [
+          "RC900043"
+        ]
+      },
+      "key": "L4:BOOKING:4557669126",
+      "klass": "RECOVERABLE",
+      "note": "5 nights booked, 3 stayed, OTA still reports 5",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L4",
+      "expected": "123.42",
+      "expected_minor": 12342,
+      "fingerprints": [
+        "7114ac4869b6dd09c204de6e6f1816382b269ff3"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4761591379"
+        ],
+        "pms_res_ids": [
+          "RC900044"
+        ]
+      },
+      "key": "L4:BOOKING:4761591379",
+      "klass": "RECOVERABLE",
+      "note": "5 nights booked, 3 stayed, OTA still reports 5",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "1eeccaa1d560c7bc5d2998c73bcfe6b66d322baa"
+      ],
+      "decoy_ids": {
+        "ota_res_ids": [
+          "4270227610"
+        ],
+        "pms_res_ids": [
+          "RC900046"
+        ]
+      },
+      "detector": "L4",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L4:decoys:reported",
+      "klass": "DECOY",
+      "note": "early departure reported to the OTA",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L5",
+      "expected": "20.86",
+      "expected_minor": 2086,
+      "fingerprints": [
+        "cadca6e8f543d4b93818d6ca6bff600d88963abf"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4309638242"
+        ],
+        "pms_res_ids": [
+          "RC900049"
+        ]
+      },
+      "key": "L5:BOOKING:4309638242",
+      "klass": "RECOVERABLE",
+      "note": "OTA prices AED 480 a night, the PMS AED 420 after the modification",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L5",
+      "expected": "20.86",
+      "expected_minor": 2086,
+      "fingerprints": [
+        "86f152f5b7072951efbc5f5b121b655313e17129"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4326357196"
+        ],
+        "pms_res_ids": [
+          "RC900048"
+        ]
+      },
+      "key": "L5:BOOKING:4326357196",
+      "klass": "RECOVERABLE",
+      "note": "OTA prices AED 480 a night, the PMS AED 420 after the modification",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L5",
+      "expected": "20.86",
+      "expected_minor": 2086,
+      "fingerprints": [
+        "ed95d192540387b1c925025a5f4559441d2a09ea"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4545332904"
+        ],
+        "pms_res_ids": [
+          "RC900047"
+        ]
+      },
+      "key": "L5:BOOKING:4545332904",
+      "klass": "RECOVERABLE",
+      "note": "OTA prices AED 480 a night, the PMS AED 420 after the modification",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L6",
+      "expected": "161.01",
+      "expected_minor": 16101,
+      "fingerprints": [
+        "caeca3bc5345f0312e77655902c61445ba74feb4"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4416282420"
+        ],
+        "pms_res_ids": [
+          "RC900050"
+        ]
+      },
+      "key": "L6:BOOKING:4416282420",
+      "klass": "PREVENTABLE",
+      "note": "stacked depth 35.0% over the 25% cap",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L6",
+      "expected": "220.73",
+      "expected_minor": 22073,
+      "fingerprints": [
+        "acdb3942942c9040121bb6c631d85410ae6ea056"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4525837167"
+        ],
+        "pms_res_ids": [
+          "RC900051"
+        ]
+      },
+      "key": "L6:BOOKING:4525837167",
+      "klass": "PREVENTABLE",
+      "note": "stacked depth 35.0% over the 25% cap",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "b6f4a7956c3baf1624bb03d139c65f70caa97294"
+      ],
+      "decoy_ids": {
+        "ota_res_ids": [
+          "4499897945"
+        ],
+        "pms_res_ids": [
+          "RC900052"
+        ]
+      },
+      "detector": "L6",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L6:decoys:genius-mobile",
+      "klass": "DECOY",
+      "note": "Genius 10 + Mobile 10 = 19%",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L7",
+      "expected": "211.20",
+      "expected_minor": 21120,
+      "fingerprints": [
+        "e29de3cf13809e675f22aa157a3a59fc2d0f1e89"
+      ],
+      "ids": {
+        "comparable_key": "2026-10-06|1|2|standard-king|DESKTOP|LOGGED_OUT",
+        "stay_date": "2026-10-06"
+      },
+      "key": "L7:AGODA:2026-10-06",
+      "klass": "PREVENTABLE",
+      "note": "Agoda 6% under direct, screenshot kept",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L7",
+      "expected": "221.10",
+      "expected_minor": 22110,
+      "fingerprints": [
+        "631b3424c73c8a8a2daceda1ed8b67e6affaac6b"
+      ],
+      "ids": {
+        "comparable_key": "2026-10-07|1|2|standard-king|DESKTOP|LOGGED_OUT",
+        "stay_date": "2026-10-07"
+      },
+      "key": "L7:AGODA:2026-10-07",
+      "klass": "PREVENTABLE",
+      "note": "Agoda 6% under direct, screenshot kept",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L7",
+      "expected": "252.00",
+      "expected_minor": 25200,
+      "fingerprints": [
+        "7d99735f6ad18e5c54567723dc61b15b91676575"
+      ],
+      "ids": {
+        "comparable_key": "2026-10-08|1|2|standard-king|DESKTOP|LOGGED_OUT",
+        "stay_date": "2026-10-08"
+      },
+      "key": "L7:AGODA:2026-10-08",
+      "klass": "PREVENTABLE",
+      "note": "Agoda 6% under direct, screenshot kept",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "fe1db09e031e566cfc591568cbe407824a535600"
+      ],
+      "decoy_ids": {
+        "comparable_key": "2026-10-11|1|2|standard-king|DESKTOP|LOGGED_IN",
+        "stay_date": "2026-10-11"
+      },
+      "detector": "L7",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L7:decoys:genius",
+      "klass": "DECOY",
+      "note": "Genius members' logged-in price: not comparable with a public price",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "774.03",
+      "expected_minor": 77403,
+      "fingerprints": [
+        "d36aee064a0edb0cabeab3e87955d158864665ad"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4340214333"
+        ],
+        "pms_res_ids": [
+          "RC900071"
+        ],
+        "vcc_id": "VCC-0214333"
+      },
+      "key": "L8:BOOKING:4340214333",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 9 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "774.03",
+      "expected_minor": 77403,
+      "fingerprints": [
+        "9d1b2228030ca1d8472cbdb5c1048741d451c285"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4497965281"
+        ],
+        "pms_res_ids": [
+          "RC900073"
+        ],
+        "vcc_id": "VCC-7965281"
+      },
+      "key": "L8:BOOKING:4497965281",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 33 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "720.93",
+      "expected_minor": 72093,
+      "fingerprints": [
+        "56f7669e11eb3a1df5f49d18b86471e31bbcab59"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "4790090369"
+        ],
+        "pms_res_ids": [
+          "RC900072"
+        ],
+        "vcc_id": "VCC-0090369"
+      },
+      "key": "L8:BOOKING:4790090369",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 25 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "600.72",
+      "expected_minor": 60072,
+      "fingerprints": [
+        "f3c91df8a5e95da62027cbbf60d83ab26347880f"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7127728927"
+        ],
+        "pms_res_ids": [
+          "RC900066"
+        ],
+        "vcc_id": "EVC-7728927"
+      },
+      "key": "L8:EXPEDIA:7127728927",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 12 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "769.65",
+      "expected_minor": 76965,
+      "fingerprints": [
+        "ef777cca611a8b06d0e2c101ea2e8dab4ed4ee0e"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7258168631"
+        ],
+        "pms_res_ids": [
+          "RC900067"
+        ],
+        "vcc_id": "EVC-8168631"
+      },
+      "key": "L8:EXPEDIA:7258168631",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 12 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "769.65",
+      "expected_minor": 76965,
+      "fingerprints": [
+        "6a782580598b1accea85922739a8be6bede4b9a9"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7311590168"
+        ],
+        "pms_res_ids": [
+          "RC900068"
+        ],
+        "vcc_id": "EVC-1590168"
+      },
+      "key": "L8:EXPEDIA:7311590168",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 20 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "822.45",
+      "expected_minor": 82245,
+      "fingerprints": [
+        "1bd17472461a117a2c7ee9a532dc95216f190af3"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7325025620"
+        ],
+        "pms_res_ids": [
+          "RC900065"
+        ],
+        "vcc_id": "EVC-5025620"
+      },
+      "key": "L8:EXPEDIA:7325025620",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 5 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "769.65",
+      "expected_minor": 76965,
+      "fingerprints": [
+        "3ca9c7f65383839f4de4cab2c4cc4d9115c399d9"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7363920482"
+        ],
+        "pms_res_ids": [
+          "RC900069"
+        ],
+        "vcc_id": "EVC-3920482"
+      },
+      "key": "L8:EXPEDIA:7363920482",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 40 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "674.63",
+      "expected_minor": 67463,
+      "fingerprints": [
+        "ec9048bbf9944586d92de01ac9f1616cacfb1bd5"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7375154031"
+        ],
+        "pms_res_ids": [
+          "RC900064"
+        ],
+        "vcc_id": "EVC-5154031"
+      },
+      "key": "L8:EXPEDIA:7375154031",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 5 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L8",
+      "expected": "716.86",
+      "expected_minor": 71686,
+      "fingerprints": [
+        "05658e5449eb52dff558ba52f3bfc37156886e48"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7394877314"
+        ],
+        "pms_res_ids": [
+          "RC900070"
+        ],
+        "vcc_id": "EVC-4877314"
+      },
+      "key": "L8:EXPEDIA:7394877314",
+      "klass": "RECOVERABLE",
+      "note": "card loaded, charge deadline in 40 days",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [
+        "7ca5202ac607bda4a83b4be86670747a4fa9c6a9",
+        "f59803635e9eb6066f967189b0e6676328e07541"
+      ],
+      "decoy_ids": {
+        "ota_res_ids": [
+          "7208521679"
+        ],
+        "pms_res_ids": [
+          "RC900074"
+        ],
+        "vcc_id": "EVC-8521679"
+      },
+      "detector": "L8",
+      "expected": "0.00",
+      "expected_minor": 0,
+      "fingerprints": [],
+      "ids": {},
+      "key": "L8:decoys:fully-charged",
+      "klass": "DECOY",
+      "note": "card fully charged: nothing to collect",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L9",
+      "expected": "1120.00",
+      "expected_minor": 112000,
+      "fingerprints": [
+        "76dd3ea3673233af31ddaf1b3f00119fc16f4236"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7392604038"
+        ],
+        "vcc_id": "EVC-2604038"
+      },
+      "key": "L9:EXPEDIA:EVC-2604038",
+      "klass": "RECOVERABLE",
+      "note": "legacy EVC from a March check-out, expired 4 days ago with money on it",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "L9",
+      "expected": "845.00",
+      "expected_minor": 84500,
+      "fingerprints": [
+        "be9512c37a0f2aa001c350cd5e03bef4fff45ab3"
+      ],
+      "ids": {
+        "ota_res_ids": [
+          "7313283326"
+        ],
+        "vcc_id": "EVC-3283326"
+      },
+      "key": "L9:EXPEDIA:EVC-3283326",
+      "klass": "RECOVERABLE",
+      "note": "legacy EVC from a March check-out, expired 12 days ago with money on it",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T1",
+      "expected": "80.00",
+      "expected_minor": 8000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900078"
+        ]
+      },
+      "key": "T1:RC900078",
+      "klass": "COMPLIANCE",
+      "note": "group of 3 rooms x 4 nights, TD posted once a night",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900078"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T2",
+      "expected": "150.00",
+      "expected_minor": 15000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900080"
+        ]
+      },
+      "key": "T2:RC900080",
+      "klass": "COMPLIANCE",
+      "note": "25 + 20 nights back to back: TD kept on nights 31-45",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC900080"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T3",
+      "expected": "50.00",
+      "expected_minor": 5000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900081"
+        ]
+      },
+      "key": "T3:RC900081",
+      "klass": "COMPLIANCE",
+      "note": "TD keyed at AED 15 for 10 nights",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900081"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T4",
+      "expected": "3.50",
+      "expected_minor": 350,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900082"
+        ]
+      },
+      "key": "T4:RC900082",
+      "klass": "COMPLIANCE",
+      "note": "a week of VAT charged on a walk-in's TD",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900082"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T5",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900083"
+        ]
+      },
+      "key": "T5:RC900083",
+      "klass": "RECOVERABLE",
+      "note": "TD posted twice on one night",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900083"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T5",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900084"
+        ]
+      },
+      "key": "T5:RC900084",
+      "klass": "RECOVERABLE",
+      "note": "TD posted twice on one night",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900084"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T5",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900085"
+        ]
+      },
+      "key": "T5:RC900085",
+      "klass": "RECOVERABLE",
+      "note": "TD posted twice on one night",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900085"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T5",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900086"
+        ]
+      },
+      "key": "T5:RC900086",
+      "klass": "RECOVERABLE",
+      "note": "TD posted twice on one night",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900086"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T6",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900087"
+        ]
+      },
+      "key": "T6:RC900087",
+      "klass": "COMPLIANCE",
+      "note": "TD charged on a no-show",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900087"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T6",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900088"
+        ]
+      },
+      "key": "T6:RC900088",
+      "klass": "COMPLIANCE",
+      "note": "TD charged on a no-show",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900088"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T6",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "ota_res_ids": [
+          null
+        ],
+        "pms_res_ids": [
+          "RC900089"
+        ]
+      },
+      "key": "T6:RC900089",
+      "klass": "COMPLIANCE",
+      "note": "TD charged on a no-show",
+      "subjects": [
+        {
+          "month": "2026-08",
+          "pms_res_id": "RC900089"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "T7",
+      "expected": "350.00",
+      "expected_minor": 35000,
+      "fingerprints": [
+        "e0f0e83b9ede4429f1b6cc7261c16df33287cae5"
+      ],
+      "ids": {
+        "month": "2026-08"
+      },
+      "key": "T7:2026-08",
+      "klass": "COMPLIANCE",
+      "note": "August TD remitted AED 350 below what the folio collected",
+      "subjects": []
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC100298"
+        ]
+      },
+      "key": "TX1:RC100298",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC100298"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC100459"
+        ]
+      },
+      "key": "TX1:RC100459",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC100459"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC100600"
+        ]
+      },
+      "key": "TX1:RC100600",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC100600"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC100768"
+        ]
+      },
+      "key": "TX1:RC100768",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC100768"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC100970"
+        ]
+      },
+      "key": "TX1:RC100970",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC100970"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC100972"
+        ]
+      },
+      "key": "TX1:RC100972",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC100972"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC101501"
+        ]
+      },
+      "key": "TX1:RC101501",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC101501"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC101511"
+        ]
+      },
+      "key": "TX1:RC101511",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC101511"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC101626"
+        ]
+      },
+      "key": "TX1:RC101626",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC101626"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC101718"
+        ]
+      },
+      "key": "TX1:RC101718",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC101718"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC101889"
+        ]
+      },
+      "key": "TX1:RC101889",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC101889"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC101929"
+        ]
+      },
+      "key": "TX1:RC101929",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC101929"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102127"
+        ]
+      },
+      "key": "TX1:RC102127",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102127"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102423"
+        ]
+      },
+      "key": "TX1:RC102423",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102423"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102526"
+        ]
+      },
+      "key": "TX1:RC102526",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102526"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102568"
+        ]
+      },
+      "key": "TX1:RC102568",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102568"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102644"
+        ]
+      },
+      "key": "TX1:RC102644",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102644"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102908"
+        ]
+      },
+      "key": "TX1:RC102908",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102908"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC102956"
+        ]
+      },
+      "key": "TX1:RC102956",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC102956"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103024"
+        ]
+      },
+      "key": "TX1:RC103024",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103024"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103041"
+        ]
+      },
+      "key": "TX1:RC103041",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103041"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103085"
+        ]
+      },
+      "key": "TX1:RC103085",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103085"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103086"
+        ]
+      },
+      "key": "TX1:RC103086",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103086"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103109"
+        ]
+      },
+      "key": "TX1:RC103109",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103109"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103136"
+        ]
+      },
+      "key": "TX1:RC103136",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103136"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103159"
+        ]
+      },
+      "key": "TX1:RC103159",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103159"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "20.00",
+      "expected_minor": 2000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103168"
+        ]
+      },
+      "key": "TX1:RC103168",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103168"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103234"
+        ]
+      },
+      "key": "TX1:RC103234",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103234"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103245"
+        ]
+      },
+      "key": "TX1:RC103245",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103245"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103247"
+        ]
+      },
+      "key": "TX1:RC103247",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103247"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103258"
+        ]
+      },
+      "key": "TX1:RC103258",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103258"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103267"
+        ]
+      },
+      "key": "TX1:RC103267",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103267"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103268"
+        ]
+      },
+      "key": "TX1:RC103268",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103268"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103294"
+        ]
+      },
+      "key": "TX1:RC103294",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103294"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103296"
+        ]
+      },
+      "key": "TX1:RC103296",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103296"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103297"
+        ]
+      },
+      "key": "TX1:RC103297",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103297"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103309"
+        ]
+      },
+      "key": "TX1:RC103309",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103309"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103314"
+        ]
+      },
+      "key": "TX1:RC103314",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103314"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC103351"
+        ]
+      },
+      "key": "TX1:RC103351",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC103351"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC900068"
+        ]
+      },
+      "key": "TX1:RC900068",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC900068"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC900069"
+        ]
+      },
+      "key": "TX1:RC900069",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC900069"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC900072"
+        ]
+      },
+      "key": "TX1:RC900072",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC900072"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC900073"
+        ]
+      },
+      "key": "TX1:RC900073",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC900073"
+        }
+      ]
+    },
+    {
+      "currency": "AED",
+      "decoy_fingerprints": [],
+      "decoy_ids": {},
+      "detector": "TX1",
+      "expected": "10.00",
+      "expected_minor": 1000,
+      "fingerprints": [],
+      "ids": {
+        "exempt_night": "2026-09-20",
+        "pms_res_ids": [
+          "RC900074"
+        ]
+      },
+      "key": "TX1:RC900074",
+      "klass": "COMPLIANCE",
+      "note": "TD posted on a night inside the exemption the owner applied",
+      "subjects": [
+        {
+          "month": "2026-09",
+          "pms_res_id": "RC900074"
+        }
+      ]
+    }
+  ],
+  "seed": 20261001
+}

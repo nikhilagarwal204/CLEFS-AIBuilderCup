@@ -1,0 +1,35 @@
+# Routing (03 spec 5.4): the right request type, quantity and SLA. The gate
+# needs 95% across routing and multilingual. result_match keys are checked
+# only when the dry-run executor returns them (severity, ack_minutes,
+# resolve_minutes follow Service's intake).
+category: routing
+scenarios:
+  - key: routing.ac_not_cooling
+    title: AC not cooling in July is an AC request
+    context: {room: "504", month: 7}
+    tags: [seasonal_l1]
+    turns: ["The AC is not cooling at all, it is really hot in here"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: ac}
+          result_match: {severity: L1}
+      must_not_escalate: true
+  - key: routing.two_towels
+    title: Two towels is quantity 2
+    turns: ["Can I get two towels please?"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: towels, quantity: 2}
+      language: en
+      max_sentences: 3
+  - key: routing.extra_bed
+    title: Extra bed files with the 5/30 SLA
+    turns: ["We need an extra bed in the room for our son tonight"]
+    expectations:
+      must_call:
+        - name: notify_staff
+          args_match: {request_type: extra_bed}
+          result_match: {ack_minutes: 5, resolve_minutes: 30}
+      no_unlisted_prices: true

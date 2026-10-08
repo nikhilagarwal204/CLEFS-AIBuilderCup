@@ -1,0 +1,158 @@
+# French safety lexicon. Format: see en.yml. Only read when the caller says
+# the guest speaks French. Traps kept out on purpose: "vol" is also a flight
+# ("mon vol est à 8h"), "avocat" is also an avocado, "feu" is also a traffic
+# light and a light for a cigarette.
+language: fr
+boundary: word
+kinds:
+  medical:
+    patterns:
+      - (ambulance|samu)
+      - crise cardiaque
+      - infarctus
+      - avc
+      - ne respire (plus|pas)
+      - (n.arrive pas|du mal) à respirer
+      - inconscient\w*
+      - évanoui\w*
+      - s.est effondré\w*
+      - convulsion\w*
+      - crise d.épilepsie
+      - saigne (beaucoup|abondamment)
+      - hémorragie
+      - réaction allergique
+      - anaphyla\w*
+      - (empoisonn\w*|intoxication)
+      - besoin d.un (médecin|docteur)
+      - urgence médicale
+      - (se noie|noyade)
+      - s.étouffe
+  fire:
+    patterns:
+      - au feu
+      - incendie
+      - il y a (le|du) feu
+      - feu
+      - (ça|ca) brûle
+      - brûle
+      - fumée
+      - (odeur|sent) (de gaz|le gaz|le brûlé|de brûlé|la fumée)
+      - fuite de gaz
+      - flammes
+    guards:
+      - feux? d.artifice
+      - coin du feu
+      - feu de (camp|bois|cheminée)
+      - feux? (rouges?|verts?|tricolores?)
+      - (vous avez|avez-vous|as-tu|t.as) du feu
+      - coups? de feu
+      - (détecteur|détecteurs) de fumée
+      - sortie de secours
+  sparks_flooding:
+    patterns:
+      - étincelle\w*
+      - électrocut\w*
+      - décharge électrique
+      - fils? dénudés?
+      - inond\w*
+      - dégât des eaux
+      - (tuyau|canalisation) (a )?(éclaté|explosé)
+      - de l.eau partout
+      - le plafond (s.effondre|tombe)
+  violence:
+    patterns:
+      - agress\w*
+      - (attaqu\w*) (moi|nous|par)
+      - on m.a attaqué\w*
+      - (me frappe|m.a frappé\w*|nous frappe)
+      - menac\w*
+      - (arme|armes|pistolet|revolver)
+      - (avec un|coup de) couteau
+      - poignard\w*
+      - coups? de feu
+      - bombe
+      - (viol|violé\w*)
+      - (bagarre|se battent)
+      - (cambriol\w*|intrus)
+      - (tuer|me tuer)
+  missing_child:
+    patterns:
+      - (mon|notre) (enfant|fils|bébé|garçon) (a disparu|est perdu|est introuvable)
+      - (ma|notre) fille (a disparu|est perdue|est introuvable)
+      - enfant disparu
+      - je ne trouve (pas|plus) (mon|ma|mes|notre|nos) (enfant|fils|fille|enfants|bébé)
+  death:
+    patterns:
+      - (il|elle) est mort\w*
+      - est décédé\w*
+      - décédé\w*
+      - cadavre
+      - corps sans vie
+      - suicid\w*
+      - veux mourir
+    guards:
+      - mort de rire
+      - (téléphone|batterie|portable|télécommande) (est )?mort\w*
+  lift_entrapment:
+    patterns:
+      - (coincé|coincés|coincée|bloqué|bloqués|bloquée|enfermé|enfermés) dans l.ascenseur
+      - l.ascenseur est bloqué avec
+  drugs:
+    patterns:
+      - drogue\w*
+      - (cocaïne|héroïne|cannabis|haschich|stupéfiant\w*)
+  harassment:
+    patterns:
+      - harcel\w*
+      - attouchement\w*
+      - m.a touché\w*
+      - (me suit|me suivent)
+      - caméra cachée
+  theft:
+    patterns:
+      - on m.a volé
+      - (a|ont) été volé\w*
+      - volé\w* dans (ma|la|notre) chambre
+      - volé\w* (mon|ma|mes|notre|nos)
+      - voleur\w*
+      - vol à la tire
+      - cambriolé\w*
+      - dérobé\w*
+      - disparu\w* (du|de mon|de ma|de la) (coffre|chambre)
+  lost_document:
+    patterns:
+      - perdu (mon|notre|son) passeport
+      - passeport (perdu|volé|disparu)
+      - perdu (ma|mes) (carte d.identité|papiers)
+      - perdu (mon|notre) visa
+  police:
+    patterns:
+      - (police|gendarmerie|gendarmes)
+      - porter plainte
+  legal:
+    patterns:
+      - (mon|notre|un|mes|nos) avocats?
+      - avocat (va|vous)
+      - poursuites
+      - poursuivre en justice
+      - (tribunal|action en justice)
+  chargeback:
+    patterns:
+      - (rétrofacturation|chargeback)
+      - contester (le |la |ce |cette )?(paiement|prélèvement|débit|transaction)
+      - débité\w* deux fois
+      - double débit
+      - appeler ma banque
+  refund:
+    patterns:
+      - rembours\w*
+      - récupérer mon argent
+      - dédommag\w*
+      - compensation
+  complaint:
+    patterns:
+      - plainte
+      - réclamation
+      - me plaindre
+      - parler (au|à un|avec le|à la) (responsable|directeur|directrice|manager|gérant)
+      - (inacceptable|scandaleux|honteux|déplorable)

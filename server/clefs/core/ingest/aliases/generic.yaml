@@ -1,0 +1,80 @@
+# Generic aliases per kind: the fallback when no named source fits, and the
+# extra spellings every source of that kind also accepts. The canonical field
+# name itself ("gross_minor", "gross") is always an alias, so a file exported
+# from a Clefs template maps with no help.
+#
+# UNVERIFIED: plain-language guesses, not taken from any vendor's export.
+source_code: generic
+label: Generic file
+kind: "*"
+unverified: true
+kinds:
+  OTA_STATEMENT:
+    ota_res_id: [reservation number, booking number, booking id, reservation id, confirmation number]
+    guest_name: [guest name, guest]
+    check_in: [check in, arrival]
+    check_out: [check out, departure]
+    gross_minor: [gross, total, amount, price]
+    commission_minor: [commission, commission amount]
+  OTA_PAYOUT:
+    ota_res_id: [reservation number, booking number, booking id, reservation id]
+    partner_payout_minor: [payout, net amount, amount paid, payout amount]
+  VCC_REPORT:
+    vcc_id: [card id, virtual card id, vcc id, card number]
+    ota_res_id: [reservation number, booking number, booking id, reservation id]
+    activation_date: [activation date, active from, valid from]
+    expiration_date: [expiration date, expiry date, expires, valid until, valid to]
+    initial_minor: [initial amount, card amount, loaded amount]
+    current_balance_minor: [current balance, balance, remaining balance]
+    status: [status, card status]
+  CREDIT_NOTE:
+    doc_no: [credit note number, credit note no, document number, note number]
+    related_doc_no: [invoice number, related invoice, original invoice]
+    ota_res_id: [reservation number, booking number, booking id]
+    amount_minor: [amount, credit amount, total]
+  BANK:
+    value_date: [value date, date, transaction date, posting date]
+    amount_minor: [amount, credit, credit amount, deposit]
+    reference: [reference, ref, transaction reference]
+    counterparty: [counterparty, payer, from, remitter, beneficiary]
+    description: [description, narration, details, particulars]
+  COMP_RATES:
+    # Long-format rate-shop exports (Lighthouse, RateGain and similar;
+    # UNVERIFIED spellings). Wide date-by-hotel grids go through Demand's own
+    # POST /hotels/{slug}/demand/comp-rates/import instead.
+    comp_name: [hotel, competitor, property, hotel name, competitor name, property name]
+    stay_date: [date, stay date, arrival date, check in, check in date, arrival]
+    los: [los, nights, length of stay]
+    adults: [adults, guests, occupancy, persons]
+    price_minor: [price, rate, lowest rate, best available rate, lowest price]
+    currency: [currency]
+    room_label: [room type, room name]
+    plan_label: [meal plan, rate plan, board, meal type]
+    channel: [channel, source, website]
+    captured_at: [shop date, extract date, extraction date, captured at, captured on, scraped at]
+  SUPPLIER_INVOICE:
+    invoice_no: [invoice no, invoice number, bill no]
+    invoice_date: [invoice date, date, bill date]
+    supplier: [supplier, vendor, supplier name]
+    item: [item, description, product, item description]
+    qty: [qty, quantity]
+    unit_cost_minor: [unit price, rate, unit cost]
+    amount_minor: [amount, total, line total, net amount]
+  OCCUPANCY:
+    date: [date, business date]
+    rooms_occupied: [rooms sold, occupied, rooms occupied]
+  PMS_FOLIO:
+    pms_txn_id: [transaction id, txn id, id]
+    posted_date: [date, posting date]
+    code: [code, transaction code]
+    amount_minor: [amount, total]
+  PMS_RESERVATIONS:
+    pms_res_id: [reservation id, reservation number, confirmation number, booking id]
+    check_in: [arrival, check in]
+    check_out: [departure, check out]
+  ISSUANCE:
+    issued_at: [date, issued at]
+    item: [item]
+    qty: [qty, quantity]
+  BOOKING_ENGINE_ATTRIBUTION:
+    booking_ref: [booking ref, booking reference, reservation id, confirmation, booking id]

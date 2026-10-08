@@ -1,0 +1,32 @@
+{
+  "Header": {"Time": "2026-09-29T05:00:00-07:00", "ReportName": "ProfitAndLoss", "ReportBasis": "Accrual",
+             "StartPeriod": "2026-08-01", "EndPeriod": "2026-08-31", "Currency": "AED",
+             "Option": [{"Name": "AccountingStandard", "Value": "IFRS"}]},
+  "Columns": {"Column": [{"ColTitle": "", "ColType": "Account"}, {"ColTitle": "Total", "ColType": "Money"}]},
+  "Rows": {"Row": [
+    {"type": "Section", "group": "Income", "Header": {"ColData": [{"value": "Income"}, {"value": ""}]},
+     "Rows": {"Row": [
+       {"type": "Data", "ColData": [{"value": "Room Revenue", "id": "10"}, {"value": "420000.00"}]},
+       {"type": "Data", "ColData": [{"value": "F&B Revenue", "id": "11"}, {"value": "95000.00"}]},
+       {"type": "Section", "Header": {"ColData": [{"value": "Other Operated"}, {"value": ""}]},
+        "Rows": {"Row": [{"type": "Data", "ColData": [{"value": "Spa Revenue", "id": "12"}, {"value": "12000.00"}]}]},
+        "Summary": {"ColData": [{"value": "Total Other Operated"}, {"value": "12000.00"}]}}
+     ]},
+     "Summary": {"ColData": [{"value": "Total Income"}, {"value": "527000.00"}]}},
+    {"type": "Section", "group": "COGS", "Header": {"ColData": [{"value": "Cost of Goods Sold"}, {"value": ""}]},
+     "Rows": {"Row": [{"type": "Data", "ColData": [{"value": "F&B Cost of Sales", "id": "20"}, {"value": "32000.00"}]}]},
+     "Summary": {"ColData": [{"value": "Total Cost of Goods Sold"}, {"value": "32000.00"}]}},
+    {"type": "Section", "group": "GrossProfit", "Summary": {"ColData": [{"value": "Gross Profit"}, {"value": "495000.00"}]}},
+    {"type": "Section", "group": "Expenses", "Header": {"ColData": [{"value": "Expenses"}, {"value": ""}]},
+     "Rows": {"Row": [
+       {"type": "Data", "ColData": [{"value": "Rooms Payroll", "id": "30"}, {"value": "70000.00"}]},
+       {"type": "Data", "ColData": [{"value": "DEWA Electricity", "id": "31"}, {"value": "38000.00"}]}
+     ]},
+     "Summary": {"ColData": [{"value": "Total Expenses"}, {"value": "108000.00"}]}},
+    {"type": "Section", "group": "NetOperatingIncome", "Summary": {"ColData": [{"value": "Net Operating Income"}, {"value": "387000.00"}]}},
+    {"type": "Section", "group": "OtherIncome", "Header": {"ColData": [{"value": "Other Income"}, {"value": ""}]},
+     "Rows": {"Row": [{"type": "Data", "ColData": [{"value": "Miscellaneous Income", "id": "40"}, {"value": "3000.00"}]}]},
+     "Summary": {"ColData": [{"value": "Total Other Income"}, {"value": "3000.00"}]}},
+    {"type": "Section", "group": "NetIncome", "Summary": {"ColData": [{"value": "Net Income"}, {"value": "390000.00"}]}}
+  ]}
+}

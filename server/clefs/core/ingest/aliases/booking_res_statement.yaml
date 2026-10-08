@@ -1,0 +1,38 @@
+# Booking.com reservation statement (Extranet > Finance > Reservation statements,
+# "Download XLS / CSV") and the reservations download.
+#
+# UNVERIFIED: Booking.com does not publish these headers. They come from
+# practitioner memory (docs/specs/research/uae/ota-formats.md 1.1) and must be
+# checked against real exports before a pilot relies on them. Aliases are
+# compared after normalize_header (lowercase, punctuation stripped, "%" -> "pct").
+source_code: booking_res_statement
+label: Booking.com reservation statement
+kind: OTA_STATEMENT
+ota_code: BOOKING
+unverified: true
+# Headers that, all present, identify this source when none was named.
+detect: [book number, commission amount]
+transforms:
+  commission_pct: {pct_to_ratio: true}
+fields:
+  ota_res_id: [reservation number, book number, booking number, reservation id, res id]
+  guest_name: [guest name s, guest names, guest name, booked by, booker name]
+  check_in: [check in, arrival, arrival date, checkin]
+  check_out: [check out, departure, departure date, checkout]
+  booked_at: [booked on, booking date, reservation date]
+  line_status: [status, reservation status]
+  rooms: [rooms, number of rooms]
+  persons: [persons, guests, number of guests]
+  room_nights: [duration nights, room nights, nights, los]
+  gross_minor: [price, final amount, amount, total price, room price, original amount]
+  commissionable_minor: [commissionable amount, commissionable revenue, commissionable price]
+  commission_pct: [commission pct, commission percentage, commission rate]
+  commission_minor: [commission amount, commission, commission amount payable]
+  currency: [currency, currency code]
+  booker_country: [booker country, guest country, country]
+  room_type: [unit type, room type, room name]
+  rate_plan: [rate plan, rate name, policy]
+  payment_status: [payment status]
+  payment_method: [payment method, payment type, payment provider]
+  cancelled_at: [cancellation date, cancelled on]
+  remarks: [remarks, notes]

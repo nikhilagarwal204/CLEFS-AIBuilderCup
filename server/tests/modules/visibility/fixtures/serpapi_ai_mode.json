@@ -1,0 +1,73 @@
+{
+ "search_metadata": {
+  "status": "Success",
+  "id": "serp_fixture"
+ },
+ "search_parameters": {
+  "engine": "google_ai_mode",
+  "q": "Recommend hotels near Downtown in Dubai"
+ },
+ "text_blocks": [
+  {
+   "type": "paragraph",
+   "snippet": "Several well-reviewed hotels sit close to Downtown Dubai.",
+   "reference_indexes": [
+    0
+   ]
+  },
+  {
+   "type": "list",
+   "list": [
+    {
+     "title": "Palm Vista Hotel",
+     "snippet": "Rooftop pool and views of Burj Khalifa.",
+     "reference_indexes": [
+      1
+     ]
+    },
+    {
+     "title": "Test Hotel Dubai",
+     "snippet": "Walking distance to the Dubai Mall.",
+     "reference_indexes": [
+      2,
+      3
+     ]
+    },
+    {
+     "title": "Address Boulevard",
+     "snippet": "Luxury option with direct mall access.",
+     "reference_indexes": [
+      0
+     ]
+    }
+   ]
+  }
+ ],
+ "references": [
+  {
+   "title": "Top hotels in Downtown Dubai",
+   "link": "https://www.timeoutdubai.com/hotels/downtown",
+   "source": "Time Out Dubai",
+   "index": 0
+  },
+  {
+   "title": "Palm Vista Hotel - Google Maps",
+   "link": "https://www.google.com/maps/place/?q=place_id:ChIJpalm",
+   "source": "Google",
+   "index": 1
+  },
+  {
+   "title": "Test Hotel Dubai",
+   "link": "https://www.agoda.com/test-hotel-dubai/hotel/dubai-ae.html",
+   "source": "Agoda",
+   "index": 2
+  },
+  {
+   "title": "Test Hotel Dubai",
+   "link": "https://www.google.com/maps/place/?q=place_id:ChIJself",
+   "source": "Google",
+   "index": 3
+  }
+ ],
+ "reconstructed_markdown": "Several well-reviewed hotels sit close to Downtown Dubai."
+}

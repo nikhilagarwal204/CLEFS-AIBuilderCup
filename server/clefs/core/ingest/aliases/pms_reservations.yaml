@@ -1,0 +1,41 @@
+# PMS reservation export (Opera "Reservation list", Protel, Cloudbeds, eZee,
+# Mews, Hotelogix and the generic CSV many UAE properties keep in Excel).
+#
+# UNVERIFIED: every PMS names columns its own way and each is configurable;
+# these are the common spellings. The alias map is a starting point and the
+# confirmed mapping is saved as a template per hotel and layout.
+source_code: pms_reservations
+label: PMS reservations
+kind: PMS_RESERVATIONS
+unverified: true
+detect: [confirmation, arrival, departure]
+fields:
+  pms_res_id: [confirmation, confirmation no, confirmation number, reservation no, reservation number,
+               res no, res id, reservation id, booking ref, folio no, pms id]
+  channel_code: [source, channel, booking source, source of business, sob, origin]
+  ota_res_id: [ota reference, channel reference, external reference, ota confirmation, ota id, channel res id]
+  guest_name: [guest name, name, guest, primary guest, full name]
+  guest_country: [nationality, country, guest country]
+  guest_language: [language, guest language]
+  booked_at: [booking date, created on, reservation date, date booked, created]
+  check_in: [arrival, arrival date, check in, check in date, checkin]
+  check_out: [departure, departure date, check out, check out date, checkout]
+  rooms_count: [rooms, no of rooms, number of rooms]
+  room_type_code: [room type, room type code, rm type, category]
+  room_number: [room, room no, room number, rm no]
+  rate_plan_code: [rate code, rate plan, rate plan code]
+  status: [status, reservation status, res status]
+  cancelled_at: [cancellation date, cancelled on, cancel date]
+  checked_in_at: [actual arrival, checked in at, check in time]
+  checked_out_at: [actual departure, checked out at, check out time]
+  gross_minor: [total amount, total, gross amount, total revenue, reservation total]
+  room_revenue_minor: [room revenue, room charges, accommodation, net room revenue]
+  currency: [currency]
+  segment: [market segment, segment, market code]
+  adults: [adults, adult, pax]
+  children: [children, child]
+  collect_model: [collect model, payment model]
+  payment_method: [payment method, payment type, guarantee]
+  promo_code: [promo code, promotion code, voucher]
+  guest_email: [email, guest email, e mail, email address]
+  guest_phone: [phone, mobile, guest phone, telephone, phone number, mobile number, contact number]

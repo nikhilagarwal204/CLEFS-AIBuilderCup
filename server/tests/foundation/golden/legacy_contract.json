@@ -1,0 +1,1318 @@
+{
+  "source": "server/main.py@aaf5cf4",
+  "steps": {
+    "conv_log_invalid": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/conversation-logs",
+      "shape": {
+        "detail": [
+          "list",
+          {
+            "input": {
+              "session_id": "str"
+            },
+            "loc": [
+              "list",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      },
+      "status": 422
+    },
+    "conv_log_post": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/conversation-logs",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "conv_log_post_2": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/conversation-logs",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "conv_logs_by_room": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/conversation-logs",
+      "shape": [
+        "list",
+        {
+          "hotel_slug": "str",
+          "id": "number",
+          "message": "str",
+          "role": "str",
+          "room_number": "str",
+          "session_id": "str",
+          "timestamp": "number"
+        }
+      ],
+      "status": 200,
+      "values": {
+        "0.message": "Hello",
+        "0.role": "user",
+        "0.room_number": "502",
+        "0.session_id": "sess-1",
+        "1.role": "assistant"
+      }
+    },
+    "conv_logs_by_session": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/conversation-logs",
+      "shape": [
+        "list",
+        {
+          "hotel_slug": "str",
+          "id": "number",
+          "message": "str",
+          "role": "str",
+          "room_number": "str",
+          "session_id": "str",
+          "timestamp": "number"
+        }
+      ],
+      "status": 200,
+      "values": {
+        "1.message": "Hi, how can I help?"
+      }
+    },
+    "conv_logs_none": {
+      "body": [],
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/conversation-logs",
+      "shape": [
+        "list",
+        "empty"
+      ],
+      "status": 200
+    },
+    "guest_delete": {
+      "body": {
+        "ok": true
+      },
+      "method": "DELETE",
+      "path": "/hotels/hotel-nandan/guests/999",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "guest_put": {
+      "body": {
+        "guests": [
+          {
+            "name": "Test Guest",
+            "type": "primary"
+          }
+        ],
+        "roomNumber": "999",
+        "stayType": "solo"
+      },
+      "method": "PUT",
+      "path": "/hotels/hotel-nandan/guests/999",
+      "shape": {
+        "guests": [
+          "list",
+          {
+            "name": "str",
+            "type": "str"
+          }
+        ],
+        "roomNumber": "str",
+        "stayType": "str"
+      },
+      "status": 200
+    },
+    "guests_all": {
+      "body": {
+        "305": {
+          "checkIn": "2026-04-09",
+          "checkOut": "2026-04-11",
+          "guests": [
+            {
+              "age": 42,
+              "name": "James Chen",
+              "type": "primary"
+            }
+          ],
+          "loyaltyTier": "explorist",
+          "occasions": [],
+          "preferences": {
+            "language": "English",
+            "tags": [
+              "no shellfish",
+              "fine dining",
+              "rooftop bars",
+              "Late checkout if available"
+            ]
+          },
+          "roomNumber": "305",
+          "stayType": "business"
+        },
+        "410": {
+          "checkIn": "2026-04-11",
+          "checkOut": "2026-04-15",
+          "guests": [
+            {
+              "age": 55,
+              "name": "Sarah Mitchell",
+              "type": "primary"
+            }
+          ],
+          "loyaltyTier": "globalist",
+          "occasions": [],
+          "preferences": {
+            "language": "English",
+            "tags": [
+              "gluten-free",
+              "dairy-free",
+              "yoga",
+              "Kolkata history",
+              "Bengali cuisine",
+              "Quiet room, away from elevator"
+            ]
+          },
+          "roomNumber": "410",
+          "stayType": "solo"
+        },
+        "502": {
+          "checkIn": "2026-04-10",
+          "checkOut": "2026-04-13",
+          "guests": [
+            {
+              "age": 38,
+              "name": "Aarav Sharma",
+              "type": "primary"
+            },
+            {
+              "age": 35,
+              "name": "Meera Sharma",
+              "type": "spouse"
+            },
+            {
+              "age": 8,
+              "name": "Ananya Sharma",
+              "type": "child"
+            }
+          ],
+          "loyaltyTier": "globalist",
+          "occasions": [
+            "anniversary"
+          ],
+          "preferences": {
+            "language": "English",
+            "tags": [
+              "vegetarian",
+              "no nuts",
+              "heritage walks",
+              "art galleries",
+              "Extra pillows, baby cot"
+            ]
+          },
+          "roomNumber": "502",
+          "stayType": "family"
+        },
+        "701": {
+          "checkIn": "2026-04-10",
+          "checkOut": "2026-04-14",
+          "guests": [
+            {
+              "age": 29,
+              "name": "Priya Kapoor",
+              "type": "primary"
+            },
+            {
+              "age": 31,
+              "name": "Rohan Kapoor",
+              "type": "spouse"
+            }
+          ],
+          "loyaltyTier": "member",
+          "occasions": [
+            "honeymoon"
+          ],
+          "preferences": {
+            "language": "Hindi",
+            "tags": [
+              "spa",
+              "local shopping",
+              "nightlife",
+              "Rose petals and champagne on arrival"
+            ]
+          },
+          "roomNumber": "701",
+          "stayType": "couple"
+        }
+      },
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/guests",
+      "shape": {
+        "305": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "empty"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        },
+        "410": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "empty"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        },
+        "502": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "str"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        },
+        "701": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "str"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        }
+      },
+      "status": 200
+    },
+    "guests_empty": {
+      "body": {},
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/guests",
+      "shape": {},
+      "status": 200
+    },
+    "guests_seed": {
+      "body": {
+        "305": {
+          "checkIn": "2026-04-09",
+          "checkOut": "2026-04-11",
+          "guests": [
+            {
+              "age": 42,
+              "name": "James Chen",
+              "type": "primary"
+            }
+          ],
+          "loyaltyTier": "explorist",
+          "occasions": [],
+          "preferences": {
+            "language": "English",
+            "tags": [
+              "no shellfish",
+              "fine dining",
+              "rooftop bars",
+              "Late checkout if available"
+            ]
+          },
+          "roomNumber": "305",
+          "stayType": "business"
+        },
+        "410": {
+          "checkIn": "2026-04-11",
+          "checkOut": "2026-04-15",
+          "guests": [
+            {
+              "age": 55,
+              "name": "Sarah Mitchell",
+              "type": "primary"
+            }
+          ],
+          "loyaltyTier": "globalist",
+          "occasions": [],
+          "preferences": {
+            "language": "English",
+            "tags": [
+              "gluten-free",
+              "dairy-free",
+              "yoga",
+              "Kolkata history",
+              "Bengali cuisine",
+              "Quiet room, away from elevator"
+            ]
+          },
+          "roomNumber": "410",
+          "stayType": "solo"
+        },
+        "502": {
+          "checkIn": "2026-04-10",
+          "checkOut": "2026-04-13",
+          "guests": [
+            {
+              "age": 38,
+              "name": "Aarav Sharma",
+              "type": "primary"
+            },
+            {
+              "age": 35,
+              "name": "Meera Sharma",
+              "type": "spouse"
+            },
+            {
+              "age": 8,
+              "name": "Ananya Sharma",
+              "type": "child"
+            }
+          ],
+          "loyaltyTier": "globalist",
+          "occasions": [
+            "anniversary"
+          ],
+          "preferences": {
+            "language": "English",
+            "tags": [
+              "vegetarian",
+              "no nuts",
+              "heritage walks",
+              "art galleries",
+              "Extra pillows, baby cot"
+            ]
+          },
+          "roomNumber": "502",
+          "stayType": "family"
+        },
+        "701": {
+          "checkIn": "2026-04-10",
+          "checkOut": "2026-04-14",
+          "guests": [
+            {
+              "age": 29,
+              "name": "Priya Kapoor",
+              "type": "primary"
+            },
+            {
+              "age": 31,
+              "name": "Rohan Kapoor",
+              "type": "spouse"
+            }
+          ],
+          "loyaltyTier": "member",
+          "occasions": [
+            "honeymoon"
+          ],
+          "preferences": {
+            "language": "Hindi",
+            "tags": [
+              "spa",
+              "local shopping",
+              "nightlife",
+              "Rose petals and champagne on arrival"
+            ]
+          },
+          "roomNumber": "701",
+          "stayType": "couple"
+        }
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/guests/seed",
+      "shape": {
+        "305": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "empty"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        },
+        "410": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "empty"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        },
+        "502": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "str"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        },
+        "701": {
+          "checkIn": "str",
+          "checkOut": "str",
+          "guests": [
+            "list",
+            {
+              "age": "number",
+              "name": "str",
+              "type": "str"
+            }
+          ],
+          "loyaltyTier": "str",
+          "occasions": [
+            "list",
+            "str"
+          ],
+          "preferences": {
+            "language": "str",
+            "tags": [
+              "list",
+              "str"
+            ]
+          },
+          "roomNumber": "str",
+          "stayType": "str"
+        }
+      },
+      "status": 200
+    },
+    "hotel_get": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan",
+      "shape": {
+        "assistant_name": "null",
+        "category": "str",
+        "city": "str",
+        "created_at": "str",
+        "id": "number",
+        "knowledge_base": "null",
+        "name": "str",
+        "rooms_count": "number",
+        "slug": "str",
+        "star_rating": "number",
+        "website": "str"
+      },
+      "status": 200,
+      "values": {
+        "category": "Standalone",
+        "city": "Guwahati",
+        "name": "Hotel Nandan",
+        "rooms_count": 70,
+        "slug": "hotel-nandan",
+        "star_rating": 4,
+        "website": "https://hotelnandan.com/"
+      }
+    },
+    "hotel_missing": {
+      "body": {
+        "detail": "Hotel 'does-not-exist' not found"
+      },
+      "method": "GET",
+      "path": "/hotels/does-not-exist",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 404
+    },
+    "location_create": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/locations",
+      "shape": {
+        "created_at": "str",
+        "custom_instructions": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "name": "str",
+        "slug": "str",
+        "type": "str"
+      },
+      "status": 200,
+      "values": {
+        "custom_instructions": "Mocktails only",
+        "hotel_slug": "hotel-nandan",
+        "name": "Rooftop Bar",
+        "slug": "rooftop",
+        "type": "restaurant"
+      }
+    },
+    "location_delete": {
+      "body": {
+        "status": "deleted"
+      },
+      "method": "DELETE",
+      "path": "/hotels/hotel-nandan/locations/rooftop",
+      "shape": {
+        "status": "str"
+      },
+      "status": 200
+    },
+    "location_get": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/locations/rooftop",
+      "shape": {
+        "created_at": "str",
+        "custom_instructions": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "name": "str",
+        "slug": "str",
+        "type": "str"
+      },
+      "status": 200,
+      "values": {
+        "name": "Sky Lounge",
+        "slug": "rooftop"
+      }
+    },
+    "location_missing": {
+      "body": {
+        "detail": "Location 'missing' not found for hotel 'hotel-nandan'"
+      },
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/locations/missing",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 404
+    },
+    "location_upsert": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/locations",
+      "shape": {
+        "created_at": "str",
+        "custom_instructions": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "name": "str",
+        "slug": "str",
+        "type": "str"
+      },
+      "status": 200,
+      "values": {
+        "name": "Sky Lounge",
+        "slug": "rooftop"
+      }
+    },
+    "locations_empty": {
+      "body": [],
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/locations",
+      "shape": [
+        "list",
+        "empty"
+      ],
+      "status": 200
+    },
+    "locations_list": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/locations",
+      "shape": [
+        "list",
+        {
+          "created_at": "str",
+          "custom_instructions": "str",
+          "hotel_slug": "str",
+          "id": "number",
+          "name": "str",
+          "slug": "str",
+          "type": "str"
+        }
+      ],
+      "status": 200,
+      "values": {
+        "0.name": "Sky Lounge",
+        "0.slug": "rooftop"
+      }
+    },
+    "pending_clear": {
+      "body": {
+        "ok": true
+      },
+      "method": "DELETE",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "pending_empty": {
+      "body": null,
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": "null",
+      "status": 200
+    },
+    "pending_ird": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "pending_rate_limited": {
+      "body": {
+        "detail": "Rate limit: room 410 has submitted 5 requests in the last 10 minutes."
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 429
+    },
+    "pending_water_0": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "pending_water_1": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "pending_water_2": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "pending_water_3": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "pending_water_4": {
+      "body": {
+        "ok": true
+      },
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/pending",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "request_complete": {
+      "body": {
+        "ok": true
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/requests/1",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "request_create_completed": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/requests",
+      "shape": {
+        "accepted_at": "null",
+        "assigned_to": "null",
+        "category": "str",
+        "description": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "priority": "str",
+        "resolved_at": "null",
+        "room": "str",
+        "status": "str",
+        "subtype": "null",
+        "timestamp": "number",
+        "type": "str"
+      },
+      "status": 200,
+      "values": {
+        "assigned_to": null,
+        "category": "General",
+        "priority": "low",
+        "status": "completed"
+      }
+    },
+    "request_create_invalid": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/requests",
+      "shape": {
+        "detail": [
+          "list",
+          {
+            "input": {
+              "room": "str"
+            },
+            "loc": [
+              "list",
+              "str"
+            ],
+            "msg": "str",
+            "type": "str"
+          }
+        ]
+      },
+      "status": 422
+    },
+    "request_create_spa": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/requests",
+      "shape": {
+        "accepted_at": "number",
+        "assigned_to": "str",
+        "category": "str",
+        "description": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "priority": "str",
+        "resolved_at": "null",
+        "room": "str",
+        "status": "str",
+        "subtype": "null",
+        "timestamp": "number",
+        "type": "str"
+      },
+      "status": 200,
+      "values": {
+        "assigned_to": "Pooja Sharma",
+        "priority": "medium",
+        "status": "progress"
+      }
+    },
+    "request_create_towel": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/requests",
+      "shape": {
+        "accepted_at": "number",
+        "assigned_to": "str",
+        "category": "str",
+        "description": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "priority": "str",
+        "resolved_at": "null",
+        "room": "str",
+        "status": "str",
+        "subtype": "null",
+        "timestamp": "number",
+        "type": "str"
+      },
+      "status": 200,
+      "values": {
+        "assigned_to": "Ravi Kumar",
+        "category": "Housekeeping",
+        "priority": "high",
+        "room": "502",
+        "status": "progress",
+        "type": "Towel"
+      }
+    },
+    "request_delete": {
+      "body": {
+        "ok": true
+      },
+      "method": "DELETE",
+      "path": "/hotels/hotel-nandan/requests/1",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "request_patch_missing": {
+      "body": {
+        "ok": true
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/requests/999999",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "requests_empty": {
+      "body": [],
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/requests",
+      "shape": [
+        "list",
+        "empty"
+      ],
+      "status": 200
+    },
+    "requests_list": {
+      "count": 9,
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/requests",
+      "shape": [
+        "list",
+        {
+          "accepted_at": "number",
+          "assigned_to": "str",
+          "category": "str",
+          "description": "str",
+          "hotel_slug": "str",
+          "id": "number",
+          "priority": "str",
+          "resolved_at": "null",
+          "room": "str",
+          "status": "str",
+          "subtype": "null",
+          "timestamp": "number",
+          "type": "str"
+        }
+      ],
+      "status": 200,
+      "values": {
+        "0.room": "410",
+        "0.status": "progress",
+        "0.type": "Water",
+        "5.assigned_to": "Arjun Nath",
+        "5.category": "Food & Beverage",
+        "5.priority": "medium",
+        "5.room": "701",
+        "7.room": "305",
+        "7.status": "progress",
+        "8.room": "502",
+        "8.status": "completed"
+      }
+    },
+    "root": {
+      "body": "Welcome to Clefs Backend APIs",
+      "method": "GET",
+      "path": "/",
+      "shape": "str",
+      "status": 200
+    },
+    "staff_analytics": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/staff-analytics",
+      "shape": {
+        "hotel_kpis": {
+          "avg_resolution_mins": "number",
+          "completed_today": "number",
+          "currently_active": "number",
+          "total_completed": "number"
+        },
+        "staff": [
+          "list",
+          {
+            "activity_log": [
+              "list",
+              {
+                "category": "str",
+                "done_at": "number",
+                "id": "number",
+                "notified_at": "number",
+                "priority": "str",
+                "resolution_mins": "number",
+                "room": "str",
+                "status": "str",
+                "subtype": "null",
+                "type": "str"
+              }
+            ],
+            "avg_resolution_mins": "number",
+            "completed_today": "number",
+            "created_at": "str",
+            "currently_active": "number",
+            "department": "str",
+            "fastest_mins": "number",
+            "hotel_slug": "str",
+            "id": "number",
+            "is_active": "bool",
+            "is_online": "bool",
+            "name": "str",
+            "phone_number": "null",
+            "role": "str",
+            "slowest_mins": "number",
+            "task_type_breakdown": {
+              "Towel": "number"
+            },
+            "today_work_mins": "number",
+            "total_completed": "number",
+            "total_work_mins": "number"
+          }
+        ]
+      },
+      "status": 200,
+      "values": {
+        "hotel_kpis": {
+          "avg_resolution_mins": 5.0,
+          "completed_today": 1,
+          "currently_active": 7,
+          "total_completed": 1
+        },
+        "staff.0.activity_log.0.resolution_mins": 5.0,
+        "staff.0.activity_log.0.status": "completed",
+        "staff.0.avg_resolution_mins": 5.0,
+        "staff.0.completed_today": 1,
+        "staff.0.name": "Ravi Kumar",
+        "staff.0.task_type_breakdown": {
+          "Towel": 1
+        },
+        "staff.0.total_completed": 1
+      }
+    },
+    "staff_create": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/staff",
+      "shape": {
+        "created_at": "str",
+        "department": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "is_active": "bool",
+        "is_online": "bool",
+        "name": "str",
+        "phone_number": "str",
+        "role": "str"
+      },
+      "status": 200,
+      "values": {
+        "is_active": true,
+        "is_online": false,
+        "name": "Test Person",
+        "phone_number": "9800000000"
+      }
+    },
+    "staff_create_duplicate": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/staff",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 400
+    },
+    "staff_delete": {
+      "body": {
+        "ok": true
+      },
+      "method": "DELETE",
+      "path": "/hotels/hotel-nandan/staff/15",
+      "shape": {
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "staff_empty": {
+      "body": [],
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/staff",
+      "shape": [
+        "list",
+        "empty"
+      ],
+      "status": 200
+    },
+    "staff_get": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/staff/15",
+      "shape": {
+        "created_at": "str",
+        "department": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "is_active": "bool",
+        "is_online": "bool",
+        "name": "str",
+        "phone_number": "str",
+        "role": "str"
+      },
+      "status": 200,
+      "values": {
+        "department": "Front Desk",
+        "name": "Test Person"
+      }
+    },
+    "staff_get_missing": {
+      "body": {
+        "detail": "Staff member not found"
+      },
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/staff/999999",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 404
+    },
+    "staff_list": {
+      "method": "GET",
+      "path": "/hotels/hotel-nandan/staff",
+      "shape": [
+        "list",
+        {
+          "created_at": "str",
+          "department": "str",
+          "hotel_slug": "str",
+          "id": "number",
+          "is_active": "bool",
+          "is_online": "bool",
+          "name": "str",
+          "phone_number": "null",
+          "role": "str"
+        }
+      ],
+      "status": 200,
+      "values": {
+        "0.department": "Concierge",
+        "0.name": "Ananya Iyer"
+      }
+    },
+    "staff_offline": {
+      "body": {
+        "is_online": false,
+        "ok": true
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/staff/15/status",
+      "shape": {
+        "is_online": "bool",
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "staff_online": {
+      "body": {
+        "is_online": true,
+        "ok": true
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/staff/15/status",
+      "shape": {
+        "is_online": "bool",
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "staff_online_again": {
+      "body": {
+        "message": "Status unchanged",
+        "ok": true
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/staff/15/status",
+      "shape": {
+        "message": "str",
+        "ok": "bool"
+      },
+      "status": 200
+    },
+    "staff_patch": {
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/staff/15",
+      "shape": {
+        "created_at": "str",
+        "department": "str",
+        "hotel_slug": "str",
+        "id": "number",
+        "is_active": "bool",
+        "is_online": "bool",
+        "name": "str",
+        "phone_number": "str",
+        "role": "str"
+      },
+      "status": 200,
+      "values": {
+        "is_online": false,
+        "role": "Night Auditor"
+      }
+    },
+    "staff_patch_missing": {
+      "body": {
+        "detail": "Staff member not found"
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/staff/999999",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 404
+    },
+    "staff_seed": {
+      "method": "POST",
+      "path": "/hotels/hotel-nandan/staff/seed",
+      "shape": [
+        "list",
+        {
+          "created_at": "str",
+          "department": "str",
+          "hotel_slug": "str",
+          "id": "number",
+          "is_active": "bool",
+          "is_online": "bool",
+          "name": "str",
+          "phone_number": "null",
+          "role": "str"
+        }
+      ],
+      "status": 200,
+      "values": {
+        "0.department": "Housekeeping",
+        "0.name": "Ravi Kumar",
+        "13.name": "Sanjay Mehta"
+      }
+    },
+    "staff_status_missing": {
+      "body": {
+        "detail": "Staff not found"
+      },
+      "method": "PATCH",
+      "path": "/hotels/hotel-nandan/staff/999999/status",
+      "shape": {
+        "detail": "str"
+      },
+      "status": 404
+    }
+  }
+}

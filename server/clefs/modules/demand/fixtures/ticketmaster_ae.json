@@ -1,0 +1,20 @@
+{
+  "_embedded": {
+    "events": [
+      {"id": "tmColdplay1", "name": "Coldplay: Music of the Spheres World Tour", "type": "event",
+       "url": "https://www.ticketmaster.ae/event/tmColdplay1",
+       "dates": {"start": {"localDate": "2026-11-14", "localTime": "20:00:00"}, "status": {"code": "onsale"}},
+       "classifications": [{"segment": {"name": "Music"}}],
+       "_embedded": {"venues": [{"name": "Coca-Cola Arena", "location": {"latitude": "25.2046", "longitude": "55.2620"}}]}},
+      {"id": "tmDisneyIce", "name": "Disney On Ice", "type": "event",
+       "url": "https://www.ticketmaster.ae/event/tmDisneyIce",
+       "dates": {"start": {"localDate": "2026-12-18"}, "end": {"localDate": "2026-12-20"}, "status": {"code": "postponed"}},
+       "classifications": [{"segment": {"name": "Family"}}],
+       "_embedded": {"venues": [{"name": "Coca-Cola Arena", "location": {"latitude": "25.2046", "longitude": "55.2620"}}]}},
+      {"id": "tmFilm", "name": "Film screening", "type": "event",
+       "dates": {"start": {"localDate": "2026-10-20"}, "status": {"code": "onsale"}},
+       "classifications": [{"segment": {"name": "Film"}}]}
+    ]
+  },
+  "page": {"size": 200, "totalElements": 3, "totalPages": 1, "number": 0}
+}

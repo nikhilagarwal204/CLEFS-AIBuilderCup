@@ -1,0 +1,474 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLEFS DESIGN SYSTEM
+
+   The palette is sampled directly out of the logo master
+   (brand/source/clefs-key-master.jpg) so the site can never drift away from
+   the mark: the gold ramp is percentiles of the key's own pixels, the slate
+   ramp is the stone it sits on. See brand/README.md.
+
+   --clefs-* is the source of truth. The --hc-* names below are LEGACY ALIASES
+   kept because the concierge and the staff dashboard reference them across
+   several thousand lines; retuning the brand means editing this block only.
+   New code should use --clefs-*.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ─── Slate: the stone the key is photographed on ─── */
+  --clefs-slate-950: #03060C;   /* deepest - footer, page floor */
+  --clefs-slate-900: #070C14;   /* page ground */
+  --clefs-slate-850: #0B121B;
+  --clefs-slate-800: #0F1720;   /* raised surfaces */
+  --clefs-slate-700: #16202D;
+  --clefs-slate-600: #1E2B3A;   /* hairline-adjacent, chips */
+  --clefs-slate-rgb: 7, 12, 20;
+
+  /* ─── Gold: the key's own lighting ramp, shadow through specular ─── */
+  --clefs-gold-900: #5B2700;
+  --clefs-gold-800: #885224;
+  --clefs-gold-700: #A7763E;    /* taglines, quiet gold text */
+  --clefs-gold-600: #C59253;
+  --clefs-gold-500: #E1AF68;    /* PRIMARY BRAND GOLD */
+  --clefs-gold-400: #F2C67D;
+  --clefs-gold-300: #FDDA96;
+  --clefs-gold-200: #FFEDA1;    /* specular highlight */
+  --clefs-gold-rgb: 225, 175, 104;
+
+  /* Struck metal. The same angle and stops the mark is lit with, so gilded
+     text sits in the same light as the key beside it. */
+  --clefs-metal: linear-gradient(158deg,
+    #FFEDA1 0%, #FDDA96 14%, #E1AF68 46%, #C59253 68%, #A7763E 86%, #885224 100%);
+
+  /* ─── Ink ─── */
+  --clefs-ink:       #F2EEE6;   /* warm white - never pure #FFF on this ground */
+  --clefs-ink-muted: rgba(242, 238, 230, 0.58);
+  --clefs-ink-faint: rgba(242, 238, 230, 0.34);
+  --clefs-ink-dark:  #16202D;   /* text ON gold */
+
+  /* ─── Hairlines and surfaces ─── */
+  --clefs-line:      rgba(225, 175, 104, 0.16);
+  --clefs-line-soft: rgba(255, 255, 255, 0.07);
+  --clefs-line-gold: rgba(225, 175, 104, 0.34);
+  --clefs-surface:   rgba(255, 255, 255, 0.025);
+  --clefs-surface-2: rgba(255, 255, 255, 0.05);
+  --clefs-gold-wash: rgba(225, 175, 104, 0.05);
+  --clefs-glass:     rgba(7, 12, 20, 0.72);
+
+  /* ─── Elevation. Long, soft and near-black: on a stone ground a tight dark
+         shadow reads as a sticker, a long one reads as depth. ─── */
+  --clefs-shadow-1: 0 1px 2px rgba(0,0,0,0.28);
+  --clefs-shadow-2: 0 10px 30px -8px rgba(0,0,0,0.55);
+  --clefs-shadow-3: 0 30px 70px -20px rgba(0,0,0,0.7);
+  --clefs-glow:     0 0 0 1px rgba(225,175,104,0.18), 0 12px 40px -12px rgba(225,175,104,0.3);
+
+  /* ─── Type ─── */
+  --clefs-serif: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  --clefs-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --clefs-tracking-eyebrow: 0.22em;
+
+  /* ─── Motion ─── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ═════════ LEGACY ALIASES - do not add to this list ═════════ */
+
+  /* Gold system */
+  --hc-gold: var(--clefs-gold-500);
+  --hc-light-gold: var(--clefs-gold-400);
+  --hc-soft-gold: var(--clefs-gold-300);
+  --hc-warm-gold: var(--clefs-gold-700);
+  --hc-rich-brown: var(--clefs-gold-800);
+
+  /* Brand ground */
+  --hc-slate: var(--clefs-slate-900);
+  --hc-dark: var(--clefs-slate-850);
+  --hc-darker: var(--clefs-slate-950);
+  --hc-charcoal: var(--clefs-slate-700);
+  --hc-navy: var(--clefs-slate-600);
+
+  /* Greens. Vestigial from the pre-Clefs identity and now used only as the
+     housekeeping/success hue - retuned to sit against slate rather than the
+     old green ground. */
+  --hc-deep-green: #14503C;
+  --hc-green: #2F8A63;
+  --hc-light-green: #46A87C;
+  --hc-green-rgb: 70, 168, 124;
+
+  /* Neutral warmth */
+  --hc-cream: #F5F0E8;
+  --hc-ivory: #FEFCF6;
+  --hc-warm-bg: #FAF7F2;
+
+  /* Operational accents */
+  --hc-blue: #5B9BE8;
+  --hc-blue-rgb: 91, 155, 232;
+  --hc-blue-muted: #8AB8EF;
+  --hc-blue-glow: rgba(91, 155, 232, 0.1);
+
+  /* Status */
+  --hc-success: #34C77B;
+  --hc-success-rgb: 52, 199, 123;
+  --hc-pending: #E9A93B;
+  --hc-pending-rgb: 233, 169, 59;
+  --hc-urgent: #E5484D;
+  --hc-urgent-rgb: 229, 72, 77;
+  --hc-warning: #E9A93B;
+  --hc-warning-rgb: 233, 169, 59;
+
+  /* Text */
+  --hc-text: var(--clefs-ink);
+  --hc-text-dark: #1F2937;
+  --hc-text-muted: var(--clefs-ink-muted);
+
+  /* Surfaces */
+  --hc-border: var(--clefs-line);
+  --hc-border-light: rgba(225, 175, 104, 0.08);
+  --hc-border-warm: var(--clefs-line-gold);
+  --hc-glass: var(--clefs-glass);
+  --hc-glass-light: rgba(7, 12, 20, 0.45);
+  --hc-glass-warm: var(--clefs-gold-wash);
+
+  /* Shadows */
+  --shadow-sm: var(--clefs-shadow-1);
+  --shadow-md: var(--clefs-shadow-2);
+  --shadow-lg: var(--clefs-shadow-3);
+  --shadow-gold: 0 0 20px rgba(225, 175, 104, 0.15);
+  --shadow-gold-lg: 0 0 40px rgba(225, 175, 104, 0.2);
+  --shadow-warm: 0 8px 32px rgba(136, 82, 36, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--hc-darker);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent iOS rubber-banding / overscroll on the concierge page */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--hc-text);
+  overflow-x: hidden;
+  /* Safe area insets for notched devices (iPhone X+, etc.) */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ========= RESPONSIVE HELPERS ========= */
+
+/* Fix 100vh on mobile browsers (Safari address bar, etc.) */
+@supports (height: 100dvh) {
+  .full-height {
+    height: 100dvh !important;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* GPU-accelerated layer promotion for animated elements */
+.gpu-layer {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(225, 175, 104,0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(225, 175, 104,0.35);
+}
+
+/* ========= ANIMATIONS ========= */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.12); opacity: 0.7; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(225, 175, 104,0.3); }
+  50% { box-shadow: 0 0 20px 8px rgba(225, 175, 104,0.15); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes wave {
+  from { height: 4px; }
+  to { height: 22px; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes rotateGlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blink {
+  50% { border-color: transparent; }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(225, 175, 104,0.15); }
+  50% { border-color: rgba(225, 175, 104,0.35); }
+}
+
+@keyframes bgPan {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ========= UTILITY CLASSES ========= */
+.glass-panel {
+  background: var(--hc-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--hc-border);
+}
+
+.glass-warm {
+  background: var(--hc-glass-warm);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--hc-border-warm);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, var(--hc-gold), var(--hc-light-gold), var(--hc-soft-gold), var(--hc-gold));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: bgPan 4s linear infinite;
+}
+
+.serif {
+  font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+}
+
+.sans {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE BRAND SURFACE
+
+   Every Clefs surface - marketing, guest concierge, staff dashboard - sits on
+   the same stone ground the logo is photographed on. Two layers:
+
+     1. a graded slate base, pure CSS, so it costs nothing and scales to any
+        viewport height;
+     2. brand/slate-grain.png, a 256px seamless tile of the same mineral grain
+        that is baked into the logo plate.
+
+   The grain tile is a luminance-modulation layer: white where the stone is
+   above mid-grey, black where below, alpha carrying the magnitude. Drawn at
+   normal blending it therefore adds AND subtracts light on any ground. The
+   obvious alternative - a mid-grey tile under `mix-blend-mode: soft-light` -
+   does not work here: soft-light scales its effect by the backdrop, so over a
+   near-black page it is invisible, and near-black is the whole brand.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.clefs-ground {
+  position: relative;
+  background-color: var(--clefs-slate-900);
+  background-image:
+    radial-gradient(1400px 700px at 50% -8%,  rgba(225, 175, 104, 0.10), transparent 68%),
+    radial-gradient(1000px 800px at 8% 32%,   rgba(30, 43, 58, 0.5),     transparent 70%),
+    radial-gradient(900px 700px at 96% 72%,   rgba(22, 32, 45, 0.45),    transparent 70%),
+    linear-gradient(180deg, var(--clefs-slate-850) 0%, var(--clefs-slate-900) 52%, var(--clefs-slate-950) 100%);
+  background-attachment: fixed, fixed, fixed, scroll;
+}
+
+/* The grain sits on a fixed layer so it does not swim as the page scrolls -
+   real stone does not slide past its own surface. */
+.clefs-ground::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url('/brand/slate-grain.png');
+  background-size: 256px 256px;
+  opacity: 0.55;
+}
+
+/* Anything that must sit above the grain. */
+.clefs-above { position: relative; z-index: 1; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .clefs-ground::before { display: none; }
+}
+
+/* ── Gilding ────────────────────────────────────────────────────────────────
+   Two grades. `clefs-gilt` is the static struck-metal fill for headlines and
+   the wordmark. `clefs-gilt--live` adds the slow sheen, and is for ONE element
+   per view at most: a page of animated gold reads as a casino, not a concierge.
+   Both need a fallback colour first - if the clip fails the text must not
+   disappear. */
+.clefs-gilt {
+  color: var(--clefs-gold-500);
+  background: var(--clefs-metal);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .clefs-gilt { -webkit-text-fill-color: currentColor; background: none; }
+}
+.clefs-gilt--live {
+  background-size: 220% auto;
+  animation: clefsSheen 9s linear infinite;
+}
+@keyframes clefsSheen {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Hairline rules. A gold line that fades at both ends reads as engraving;
+      one that runs edge to edge reads as a divider in a spreadsheet. ─────── */
+.clefs-rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, var(--clefs-line-gold), transparent);
+}
+.clefs-rule--left {
+  background: linear-gradient(90deg, var(--clefs-line-gold), transparent);
+}
+
+/* ── Panels ─────────────────────────────────────────────────────────────── */
+.clefs-panel {
+  background: var(--clefs-surface);
+  border: 1px solid var(--clefs-line-soft);
+  border-radius: 18px;
+  box-shadow: var(--clefs-shadow-2);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.clefs-panel--gold {
+  background: var(--clefs-gold-wash);
+  border-color: var(--clefs-line);
+}
+
+/* ── Eyebrow: the small tracked-out label above a section title ─────────── */
+.clefs-eyebrow {
+  font-family: var(--clefs-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: var(--clefs-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--clefs-gold-600);
+}
+
+/* ── Focus. Keyboard users get a visible gold ring everywhere; mouse users
+      never see it. Removing outlines outright is a WCAG 2.4.7 failure. ──── */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--clefs-gold-500);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection { background: rgba(225, 175, 104, 0.28); color: var(--clefs-ink); }
+
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────
+   Shared primitive, NOT page-scoped. These used to live inside the <style> tag
+   that MarketingHomepage renders, so every other page in the app used the class
+   names and got no CSS at all - the solution pages shipped default blue
+   underlined anchors. Any page may use .cb-btn now; it belongs to the design
+   system, not to the homepage. ───────────────────────────────────────────── */
+/* ══ BUTTONS ══ */
+.cb-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font-family: var(--clefs-sans);
+  font-size: 0.84rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 15px 30px; border-radius: 3px; border: 1px solid transparent;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: transform .35s var(--ease-out), box-shadow .35s var(--ease-out),
+              background .35s var(--ease-out), color .35s var(--ease-out),
+              border-color .35s var(--ease-out);
+}
+.cb-btn--gold {
+  background: linear-gradient(160deg, var(--clefs-gold-300), var(--clefs-gold-500) 55%, var(--clefs-gold-600));
+  color: var(--clefs-ink-dark);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset, var(--clefs-shadow-2);
+}
+.cb-btn--gold:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255,255,255,0.45) inset, 0 16px 40px -12px rgba(225,175,104,0.5); }
+.cb-btn--ghost {
+  background: transparent; color: var(--clefs-ink);
+  border-color: rgba(255,255,255,0.18);
+}
+.cb-btn--ghost:hover { border-color: var(--clefs-line-gold); color: var(--clefs-gold-400); }
+.cb-btn--sm { padding: 10px 20px; font-size: 0.78rem; }
+.cb-btn--lg { padding: 18px 42px; font-size: 0.9rem; }

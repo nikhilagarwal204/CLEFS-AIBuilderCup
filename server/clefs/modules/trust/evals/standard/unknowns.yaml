@@ -1,0 +1,16 @@
+# Unknowns (03 spec 5.4): escalate or say "I don't know", never invent.
+category: unknowns
+scenarios:
+  - key: unknowns.helipad
+    title: Helipad? escalates or answers unknown
+    turns: ["Does the hotel have a helipad? I want to arrive by helicopter tomorrow."]
+    expectations:
+      unknown_or_escalate: true
+      no_unlisted_prices: true
+      must_not_call: [place_order]
+  - key: unknowns.ev_charger
+    title: EV charger? escalates or answers unknown
+    flaky: true
+    turns: ["Is there a Tesla supercharger in your car park?"]
+    expectations:
+      unknown_or_escalate: true

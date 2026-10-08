@@ -1,0 +1,52 @@
+{
+  "Id": "c8d1a6e4-0000-4000-8000-000000000001",
+  "Status": "OK",
+  "ProviderName": "Clefs (fixture)",
+  "Reports": [{
+    "ReportID": "ProfitAndLoss",
+    "ReportName": "Profit and Loss",
+    "ReportType": "ProfitAndLoss",
+    "ReportTitles": ["Profit & Loss", "Test Hotel Dubai (DEMO)", "1 August 2026 to 31 August 2026"],
+    "ReportDate": "29 September 2026",
+    "Rows": [
+      {"RowType": "Header", "Cells": [{"Value": ""}, {"Value": "31 Aug 26"}]},
+      {"RowType": "Section", "Title": "Income", "Rows": [
+        {"RowType": "Row", "Cells": [{"Value": "Room Revenue", "Attributes": [{"Value": "a-4000", "Id": "account"}]}, {"Value": "420000.00", "Attributes": [{"Value": "a-4000", "Id": "account"}]}]},
+        {"RowType": "Row", "Cells": [{"Value": "F&B Revenue", "Attributes": [{"Value": "a-4100", "Id": "account"}]}, {"Value": "95000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Spa Revenue", "Attributes": [{"Value": "a-4200", "Id": "account"}]}, {"Value": "12000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Miscellaneous Income", "Attributes": [{"Value": "a-4300", "Id": "account"}]}, {"Value": "3000.00"}]},
+        {"RowType": "SummaryRow", "Cells": [{"Value": "Total Income"}, {"Value": "530000.00"}]}
+      ]},
+      {"RowType": "Section", "Title": "Less Cost of Sales", "Rows": [
+        {"RowType": "Row", "Cells": [{"Value": "F&B Cost of Sales", "Attributes": [{"Value": "a-5000", "Id": "account"}]}, {"Value": "32000.00"}]},
+        {"RowType": "SummaryRow", "Cells": [{"Value": "Total Cost of Sales"}, {"Value": "32000.00"}]}
+      ]},
+      {"RowType": "Section", "Title": "", "Rows": [
+        {"RowType": "Row", "Cells": [{"Value": "Gross Profit"}, {"Value": "498000.00"}]}
+      ]},
+      {"RowType": "Section", "Title": "Less Operating Expenses", "Rows": [
+        {"RowType": "Row", "Cells": [{"Value": "Rooms Payroll", "Attributes": [{"Value": "a-6000", "Id": "account"}]}, {"Value": "70000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "OTA Commissions", "Attributes": [{"Value": "a-6010", "Id": "account"}]}, {"Value": "55000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Rooms Other Expenses", "Attributes": [{"Value": "a-6020", "Id": "account"}]}, {"Value": "25000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "F&B Payroll", "Attributes": [{"Value": "a-6100", "Id": "account"}]}, {"Value": "30000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "F&B Other Expenses", "Attributes": [{"Value": "a-6110", "Id": "account"}]}, {"Value": "8000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Spa Expenses", "Attributes": [{"Value": "a-6200", "Id": "account"}]}, {"Value": "5000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "A&G Payroll", "Attributes": [{"Value": "a-6300", "Id": "account"}]}, {"Value": "25000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "A&G Other", "Attributes": [{"Value": "a-6310", "Id": "account"}]}, {"Value": "20000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "IT Systems", "Attributes": [{"Value": "a-6400", "Id": "account"}]}, {"Value": "8000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Sales Payroll", "Attributes": [{"Value": "a-6500", "Id": "account"}]}, {"Value": "8000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Marketing", "Attributes": [{"Value": "a-6510", "Id": "account"}]}, {"Value": "10000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Maintenance Payroll", "Attributes": [{"Value": "a-6600", "Id": "account"}]}, {"Value": "10000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Maintenance Other", "Attributes": [{"Value": "a-6610", "Id": "account"}]}, {"Value": "12000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "DEWA Electricity", "Attributes": [{"Value": "a-6700", "Id": "account"}]}, {"Value": "38000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Insurance", "Attributes": [{"Value": "a-6800", "Id": "account"}]}, {"Value": "6000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Depreciation", "Attributes": [{"Value": "a-6900", "Id": "account"}]}, {"Value": "30000.00"}]},
+        {"RowType": "Row", "Cells": [{"Value": "Interest on loan", "Attributes": [{"Value": "a-6910", "Id": "account"}]}, {"Value": "12000.00"}]},
+        {"RowType": "SummaryRow", "Cells": [{"Value": "Total Operating Expenses"}, {"Value": "372000.00"}]}
+      ]},
+      {"RowType": "Section", "Title": "", "Rows": [
+        {"RowType": "Row", "Cells": [{"Value": "Net Profit"}, {"Value": "126000.00"}]}
+      ]}
+    ]
+  }]
+}
