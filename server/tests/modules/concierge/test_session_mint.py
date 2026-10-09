@@ -1,14 +1,35 @@
-"""POST /public/concierge/sessions (03 spec 2.2): consent, limits, mint body."""
+"""POST /public/concierge/sessions (03 spec 2.2): consent, limits, mint body;
+the Vertex AI relay mint (05 spec, Voice relay (F))."""
 
 from __future__ import annotations
+
+from types import SimpleNamespace
+from urllib.parse import urlparse
 
 import pytest
 
 from clefs.auth import tokens
 from clefs.core import rooms
-from clefs.modules.concierge import sessions
+from clefs.modules.concierge import live_relay, sessions
 
 GRANTS = {"ai_processing": True, "transfer_abroad": True, "recording": True, "ai_analytics": False}
+
+
+@pytest.fixture(autouse=True)
+def ephemeral_by_default(monkeypatch):
+    """The ephemeral-token path, whatever GOOGLE_GENAI_USE_VERTEXAI the
+    shell has; the relay tests switch LIVE_VIA_VERTEX on."""
+    monkeypatch.setenv("LIVE_VIA_VERTEX", "false")
+
+
+@pytest.fixture
+def relay_on(monkeypatch):
+    """LIVE_VIA_VERTEX on, with a stand-in Live connector (the mint never
+    opens it; it only makes the relay available with the AI off)."""
+    monkeypatch.setenv("LIVE_VIA_VERTEX", "true")
+    live_relay.set_live_connector(lambda model, config: None)
+    yield
+    live_relay.set_live_connector(None)
 
 
 @pytest.fixture
@@ -108,6 +129,57 @@ def test_http_transport_needs_no_live_token(client, hotel_uae, minted):
 
 
 def test_ai_disabled_is_409(client, hotel_uae):
+    r = _mint(client, hotel_uae.slug)
+    assert r.status_code == 409 and r.json()["code"] == "ai_disabled"
+
+
+# ─── Vertex AI relay (LIVE_VIA_VERTEX) ───
+
+
+def test_relay_mint_returns_relay_url_and_token(client, cur, hotel_uae, relay_on, minted):
+    r = _mint(client, hotel_uae.slug, k=rooms.qr_key(hotel_uae.slug, "101"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    sid = body["session_id"]
+    assert body["transport"] == "relay" and body["client_secret"] is None
+    assert minted == [], "no Gemini Developer API token is minted"
+    url = urlparse(body["relay_url"])
+    assert url.scheme in ("ws", "wss") and url.path == f"/public/concierge/live/{sid}"
+    claims = sessions.verify_relay_token(body["relay_token"], sid)
+    assert claims and claims["h"] == hotel_uae.slug
+    assert sessions.verify_relay_token(body["relay_token"], "another-session") is None
+    assert body["relay_expires_at"] and body["model"] == sessions.relay_model() == sessions.DEFAULT_LIVE_VERTEX_MODEL
+    assert body["session_token"] and body["verified"] is True and body["stay_token"] and body["greeting_text"]
+    cur.execute("SELECT transport, model, room FROM cc_sessions WHERE id = %s", (sid,))
+    assert dict(cur.fetchone()) == {"transport": "live", "model": body["model"], "room": "101"}
+
+
+def test_relay_settings_from_env(client, hotel_uae, relay_on, monkeypatch):
+    monkeypatch.setenv("LIVE_VERTEX_MODEL", "gemini-live-2.5-flash-native-audio")
+    monkeypatch.setenv("LIVE_RELAY_ORIGIN", "https://relay.example.test/")
+    body = _mint(client, hotel_uae.slug, mode="text").json()
+    assert body["model"] == "gemini-live-2.5-flash-native-audio"
+    assert body["relay_url"] == f"wss://relay.example.test/public/concierge/live/{body['session_id']}"
+
+
+def test_relay_default_follows_vertex(monkeypatch):
+    monkeypatch.delenv("LIVE_VIA_VERTEX", raising=False)
+    monkeypatch.setattr(sessions, "get_settings", lambda: SimpleNamespace(GOOGLE_GENAI_USE_VERTEXAI=True))
+    assert sessions.live_via_vertex() is True
+    monkeypatch.setenv("LIVE_VIA_VERTEX", "false")
+    assert sessions.live_via_vertex() is False
+    monkeypatch.delenv("LIVE_VIA_VERTEX")
+    monkeypatch.setattr(sessions, "get_settings", lambda: SimpleNamespace(GOOGLE_GENAI_USE_VERTEXAI=False))
+    assert sessions.live_via_vertex() is False
+
+
+def test_relay_http_transport_unchanged(client, hotel_uae, relay_on):
+    body = _mint(client, hotel_uae.slug, transport="http", mode="text").json()
+    assert body["transport"] == "http" and body["client_secret"] is None and "relay_url" not in body
+
+
+def test_relay_with_ai_off_is_409(client, hotel_uae, monkeypatch):
+    monkeypatch.setenv("LIVE_VIA_VERTEX", "true")
     r = _mint(client, hotel_uae.slug)
     assert r.status_code == 409 and r.json()["code"] == "ai_disabled"
 

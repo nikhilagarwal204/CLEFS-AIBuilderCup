@@ -5,8 +5,11 @@ Concierge sessions: target resolution, consent, rate limits and minting
 A session is the security boundary. The room is bound here, from the printed
 QR key (?k=) or a stay token minted from one, and every tool call reads it
 from cc_sessions, never from model arguments. The browser gets a bearer
-session token (only its sha256 is stored) and, for voice, a single-use
-Gemini Live ephemeral token locked to the server-built instructions and tools.
+session token (only its sha256 is stored) and, for voice, either a
+single-use Gemini Live ephemeral token locked to the server-built
+instructions and tools (Gemini Developer API), or, with LIVE_VIA_VERTEX, a
+relay URL and a single-use relay token: the server then holds the Live
+session on Vertex AI with those instructions and tools (live_relay.py).
 Clients cannot send instructions or tools: an old cached client that posts
 {session} gets 409 client_outdated ("please refresh").
 
@@ -20,8 +23,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import time
 import uuid
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from clefs import ratelimit
@@ -34,7 +38,7 @@ from clefs.core.errors import ClefsError, bad_request, not_found, too_many, unau
 from clefs.core.hotels import Hotel
 from clefs.db import Json
 from clefs.modules.concierge import constants as C
-from clefs.settings import get_settings
+from clefs.settings import env, get_settings
 
 log = logging.getLogger("clefs.concierge.sessions")
 
@@ -341,6 +345,106 @@ def mint_client_secret(spec: Any, *, mode: str) -> dict:
     return {"value": value, "expires_at": data.get("expires_at"), "model": spec.model}
 
 
+# ─── Vertex AI Live relay (05 spec, Voice relay (F)) ───
+# Vertex AI has no ephemeral tokens and the browser never holds a Google
+# credential, so with LIVE_VIA_VERTEX a live mint returns a relay URL and a
+# single-use relay token instead. live_relay.py checks the token, rebuilds
+# this session's spec (spec_for_session) and holds the Vertex AI Live session
+# as the service identity. The relay needs no new table: the token is
+# signed, its single use is a rate-limit row, and the spec is rebuilt from
+# the cc_sessions row seconds after the mint.
+
+RELAY_TICKET_PURPOSE = "cc_live_relay"
+RELAY_PATH = "/public/concierge/live/{session_id}"
+# A Live model Vertex AI serves from a regional endpoint (not "global"):
+# gemini-3.8-live answers in us-central1; gemini-live-2.5-flash-native-audio
+# also works there and in europe-west4. LIVE_VERTEX_MODEL overrides it.
+DEFAULT_LIVE_VERTEX_MODEL = "gemini-3.8-live"
+
+
+def live_via_vertex() -> bool:
+    """LIVE_VIA_VERTEX: guest voice through the server's Vertex AI Live relay
+    instead of browser ephemeral tokens. Default: on when Vertex AI is
+    (GOOGLE_GENAI_USE_VERTEXAI), since its Live API has no ephemeral tokens."""
+    raw = env("LIVE_VIA_VERTEX")
+    if raw is None:
+        return bool(get_settings().GOOGLE_GENAI_USE_VERTEXAI)
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+def relay_model() -> str:
+    """The Vertex AI Live model id (LIVE_VERTEX_MODEL); REALTIME_MODEL keeps
+    naming the Developer API model of the ephemeral-token path."""
+    return (env("LIVE_VERTEX_MODEL") or DEFAULT_LIVE_VERTEX_MODEL).strip()
+
+
+def relay_url(session_id: str) -> str:
+    """wss://<api>/public/concierge/live/{id}: the API's own origin
+    (PUBLIC_API_ORIGIN, or LIVE_RELAY_ORIGIN for a relay deployed apart),
+    because the web app's same-origin proxy cannot carry a WebSocket."""
+    base = (env("LIVE_RELAY_ORIGIN") or get_settings().PUBLIC_API_ORIGIN or "").strip().rstrip("/")
+    if base.startswith("https://"):
+        base = "wss://" + base[len("https://"):]
+    elif base.startswith("http://"):
+        base = "ws://" + base[len("http://"):]
+    return base + RELAY_PATH.format(session_id=session_id)
+
+
+def mint_relay_token(session_id: str, hotel_slug: str) -> tuple[str, str]:
+    """(token, expires_at ISO): a signed ticket for one session that must
+    open its relay within NEW_SESSION_WINDOW_S, like the ephemeral token's
+    new-session window. Tickets run on wall time, so the expiry does too."""
+    ttl = C.NEW_SESSION_WINDOW_S
+    token = tokens.mint_ticket(RELAY_TICKET_PURPOSE, {"s": session_id, "h": hotel_slug}, ttl_s=ttl)
+    return token, datetime.fromtimestamp(int(time.time()) + ttl, tz=timezone.utc).isoformat()
+
+
+def verify_relay_token(token: str | None, session_id: str) -> dict | None:
+    """The token's claims when it is genuine, unexpired and for this session."""
+    claims = tokens.verify_ticket(RELAY_TICKET_PURPOSE, token) if token else None
+    if not claims or claims.get("s") != str(session_id):
+        return None
+    return claims
+
+
+def claim_relay(cur: Any, session_id: str) -> bool:
+    """Single use, like the ephemeral token (uses=1): True only the first
+    time this session's relay opens, on whichever instance it lands."""
+    return ratelimit.hit(cur, f"cc:relay:{session_id}", limit=1, window_s=C.SESSION_TTL_S)
+
+
+def spec_for_session(cur: Any, row: dict) -> Any:
+    """The SessionSpec a live session was minted with, rebuilt from its row
+    with the same arguments start_session used (surface, room, venue,
+    language, verification and the verified guest's context)."""
+    from clefs.modules.concierge import api
+
+    guest = guest_context(cur, row["hotel_slug"], row["room"]) if row["verified"] and row["room"] else None
+    return api.build_surface_session(
+        row["hotel_slug"], surface=row["surface"], room=row["room"], location=row["location_slug"],
+        language=row["language"], verified=bool(row["verified"]), guest=guest, cur=cur,
+    )
+
+
+def vertex_live_config(spec: Any, *, mode: str | None) -> dict:
+    """live_connect_config for Vertex AI Live: the same instructions, voice,
+    tools and transcription, plus a sliding context window so a conversation
+    can outlast the Live API's audio session limit. The relay adds the
+    resumption handle when it reconnects."""
+    config = live_connect_config(spec, mode=mode or "voice")
+    config["context_window_compression"] = {"sliding_window": {}}
+    return config
+
+
+def _require_relay() -> None:
+    """409 ai_disabled (the page offers the front desk) when the relay
+    cannot reach Gemini: the AI is switched off and no test connector is in."""
+    from clefs.modules.concierge import live_relay
+
+    if not live_relay.available():
+        raise ClefsError(409, "The assistant is not available right now", "ai_disabled")
+
+
 # ─── Session rows ───
 
 
@@ -505,7 +609,11 @@ def start_session(
     ip: str | None,
 ) -> dict:
     """Resolve the target, check consent, rate-limit, build the prompt, mint
-    the key and store the session. Returns the response body."""
+    the key and store the session. Returns the response body.
+
+    A live mint with LIVE_VIA_VERTEX answers transport "relay" with relay_url,
+    relay_token and relay_expires_at (and client_secret null); model is then
+    the Vertex AI Live model. Otherwise client_secret is the ephemeral token."""
     from clefs.modules.concierge import api, kb
 
     if mode not in C.SESSION_MODES:
@@ -544,7 +652,15 @@ def start_session(
     spec = api.build_surface_session(
         hotel.slug, surface=surface, room=target.room, location=location, language=lang, verified=target.verified, guest=guest, cur=cur
     )
-    secret = None if transport == "http" else mint_client_secret(spec, mode=mode)
+    relay = transport == "live" and live_via_vertex()
+    if relay:
+        _require_relay()
+        spec = spec.model_copy(update={"model": relay_model()})
+        secret = None
+    else:
+        secret = None if transport == "http" else mint_client_secret(spec, mode=mode)
+    # The row keeps transport "live" for a relayed session: the guest's
+    # channel is still Gemini Live, only the socket's far end moved.
     row, token = create_session(
         cur, spec, key_status=target.key_status, mode=mode, transport=transport, consent_ref=subject, consents=flags,
         ip_digest=digest, location_slug=location,
@@ -565,6 +681,12 @@ def start_session(
         "consents": flags,
         "guest_ref": guest_ref,
     }
+    if relay:
+        relay_token, relay_expires_at = mint_relay_token(str(row["id"]), hotel.slug)
+        out.update(
+            transport="relay", relay_url=relay_url(str(row["id"])), relay_token=relay_token,
+            relay_expires_at=relay_expires_at,
+        )
     if target.verified and target.room:
         out["stay_token"] = mint_stay_token(hotel.slug, target.room, target.qr_version)
     return out
