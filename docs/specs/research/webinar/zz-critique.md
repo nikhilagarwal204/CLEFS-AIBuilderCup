@@ -147,4 +147,4 @@ Module abbreviations: PG = Profit Guard, DR = Demand Radar, RL = Reviews-lite, G
 - AI fact errors checked against the hotel's own data and fixed through the ledger;
 - the proprietary OTA Leakage Index.
 
-The web search budget ran out partway through (200/200), so everything above after that point was checked by fetching pages directly. The "claude.ai Fortes M365" connector needs authorising in the user's claude.ai connector settings; this research didn't use it.
+The web search budget ran out partway through (200/200), so everything above after that point was checked by fetching pages directly.

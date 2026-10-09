@@ -75,4 +75,3 @@
 
 **4. Rank checker: BUILD-LITE, not a product.** Clefs already uses SerpApi, so a weekly Google Maps local-rank check for 3–5 keywords can feed the owner brief and Reviews-lite as one visibility KPI. It's a commodity feature (SerpApi Maps endpoint pricing not verified here), so don't market it. REJECT review-velocity or "rank #1" promises because of the Google policy risk above.
 
-Note: the claude.ai Fortes M365 connector needs authorization in claude.ai connector settings. It wasn't used here.

@@ -218,4 +218,3 @@ Not checked, all UNVERIFIED: Cendyn, Knowcross, iHotelier, SiteMinder (messaging
 - Commoditized: inboxes, pipeline stages, chatbots, payment links.
 
 ---
-The Fortes M365 connector needs authorising in claude.ai connector settings; it was not used here.

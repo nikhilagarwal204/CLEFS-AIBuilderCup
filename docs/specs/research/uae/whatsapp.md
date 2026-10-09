@@ -205,4 +205,3 @@ Trigger the fallback when:
 4. **Per-recipient queue:** at least a 6-second gap per recipient, a global cap below 80 messages per second, and exponential backoff on 130429 and 131056.
 5. **Billing:** track the monthly count of service messages per number against the reported 1,000 free, and make sure a Meta payment method is on file **before 2026-09-30**.
 
-*Note: the claude.ai "Fortes M365" connector needs to be authorised in the claude.ai connector settings. It was not used for this research and stays unavailable until it is authorised.*

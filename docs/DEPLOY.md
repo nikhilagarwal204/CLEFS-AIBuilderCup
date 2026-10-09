@@ -106,6 +106,7 @@ Set these on the **API project** (Project Settings, Environment Variables, Produ
 | `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_ORIGIN_REGEX` | CORS allowlist (no credentials) and a regex for preview origins, e.g. `^https://clefs-[a-z0-9-]+\.vercel\.app$`. |
 | `CONTACT_HMAC_PEPPER` | Pepper for hashed guest phone and email identities. Required in production (startup logs name it while missing). Never rotate it casually: every stored hash depends on it. |
 | `PII_ENC_KEY` | 32 bytes, base64 or hex; AES-256-GCM key for sealed PII. Required in production. |
+| `TRUST_FORWARDED_FOR` | `true` behind Google's front end (Cloud Run) or Vercel, so rate limits key on each caller's address instead of the proxy's. |
 | `OAUTH_REDIRECT_BASE` | The API path on the **web** origin, e.g. `https://www.clefs.world/api/clefs`. The OAuth callback must see the browser's `clefs_session` cookie; any other host fails every connect with `session_mismatch`. |
 
 Leave `COOKIE_SECURE` unset (true outside development; production refuses to start with `false`), `EVENTS_BACKEND` unset (`local` on Vercel), `MIGRATE_ON_STARTUP` and `DB_POOL_MAX` unset (Vercel defaults). `CLEFS_DISABLED_MODULES` is the production kill switch for a module (comma list, e.g. `demand,reviews`). `LOG_LEVEL` defaults to `INFO`; `SESSION_TTL_DAYS` to 30.
@@ -121,8 +122,12 @@ Leave `COOKIE_SECURE` unset (true outside development; production refuses to sta
 | `REALTIME_MODEL` | Web concierge Live API model (default `gemini-2.5-flash-native-audio-preview-09-2025`). Model names are read from env and checked at build time. |
 | `VOICE_REALTIME_MODEL` | In-room phone (SIP) realtime model. A voice line's own model wins, then this, then `REALTIME_MODEL`. |
 | `VOICE_TRANSCRIBE_MODEL` | Optional; caller transcripts on SIP calls come from Gemini Live native transcription by default. |
+| `LIVE_VIA_VERTEX` | Guest voice through the server's Vertex AI Live relay instead of browser tokens on the Gemini Developer API. Defaults to on when `GOOGLE_GENAI_USE_VERTEXAI` is on; no AI Studio credits needed. |
+| `LIVE_VERTEX_MODEL`, `LIVE_VERTEX_LOCATION` | The relay's Live model and location (defaults `gemini-3.8-live`, `us-central1`; Vertex serves Live models regionally, not from `global`). Fallback model: `gemini-live-2.5-flash-native-audio`. |
+| `LIVE_RELAY_ORIGIN` | Optional: the public `wss://` origin of the relay when it differs from `PUBLIC_API_ORIGIN`. |
+| `AI_MODEL_FALLBACK` | The model a call retries on once after a 429, a 5xx or a timeout (default `AI_MODEL_FAST`). |
 | `TRUST_EVAL_DAILY_CAP_USD` | Trust's AI eval spend cap, USD per hotel per day (default 5). A run started over the cap is skipped; one that crosses it stops with `cost_cap_reached`. |
-| `AI_MODEL_DEFAULT`, `AI_MODEL_FAST`, `AI_MODEL_<TASK>` | Text models (defaults `gemini-3.8-flash` and `gemini-3.1-flash-lite`); `AI_MODEL_<TASK>` overrides one task (for example `AI_MODEL_INGEST_MAPPING`, `AI_MODEL_VISIBILITY_GEMINI`). |
+| `AI_MODEL_DEFAULT`, `AI_MODEL_FAST`, `AI_MODEL_<TASK>` | Text models (defaults `gemini-3.5-flash` and `gemini-3.1-flash-lite`; a call that fails with 429, 5xx or a timeout retries once on `AI_MODEL_FALLBACK`, default the fast model); `AI_MODEL_<TASK>` overrides one task (for example `AI_MODEL_INGEST_MAPPING`, `AI_MODEL_VISIBILITY_GEMINI`). |
 | `AI_PRICE_<MODEL>` | Price override for the `ai_calls` cost ledger, USD per 1M tokens. |
 | `AI_LOG_CONTENT` | Keep `false`. Prompts and outputs are never logged unless debugging. |
 
@@ -184,6 +189,7 @@ Leave `COOKIE_SECURE` unset (true outside development; production refuses to sta
 
 | Variable | Purpose |
 |---|---|
+| `PROOF_BUCKET` | Cloud Storage bucket for completion photos (proof before closure). Give it a lifecycle rule that deletes objects after 7 days; without it photos are kept in Postgres. |
 | `FILE_STORE`, `FILE_MAX_BYTES` | `db` (Postgres bytea, the Vercel choice) and the upload cap (default 25 MB). **On Vercel set `FILE_MAX_BYTES=4000000`:** Vercel rejects any function request body over **4.5 MB** with `413 FUNCTION_PAYLOAD_TOO_LARGE` before FastAPI runs, so a 25 MB cap is never reached and a larger upload fails with a non-JSON platform error. With 4,000,000 the API refuses early with a clear message (multipart overhead fits under the platform limit). Files larger than that (big OTA statement PDFs, P&L exports) need the VM topology with `s3` (`S3_BUCKET` / `S3_REGION`, section 19). |
 | `OTA_ALIAS_DOMAINS` | OTA relay domains that never receive marketing (`guest.booking.com,m.expediapartnercentral.com`). |
 
@@ -494,3 +500,15 @@ gcloud run deploy clefs-api --source . --region asia-southeast1 --allow-unauthen
 - **Job tick:** Cloud Scheduler replaces Vercel Cron: `gcloud scheduler jobs create http clefs-tick --location asia-southeast1 --schedule "* * * * *" --uri https://<service-url>/internal/cron/tick --http-method GET --headers "Authorization=Bearer <CRON_SECRET>"`.
 - **Web project:** point `CLEFS_API_ORIGIN` and `NEXT_PUBLIC_API_URL` at the Cloud Run URL (or its custom domain).
 - **Region:** `asia-southeast1` (Singapore) sits next to the Neon database; `me-central1` (Doha) is the nearest Google Cloud region to the UAE.
+
+### The AI Builder Cup prototype (project CLEFS, asia-south1)
+
+| Piece | Setting |
+|---|---|
+| Web | Cloud Run service `clefs` from `client/Dockerfile`, built by `client/cloudbuild.yaml` with the API origin as a build argument |
+| API | Cloud Run service `clefs-api` from `server/Dockerfile`, Cloud SQL `clefs-db` attached, secrets from Secret Manager, `--timeout=3600` (guest voice runs over a WebSocket), `--concurrency=80`, `--min-instances=1` while judging |
+| Database | Cloud SQL for PostgreSQL 17 `clefs-db`; migrations run at startup (`MIGRATE_ON_STARTUP=true`) |
+| AI | Vertex AI (`GOOGLE_GENAI_USE_VERTEXAI=true`, location `global`), `AI_MODEL_DEFAULT=gemini-3.5-flash`, `AI_MODEL_FAST=gemini-3.1-flash-lite`; voice through the Live relay (`gemini-3.8-live`, `us-central1`) |
+| Photos | `PROOF_BUCKET=disco-axis-442314-k2-clefs-proof` (asia-south1, deleted after 7 days) |
+| Job tick | Cloud Scheduler `clefs-tick`, every minute, `POST /internal/cron/tick?budget_s=25` with the cron bearer |
+| Demo data | Cloud Run job `clefs-seed` (`python -m clefs.cli seed-demo`), about 15 minutes; `/try` gives reviewers one-tap access to the guest, staff and manager screens of the demo hotel |

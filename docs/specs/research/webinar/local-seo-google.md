@@ -189,4 +189,3 @@
 **Reject:** a standalone rank-tracking UI, keyword-stuffing GBP advice, and Q&A seeding (the API is gone).
 
 ---
-Note: the "claude.ai Fortes M365" connector needs to be authorized in the user's claude.ai connector settings before it can be used; it was not needed for this research.
