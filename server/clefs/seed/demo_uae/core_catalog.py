@@ -51,7 +51,7 @@ FACT_SENTENCES = {
     "parking": "Yes, free basement parking for hotel guests.",
     "pool": "Yes, a rooftop pool, open 07:00 to 22:00.",
     "breakfast": "Yes, a breakfast buffet from 06:30 to 10:30 in Rigga Kitchen (AED 45, or included in B&B rates).",
-    "wifi": "Yes, free Wi-Fi everywhere in the hotel.",
+    "wifi": "Yes, free Wi-Fi everywhere in the hotel: network RiggaCrest-Guest, password crest2026.",
     "pets": "Sorry, pets are not allowed.",
     "star_rating": "We are a 3-star hotel.",
 }
@@ -80,6 +80,23 @@ KB_FAQS = (
      "ما هي رسوم درهم السياحة؟", "درهم السياحة ١٠ دراهم لكل غرفة في الليلة لأول ٣٠ ليلة، ويدفع في الفندق."),
 )
 
+# The two required sections the facts do not cover (the readiness gate needs
+# all eight approved). section key, question_en, answer_en, question_ar, answer_ar
+KB_POLICIES = (
+    ("emergency", "What do I do in an emergency?",
+     "Call reception on 0 from the room phone, or dial 999 for police, 998 for an ambulance and 997 for fire. "
+     "Fire exits are marked on every floor: follow the green signs and do not use the lifts.",
+     "ماذا أفعل في حالة الطوارئ؟",
+     "اتصل بالاستقبال على الرقم ٠ من هاتف الغرفة، أو اتصل بـ ٩٩٩ للشرطة و٩٩٨ للإسعاف و٩٩٧ للدفاع المدني. "
+     "مخارج الطوارئ موضحة في كل طابق: اتبع اللافتات الخضراء ولا تستخدم المصاعد."),
+    ("smoking", "Is smoking allowed?",
+     "Smoking, including e-cigarettes, is not allowed in rooms or anywhere indoors. "
+     "There is an outdoor smoking area next to the main entrance.",
+     "هل يسمح بالتدخين؟",
+     "التدخين، بما في ذلك السجائر الإلكترونية، غير مسموح في الغرف أو في أي مكان داخلي. "
+     "توجد منطقة تدخين خارجية بجوار المدخل الرئيسي."),
+)
+
 
 def seed_kb(ctx: Any) -> dict:
     """Proposed through concierge.api (the entry, its section and revision),
@@ -100,6 +117,17 @@ def seed_kb(ctx: Any) -> dict:
     for q_en, a_en, q_ar, a_ar in KB_FAQS:
         ids.append(api.propose_kb_entry(ctx.cur, ctx.slug, question_en=q_en, answer_en=a_en, question_ar=q_ar,
                                         answer_ar=a_ar, source="demo", actor=ACTOR))
+    for section, q_en, a_en, q_ar, a_ar in KB_POLICIES:
+        eid = api.propose_kb_entry(ctx.cur, ctx.slug, question_en=q_en, answer_en=a_en, question_ar=q_ar,
+                                   answer_ar=a_ar, source="demo", actor=ACTOR)
+        # propose_kb_entry files an FAQ under General; the console's section
+        # picker writes section_id, and so does this.
+        ctx.cur.execute(
+            "UPDATE cc_kb_entries SET section_id = (SELECT id FROM cc_kb_sections WHERE hotel_slug = %s AND key = %s) "
+            "WHERE id = %s AND EXISTS (SELECT 1 FROM cc_kb_sections WHERE hotel_slug = %s AND key = %s)",
+            (ctx.slug, section, eid, ctx.slug, section),
+        )
+        ids.append(eid)
     ctx.cur.execute(
         """
         UPDATE cc_kb_entries SET status = 'approved', approved_by = %s, approved_at = %s, updated_at = NOW()

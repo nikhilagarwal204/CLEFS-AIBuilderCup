@@ -41,6 +41,16 @@ const nextConfig = {
     },
     async redirects() {
         return [
+            // The AI Builder Cup prototype is the guest service desk: these
+            // pages front modules switched off with CLEFS_DISABLED_MODULES, so
+            // they go to the homepage (temporary, so switching a module back on
+            // only means dropping its line here).
+            ...["/profit-guard", "/demand-radar", "/demand-preview", "/free-ota-audit", "/google-check", "/brief"].flatMap(
+                (path) => [
+                    { source: path, destination: "/", permanent: false },
+                    { source: `${path}/:rest*`, destination: "/", permanent: false },
+                ],
+            ),
             {
                 // The guest concierge moved /aria/... -> /stay/... during the
                 // Aria -> Clefs rebrand. QR codes already printed and mounted in

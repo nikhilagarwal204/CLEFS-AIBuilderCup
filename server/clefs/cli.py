@@ -144,7 +144,8 @@ def cmd_magic_link(a: argparse.Namespace) -> None:
 def cmd_seed_demo(a: argparse.Namespace) -> None:
     """Build or rebuild the synthetic UAE demo hotel (02 spec 9) in one
     transaction, write the planted-case manifest, then print the demo
-    logins, staff PINs and a fresh device pairing code. Credentials go to
+    logins, staff PINs, the keyed Room 204 link and /try (the deck's demo)
+    and a fresh device pairing code. Credentials go to
     stdout only (never the log), and only for a demo hotel."""
     from datetime import date as _date
 
@@ -184,6 +185,12 @@ def cmd_seed_demo(a: argparse.Namespace) -> None:
         # Tokens are bearer links (stdout only, like the logins).
         print("guest pages (a sent J1 preferences link and a J7 feedback link):")
         for purpose, url in creds["guest_links"].items():
+            print(f"  {purpose:<9} {url}")
+    if creds.get("demo_links"):
+        # The deck's demo (seed/demo_uae/deck.py): the keyed room link a
+        # printed QR card opens, and the reviewer page.
+        print("deck demo (the keyed room link opens the guest page as that room):")
+        for purpose, url in creds["demo_links"].items():
             print(f"  {purpose:<9} {url}")
     print(f"pair this browser as a device: {get_settings().web_base_url}{pairing['pair_url']} "
           f"(code {pairing['code']}, expires {pairing['expires_at']:%H:%M} UTC)")

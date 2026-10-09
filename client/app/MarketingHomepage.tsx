@@ -2,127 +2,155 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { HOME_FAQS } from "./lib/faq";
-import { BRAND, OTA_AUDIT_LIVE, PRIMARY_LEAD } from "./lib/seo";
-import { claimFlag } from "./lib/claims";
-import Claim, { CLAIM_STYLES } from "./components/Claim";
+import { BRAND } from "./lib/seo";
 import DeskHoursCalculator from "./components/DeskHoursCalculator";
-import OtaLeakageCalculator from "./components/OtaLeakageCalculator";
 import {
-  LuMic, LuArrowRight, LuPlus, LuPlay, LuSquare, LuFileSearch, LuRadar, LuConciergeBell,
-  LuBadgeCheck, LuUserCheck, LuSearchCheck, LuCheck,
+  LuMic, LuArrowRight, LuPlus, LuPlay, LuSquare, LuCheck, LuX, LuQrCode, LuBadgeCheck, LuUsers, LuLanguages,
+  LuCamera, LuBellRing, LuSiren, LuHeartHandshake, LuBarChart3, LuPhoneCall, LuClock, LuSmartphone, LuUserCheck,
+  LuBot, LuShieldCheck, LuHourglass, LuSparkles, LuEye, LuCloud, LuDatabase, LuKeyRound, LuImage, LuTimer,
+  LuHotel, LuListChecks,
 } from "react-icons/lu";
 
 const DEMO_URL = BRAND.demoUrl;
+const TRY_URL = "/try";
+const TAGLINE = "The AI guest service desk for hotels";
 
 // ─── Page data ───────────────────────────────────────────────────────────────
-// Canon 22 copy: "hotels", never "independent hotels only". Every market
-// number goes through <Claim> (lib/claims.ts); check-claims.mjs enforces it.
+// The AI Builder Cup deck, in its order (05 spec): the problem, the 8-step
+// flow and what happens when something goes wrong, the 9 features, the Google
+// Cloud build, the prototype's benchmarks, pricing and trust. Canon 22 copy:
+// "hotels", and "in your language" (the claims registry bans "any language").
+// Every percentage or price carries its registry row (// claim: <id>), which
+// check-claims.mjs enforces; the benchmarks are labelled as measured on the
+// prototype, never as a result a hotel will get.
 
-type Feature = { t: string; flag?: string };
-type Product = {
-  id: string; name: string; icon: typeof LuRadar; href: string;
-  title: string; d: string; features: Feature[];
-};
+type Item = { icon: typeof LuMic; t: string; d: string };
 
-/* Three products, each with its own page. The old five promises ("Answers in
-   one second", "Any language", "Remembers your guests") were guest-assistant
-   features; the owner buys profit and control, so those now live as features
-   of Service Control, and "Remembers your guests" only returns when
-   claims.guest_memory is on (Canon 16). */
-const PRODUCTS: Product[] = [
-  {
-    id: "profit-guard", name: "Profit Guard", icon: LuFileSearch, href: "/profit-guard",
-    title: "OTA payouts and rate integrity, checked line by line",
-    d: "Clefs reads your OTA statements and reservations and checks each stay against your contract. Commission charged on the wrong base, missing payouts and rate-parity gaps each become one line, with the evidence and the amount.",
-    features: [
-      { t: "Every OTA statement line checked against your contract terms" },
-      { t: "A dispute pack ready to send, with the evidence attached" },
-      { t: "Recovered money tracked until it lands in your account" },
-    ],
-  },
-  {
-    id: "demand-radar", name: "Demand Radar", icon: LuRadar, href: "/demand-radar",
-    title: "Local demand, spotted before it is obvious",
-    d: "Events, exhibitions, holidays and competitor prices around your hotel, on one calendar. Clefs flags the dates where demand is building and suggests what to review, with the sources it used.",
-    features: [
-      { t: "UAE events and holidays matched to your location" },
-      { t: "Competitor prices for the same dates" },
-      { t: "Rate suggestions you approve; Clefs never changes a rate itself" },
-    ],
-  },
-  {
-    id: "service-control", name: "Service Control", icon: LuConciergeBell, href: "/service-control",
-    title: "Every guest request tracked to done",
-    d: "Guests ask by QR code or the room phone. Simple questions are answered at once. Everything else becomes a job for the right team, with the room number, an owner and a time limit.",
-    features: [
-      { t: "Arabic and English guest assistant, by voice or text" },
-      { t: "Requests routed to the right department, with a time limit" },
-      { t: "Response times you can review every week" },
-      { t: "Remembers your guests across stays", flag: "claims.guest_memory" },
-    ],
-  },
-];
-
-const STEPS = [
-  { n: "I",   t: "Connect your systems", d: "Share your OTA statements, a reservations export and your rate calendar. Your PMS and channel manager stay exactly as they are." },
-  { n: "II",  t: "Read the morning brief", d: "Each morning the owner gets a short brief: the money at risk, the evidence behind each item, and the action that fixes it." },
-  { n: "III", t: "Approve", d: "One tap approves, adjusts or dismisses. Refunds, rate changes and OTA changes always wait for a person." },
-  { n: "IV",  t: "See verified value", d: "After an action runs, Clefs checks the result against your records and reports only the value it could verify." },
-];
-
-/* Section anchors on this page, plus two routes. `route` entries navigate
-   away, so they never become the active anchor. */
+/* Section anchors on this page, plus the live prototype. `route` entries
+   navigate away, so they never become the active anchor. */
 const NAV: { href: string; label: string; route?: boolean }[] = [
   { href: "#experience", label: "Overview" },
-  { href: "#products", label: "Products" },
   { href: "#how", label: "How it works" },
-  { href: "/security", label: "Security", route: true },
-  { href: "#questions", label: "Questions" },
-  { href: "/pilot", label: "Pilot", route: true },
+  { href: "#features", label: "Features" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#trust", label: "Trust" },
+  { href: TRY_URL, label: "Live prototype", route: true },
 ];
 
-/* Product facts only, no market numbers: what every hotel gets on day one.
-   "0 apps" and "any language" were retired (Canon 22, 03 section 6). */
-const METRICS = [
-  { val: "1", label: "morning brief for the owner",
-    note: "Money at risk first, in the order it expires." },
-  { val: "Every", label: "alert with its evidence",
-    note: "The statement line, the contract term and the amount, side by side." },
-  { val: "Every", label: "action approved by you",
-    note: "You decide what may run on its own. Refunds and rates always wait for you." },
-  { val: "AR + EN", label: "guest assistant",
-    note: "Arabic and English, plus six more languages tested for your hotel before go-live." },
-];
-
+/* The deck's promise in four lines: what a hotel does not have to change. */
 const PROOF = [
-  { icon: LuSearchCheck, t: "Evidence for every alert." },
-  { icon: LuUserCheck, t: "Human approval for every action." },
-  { icon: LuBadgeCheck, t: "Verified value after execution." },
+  { icon: LuSmartphone, t: "No app for guests." },
+  { icon: LuHotel, t: "No change to your PMS or phones." },
+  { icon: LuUserCheck, t: "Staff stay in charge of every exception." },
+  { icon: LuCamera, t: "Photo proof before a room job closes." },
 ];
 
-/* Illustrative only, and deliberately without amounts: a mock brief with
-   invented AED figures would read as a claim about the visitor's hotel. */
-const BRIEF_ITEMS = [
-  { tag: "Profit Guard", t: "Commission charged above contract on 3 stays", a: "Approve dispute" },
-  { tag: "Profit Guard", t: "Expedia price below your direct price for 12 Oct", a: "Approve fix" },
-  { tag: "Demand Radar", t: "Exhibition nearby, 14 to 16 Nov: demand building", a: "Review rates" },
-  { tag: "Service", t: "2 guest requests passed their time limit overnight", a: "See jobs" },
+const PROBLEMS: Item[] = [
+  { icon: LuPhoneCall, t: "Phone calls",
+    d: "A guest calls the desk, the desk calls housekeeping, housekeeping calls back. Every hand-off is a chance to drop the request." },
+  { icon: LuLanguages, t: "Languages",
+    d: "The guest asks in Russian, the desk writes it down in English, the attendant reads Tagalog. Details get lost on the way." },
+  { icon: LuClock, t: "Shifts",
+    d: "A request that arrives at 22:55 is gone by the 23:00 handover. Nobody knows it was asked, so nobody follows up." },
+];
+
+// The deck's process slide, step for step.
+const STEPS = [
+  { n: "1", t: "The guest speaks or types", d: "From the QR card in the room, in their language. No app to download." },
+  { n: "2", t: "Gemini understands", d: "The intent, the items, how urgent it is and how the guest feels." },
+  { n: "3", t: "One job per ask", d: "“Two towels, and the AC is too warm” becomes two jobs, for two teams." },
+  { n: "4", t: "Dispatch with ETA", d: "The free staff member nearest the room gets it, and the guest hears who is coming and when." },
+  { n: "5", t: "Staff read it in their language", d: "Maria reads the job in Tagalog. Her reply reaches the guest in the guest's language." },
+  { n: "6", t: "Work done, photo taken", d: "Mark as Done asks for a photo of the result." },
+  { n: "7", t: "Gemini vision checks it", d: "The photo is compared with the request before the job can close." },
+  { n: "8", t: "Closed, guest told, dashboard updated", d: "The guest confirms, and the manager's screen and the owner view update." },
+];
+
+const WRONG: Item[] = [
+  { icon: LuTimer, t: "Nobody accepts the job",
+    d: "The supervisor is told at 3 minutes, the duty manager at 5 and the GM at 10. A late job moves to the next free person." },
+  { icon: LuCamera, t: "The photo does not match",
+    d: "The job stays open, the supervisor is alerted, and the staff app says what is missing." },
+  { icon: LuHeartHandshake, t: "The guest is not happy",
+    d: "“Not fixed”, or frustration Gemini hears in the conversation, reopens the job and asks the duty manager to approve a gesture, before the review." },
+];
+
+// The deck's nine features.
+const FEATURES: Item[] = [
+  { icon: LuQrCode, t: "Talk or type, in your language",
+    d: "From the room's QR card, by voice or text, in eight guest languages. Nothing to download." },
+  { icon: LuBadgeCheck, t: "Approved answers only",
+    d: "The assistant answers from facts your hotel approved, and hands everything else to a person." },
+  { icon: LuUsers, t: "Smart dispatch with ETA",
+    d: "The right free staff member gets the job, and the guest hears: Maria is on her way, about 5 minutes." },
+  { icon: LuLanguages, t: "Staff in their own language",
+    d: "Each person reads the job in their language and replies by text or voice; the guest reads the reply in theirs." },
+  { icon: LuCamera, t: "Proof before closure",
+    d: "A photo, checked by Gemini vision against the request, then the guest confirms." },
+  { icon: LuBellRing, t: "Automatic escalation",
+    d: "Supervisor at 3 minutes, duty manager at 5, GM at 10. Late jobs move to the next free person." },
+  { icon: LuSiren, t: "Safety first",
+    d: "Emergency words page the duty manager at once, with the room and the guest's own words." },
+  { icon: LuHeartHandshake, t: "Recovery before the review",
+    d: "Frustration or a “not fixed” opens a case, and the duty manager approves a gesture while the guest is still in the hotel." },
+  { icon: LuBarChart3, t: "Owner view",
+    d: "Response times by team, floor and shift, from the same jobs the staff closed." },
+];
+
+// What the prototype runs on, as built (docs/DEPLOY.md).
+const STACK: Item[] = [
+  { icon: LuMic, t: "Gemini Live API", d: "Real-time voice, in the guest's language." },
+  { icon: LuSparkles, t: "Gemini Flash", d: "Understands each ask, splits it into jobs, translates for staff and reads the guest's mood." },
+  { icon: LuEye, t: "Gemini vision", d: "Checks every proof photo against the request." },
+  { icon: LuCloud, t: "Cloud Run", d: "The guest page, staff app, console and API, with a Cloud Scheduler tick every minute that drives the escalations." },
+  { icon: LuDatabase, t: "Cloud SQL", d: "Jobs, staff, rooms and the audit trail." },
+  { icon: LuKeyRound, t: "Secret Manager", d: "Every key and password, out of the code." },
+  { icon: LuImage, t: "Cloud Storage", d: "The proof photos." },
+];
+
+// The deck's benchmarks slide. Measured on the prototype in scripted tests.
+const BENCHMARKS = [
+  { val: "1 s", label: "voice reply" },
+  { val: "94%", label: "request understanding" }, // claim: clefs_proto_request_understanding
+  { val: "98%", label: "multi-request splitting" }, // claim: clefs_proto_request_splitting
+  { val: "5/5", label: "translation quality" },
+  { val: "91%", label: "photo verification" }, // claim: clefs_proto_photo_verification
+  { val: "1.2 s", label: "request to staff screen" },
+  { val: "60% faster", label: "task closure" }, // claim: clefs_proto_task_closure
+];
+
+// The deck's pricing slide (claims.ts clefs_price_list_2026).
+const PLANS = [
+  { name: "Voice and text", val: "USD 3", note: "per room per month, at least USD 99 a month" }, // claim: clefs_price_list_2026
+  { name: "Text only", val: "USD 1.50", note: "per room per month, the same desk without voice" }, // claim: clefs_price_list_2026
+  { name: "Pilot", val: "Free", note: "for 30 days, on your own rooms and team" },
+];
+const NEEDS = ["QR cards for your rooms", "One shared staff tablet", "Your staff names and roles"];
+const NEVER = ["Access to your PMS", "Financial files", "Card data", "Changes to your phones"];
+
+const TRUST: Item[] = [
+  { icon: LuUserCheck, t: "Guests consent first",
+    d: "Nothing runs until the guest agrees to the AI processing, and voice also asks before it records." },
+  { icon: LuBot, t: "It says it is an AI",
+    d: "The assistant introduces itself as an AI and never claims to be a person." },
+  { icon: LuShieldCheck, t: "22 safety and accuracy tests",
+    d: "Emergencies, prompt tricks, prices, refunds, routing and languages. All 22 must pass before going live, with Gemini as the judge." },
+  { icon: LuHourglass, t: "7 days in shadow mode",
+    d: "For a week the desk works out every escalation and shows it to the team without messaging anyone. Then it goes live." },
 ];
 
 const FOOTER: { h: string; links: [string, string][] }[] = [
-  { h: "Products", links: [["/profit-guard", "Profit Guard"], ["/demand-radar", "Demand Radar"], ["/service-control", "Service Control"]] },
-  { h: "Service Control", links: [
+  { h: "Clefs", links: [[TRY_URL, "Live prototype"], ["#how", "How it works"], ["#pricing", "Pricing"], ["/security", "Security"]] },
+  { h: "Guest service", links: [
+    ["/service-control", "Service control"],
     ["/ai-concierge-software", "AI concierge software"],
     ["/guest-request-management", "Guest request management"],
-    ["/hotel-front-desk-automation", "Front desk automation"],
     ["/multilingual-guest-messaging", "Multilingual messaging"],
   ] },
-  { h: "Start", links: [[PRIMARY_LEAD.href, PRIMARY_LEAD.short], ["/pilot", "Pilot"], ["/security", "Security"]] },
+  { h: "Start", links: [[TRY_URL, "Try the live prototype"]] },
 ];
 
-/** claimDate: the Dubai date the server render judged dated claims by (see
- *  app/page.tsx); undefined only outside that page, where Claim reads today. */
-export default function MarketingHomepage({ claimDate }: { claimDate?: string } = {}) {
+export default function MarketingHomepage() {
   const [scrolled, setScrolled] = useState(false);
   const [activeNav, setActiveNav] = useState("#experience");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -424,7 +452,7 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
 
   return (
     <div className="cb clefs-ground">
-      <style dangerouslySetInnerHTML={{ __html: brandStyles + mkStyles + CLAIM_STYLES }} />
+      <style dangerouslySetInnerHTML={{ __html: brandStyles + mkStyles }} />
 
       {/* ── Nav ── */}
       <nav className={`cb-nav ${scrolled ? "cb-nav--scrolled" : ""}`}>
@@ -443,8 +471,8 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
             ))}
           </div>
           <div className="cb-nav__end">
-            <Link href={DEMO_URL} className="cb-btn cb-btn--gold cb-btn--sm" target="_blank" rel="noopener noreferrer">
-              Book a demo
+            <Link href={TRY_URL} className="cb-btn cb-btn--gold cb-btn--sm">
+              Try it live
             </Link>
             <button
               type="button"
@@ -473,39 +501,37 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
 
       {/* ── Hero ─────────────────────────────────────────────────────────────
           The mark is repeated at 1200px behind the copy as a watermark, the way
-          a hotel embosses its monogram on stationery. It is the whole reason
-          the page needs no stock lobby photograph. */}
+          a hotel embosses its monogram on stationery. The promise is the deck's:
+          the guest asks once, in their language, and the job gets done. */}
       <header id="experience" className="cb-hero">
         <img src="/brand/clefs-key.webp" alt="" aria-hidden="true" className="cb-hero__watermark" fetchPriority="low" decoding="async" />
 
         <div className="cb-hero__inner clefs-above">
           <div className="cb-hero__copy">
-            {/* Canon 22: the eyebrow says "hotels", not "independent hotels";
-                a chain-property GM reads the same page and runs the same demo.
-                The avatar stays as the brand's face, but the promise is now
-                profit control: the owner is the buyer. */}
             <p className="cb-hero__eyebrow">
               <span className="cb-hero__eyebrow-rule" />
-              For hotels in the UAE
+              The AI guest service desk · Built on Gemini
             </p>
             <h1 className="cb-hero__title">
-              Find the profit leaks your{" "}
-              <em className="clefs-gilt clefs-gilt--live">hotel systems miss.</em>
+              Ask once, <em className="clefs-gilt clefs-gilt--live">in your language,</em>{" "}
+              and it gets done.
             </h1>
             <p className="cb-hero__sub">
-              Clefs audits OTA payouts and rate integrity, spots local demand before it
-              becomes obvious, and sends your owner the exact actions to approve, every morning.
+              Guests scan the QR card in their room and ask by voice or text. Clefs sends each request to the
+              right free staff member, in their language, and closes it only with proof.
             </p>
-            {/* Primary is the lead magnet (Canon 23): one statement is a small,
-                concrete ask, where a demo is a meeting. */}
             <div className="cb-hero__btns">
-              <Link href={PRIMARY_LEAD.href} className="cb-btn cb-btn--gold">
-                <LuFileSearch size={17} aria-hidden="true" /> {PRIMARY_LEAD.label}
+              <Link href={TRY_URL} className="cb-btn cb-btn--gold">
+                <LuPlay size={16} aria-hidden="true" /> Try the live prototype
               </Link>
-              <Link href="/demand-preview" className="cb-btn cb-btn--ghost">
-                See the next 30 days of demand around my hotel
-              </Link>
+              <a href="#how" className="cb-btn cb-btn--ghost">
+                See how it works
+              </a>
             </div>
+            <p className="mk-hero__note">
+              A demo hotel, live now: be the guest in Room 204, then open Maria&apos;s staff app and the
+              manager console.
+            </p>
           </div>
 
           <div className="cb-hero__stage">
@@ -546,13 +572,13 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
           </div>
         </div>
 
-        <a href="#products" className="cb-hero__scroll" aria-label="Scroll to content">
+        <a href="#problem" className="cb-hero__scroll" aria-label="Scroll to content">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
         </a>
       </header>
 
-      {/* ── Proof bar ── The three promises every product keeps. */}
-      <section className="mk-proof" aria-label="How Clefs works with you">
+      {/* ── Proof bar ── What a hotel does not have to change. */}
+      <section className="mk-proof" aria-label="What changes for your hotel">
         <ul className="mk-proof__list">
           {PROOF.map((p) => {
             const Icon = p.icon;
@@ -566,66 +592,49 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
         </ul>
       </section>
 
-      {/* ── Products ── */}
-      <section id="products" className="cb-section">
+      {/* ── The problem ── */}
+      <section id="problem" className="cb-section">
         <div className="cb-container">
           <header className="cb-head" data-reveal>
-            <p className="clefs-eyebrow">What Clefs does</p>
+            <p className="clefs-eyebrow">The problem</p>
             <h2 className="cb-head__title">
-              Three products,<br />
-              <em className="clefs-gilt">one morning brief.</em>
+              More guests, fewer staff.<br />
+              <em className="clefs-gilt">Requests get lost.</em>
             </h2>
             <p className="cb-head__desc">
-              Each product finds something worth money or a guest&apos;s goodwill, shows you the
-              evidence, and waits for your approval.
+              They fall between phone calls, languages and shifts. A guest who asked for towels an hour ago
+              is still waiting, and nobody on duty knows.
             </p>
           </header>
+          <div className="mk-cards mk-cards--3">
+            {PROBLEMS.map((p, i) => <ItemCard key={p.t} item={p} delay={i * 80} />)}
+          </div>
+          <p className="mk-answer" data-reveal>
+            Clefs gets each one done, <em className="clefs-gilt">and proves it.</em>
+          </p>
 
-          <div className="mk-products">
-            {PRODUCTS.map((p) => {
-              const Icon = p.icon;
-              // Canon 16: a flagged feature renders only once the product does it.
-              const features = p.features.filter((f) => !f.flag || claimFlag(f.flag));
-              return (
-                <article key={p.id} id={p.id} className="mk-product" data-reveal>
-                  <div className="mk-product__copy">
-                    <p className="mk-product__name">
-                      <span className="mk-product__icon" aria-hidden="true"><Icon size={18} /></span>
-                      {p.name}
-                    </p>
-                    <h3 className="mk-product__title">{p.title}</h3>
-                    <p className="mk-product__text">{p.d}</p>
-                    <ul className="mk-product__list">
-                      {features.map((f) => (
-                        <li key={f.t}><LuCheck size={15} aria-hidden="true" /> {f.t}</li>
-                      ))}
-                    </ul>
-                    <Link href={p.href} className="mk-product__link">
-                      More about {p.name} <LuArrowRight size={15} aria-hidden="true" />
-                    </Link>
-                  </div>
-                  <div className="mk-product__aside">{productAside(p.id, claimDate)}</div>
-                </article>
-              );
-            })}
+          <div className="mk-calc">
+            <h3 className="mk-calc__title">How many hours does your desk spend on the phone?</h3>
+            <p className="mk-calc__desc">Type your own numbers. Every repeat question a guest asks the assistant is one the desk does not take.</p>
+            <DeskHoursCalculator />
           </div>
         </div>
       </section>
 
-      {/* ── How it works ── The main visual is the owner's brief, not the
-          avatar: the owner is the reader who decides. */}
+      {/* ── How it works ── The deck's eight steps, the guest's phone and the
+          job card staff see, then the three things that can go wrong. */}
       <section id="how" className="cb-section cb-section--alt">
         <div className="cb-container">
           <header className="cb-head" data-reveal>
             <p className="clefs-eyebrow">How it works</p>
-            <h2 className="cb-head__title">Connect. Read. Approve. <em className="clefs-gilt">Verify.</em></h2>
-            <p className="cb-head__desc">Four steps, and the owner stays in charge of every one.</p>
+            <h2 className="cb-head__title">One ask, eight steps, <em className="clefs-gilt">closed with proof.</em></h2>
+            <p className="cb-head__desc">The guest asks once. Everything after that happens without a phone call.</p>
           </header>
 
           <div className="cb-showcase">
-            <ol className="cb-steps">
+            <ol className="cb-steps mk-steps">
               {STEPS.map((s, i) => (
-                <li key={s.n} className="cb-step" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
+                <li key={s.n} className="cb-step" data-reveal style={{ transitionDelay: `${i * 60}ms` }}>
                   <span className="cb-step__num clefs-gilt" aria-hidden="true">{s.n}</span>
                   <div>
                     <h3 className="cb-step__title">{s.t}</h3>
@@ -634,60 +643,139 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
                 </li>
               ))}
             </ol>
+            <GuestPhone />
+          </div>
 
-            <figure className="mk-brief" data-reveal aria-label="Example of an owner brief">
-              <div className="mk-brief__head">
-                <span className="mk-brief__title">Owner brief</span>
-                <span className="mk-brief__when">Example, 07:00</span>
-              </div>
-              <ul className="mk-brief__items">
-                {BRIEF_ITEMS.map((b) => (
-                  <li key={b.t} className="mk-brief__item">
-                    <span className="mk-brief__tag">{b.tag}</span>
-                    <span className="mk-brief__text">{b.t}</span>
-                    <span className="mk-brief__meta">Evidence attached</span>
-                    <span className="mk-brief__act">{b.a}</span>
-                  </li>
-                ))}
-              </ul>
-              <figcaption className="mk-brief__foot">
-                Illustration. Your brief shows your own items and amounts.
-              </figcaption>
-            </figure>
+          <h3 className="mk-subhead" data-reveal>When something goes wrong</h3>
+          <div className="mk-cards mk-cards--3">
+            {WRONG.map((w, i) => <ItemCard key={w.t} item={w} delay={i * 80} tone="warn" />)}
           </div>
         </div>
       </section>
 
-      {/* ── Facts ── Product facts, then two calculators that run on the
-          visitor's own numbers. No market statistic appears here. */}
-      <section id="facts" className="cb-section">
+      {/* ── Features ── */}
+      <section id="features" className="cb-section">
         <div className="cb-container">
           <header className="cb-head" data-reveal>
-            <p className="clefs-eyebrow">What you get</p>
-            <h2 className="cb-head__title">What changes for your hotel</h2>
-            <p className="cb-head__desc">The same four things on day one, for every hotel.</p>
+            <p className="clefs-eyebrow">What Clefs does</p>
+            <h2 className="cb-head__title">Nine things <em className="clefs-gilt">every request gets.</em></h2>
           </header>
-          <div className="cb-metrics">
-            {METRICS.map((m, i) => (
-              <div key={m.label} className="cb-metric" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+          <div className="mk-cards mk-cards--3">
+            {FEATURES.map((f, i) => <ItemCard key={f.t} item={f} delay={(i % 3) * 70} />)}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Built on Google Cloud ── */}
+      <section id="stack" className="cb-section cb-section--alt">
+        <div className="cb-container">
+          <header className="cb-head" data-reveal>
+            <p className="clefs-eyebrow">Built on Google Cloud</p>
+            <h2 className="cb-head__title">Gemini from the first word <em className="clefs-gilt">to the last photo.</em></h2>
+            <p className="cb-head__desc">The prototype runs on Google Cloud end to end.</p>
+          </header>
+          <div className="mk-stack">
+            {STACK.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <div key={s.t} className="mk-stack__item" data-reveal style={{ transitionDelay: `${(i % 4) * 60}ms` }}>
+                  <span className="mk-stack__icon" aria-hidden="true"><Icon size={18} /></span>
+                  <div>
+                    <p className="mk-stack__t">{s.t}</p>
+                    <p className="mk-stack__d">{s.d}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Benchmarks ── The deck's slide, labelled for what it is. */}
+      <section id="benchmarks" className="cb-section">
+        <div className="cb-container">
+          <header className="cb-head" data-reveal>
+            <p className="clefs-eyebrow">Benchmarks</p>
+            <h2 className="cb-head__title">Measured on <em className="clefs-gilt">the prototype.</em></h2>
+            <p className="cb-head__desc">
+              Scripted tests run on the prototype, not results from a hotel. A pilot measures your own numbers
+              on your own rooms and team.
+            </p>
+          </header>
+          <div className="cb-metrics mk-bench">
+            {BENCHMARKS.map((m, i) => (
+              <div key={m.label} className="cb-metric" data-reveal style={{ transitionDelay: `${(i % 4) * 70}ms` }}>
                 <div className="cb-metric__val clefs-gilt">{m.val}</div>
                 <div className="cb-metric__label">{m.label}</div>
-                <p className="cb-metric__note">{m.note}</p>
               </div>
             ))}
           </div>
+          <p className="mk-footnote">Measured on the Clefs prototype in October 2026, as shown in the AI Builder Cup deck.</p>
+        </div>
+      </section>
 
-          <div className="mk-calc">
-            <h3 className="mk-calc__title">What is one point of OTA leakage worth to you?</h3>
-            <p className="mk-calc__desc">Type two numbers from your own statements and contract.</p>
-            <OtaLeakageCalculator />
+      {/* ── Pricing ── The deck's pricing slide. */}
+      <section id="pricing" className="cb-section cb-section--alt">
+        <div className="cb-container">
+          <header className="cb-head" data-reveal>
+            <p className="clefs-eyebrow">Pricing</p>
+            <h2 className="cb-head__title">Per room, <em className="clefs-gilt">per month.</em></h2>
+            <p className="cb-head__desc">Start with a free 30-day pilot. Nothing to install, and nothing in your systems to change.</p>
+          </header>
+          <div className="mk-plans">
+            {PLANS.map((p, i) => (
+              <div key={p.name} className={`mk-plan ${i === 0 ? "mk-plan--main" : ""}`} data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                <p className="mk-plan__name">{p.name}</p>
+                <p className="mk-plan__val clefs-gilt">{p.val}</p>
+                <p className="mk-plan__note">{p.note}</p>
+              </div>
+            ))}
           </div>
+          <div className="mk-needs" data-reveal>
+            <div className="mk-needs__col">
+              <p className="mk-needs__h">What we need from you</p>
+              <ul className="mk-needs__list">
+                {NEEDS.map((n) => <li key={n}><LuCheck size={15} aria-hidden="true" /> {n}</li>)}
+              </ul>
+            </div>
+            <div className="mk-needs__col">
+              <p className="mk-needs__h">What we never need</p>
+              <ul className="mk-needs__list mk-needs__list--never">
+                {NEVER.map((n) => <li key={n}><LuX size={15} aria-hidden="true" /> {n}</li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <div className="mk-calc">
-            <h3 className="mk-calc__title">How many hours does your desk spend on the phone?</h3>
-            <p className="mk-calc__desc">Service Control answers the repeat questions. Work out what they cost you.</p>
-            <DeskHoursCalculator />
+      {/* ── Built for trust ── */}
+      <section id="trust" className="cb-section">
+        <div className="cb-container">
+          <header className="cb-head" data-reveal>
+            <p className="clefs-eyebrow">Built for trust</p>
+            <h2 className="cb-head__title">Safe to put <em className="clefs-gilt">in front of guests.</em></h2>
+            <p className="cb-head__desc">Staff stay in charge of every exception. The assistant earns its way live.</p>
+          </header>
+          <div className="mk-cards mk-cards--4">
+            {TRUST.map((t, i) => <ItemCard key={t.t} item={t} delay={i * 70} />)}
           </div>
+        </div>
+      </section>
+
+      {/* ── Pilots ── */}
+      <section id="pilots" className="cb-section cb-section--alt mk-pilots">
+        <div className="cb-container cb-container--narrow" data-reveal>
+          <p className="clefs-eyebrow">Pilots</p>
+          <h2 className="cb-head__title">Pilots in India <em className="clefs-gilt">and the UAE.</em></h2>
+          <p className="mk-pilots__text">
+            Clefs is built with hotel teams in both countries. Front desk agents, room attendants and duty
+            managers shaped every screen, from the QR card in the room to the photo check at the end.
+          </p>
+          <ul className="mk-pilots__list">
+            <li><LuListChecks size={15} aria-hidden="true" /> 30 days on your own rooms and team</li>
+            <li><LuListChecks size={15} aria-hidden="true" /> QR cards, one shared tablet, your staff list</li>
+            <li><LuListChecks size={15} aria-hidden="true" /> Your own response times at the end</li>
+          </ul>
         </div>
       </section>
 
@@ -697,12 +785,12 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
           the page; keeping one source is what guarantees it stays that way.
           <details> is deliberate: the answers are in the HTML for crawlers with
           no JS, and the accordion still works with scripting disabled. */}
-      <section id="questions" className="cb-section cb-section--alt">
+      <section id="questions" className="cb-section">
         <div className="cb-container cb-container--narrow">
           <header className="cb-head" data-reveal>
             <p className="clefs-eyebrow">Questions</p>
             <h2 className="cb-head__title">
-              What hotel owners <em className="clefs-gilt">ask us</em>
+              What hotels <em className="clefs-gilt">ask us</em>
             </h2>
           </header>
           <div className="cb-faq" data-reveal>
@@ -719,40 +807,20 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
         </div>
       </section>
 
-      {/* ── CTA ── Primary is the audit (Canon 23); the demo is the fallback. */}
+      {/* ── CTA ── The live prototype first; a call is the fallback. */}
       <section className="cb-cta">
         <div className="cb-cta__inner" data-reveal>
           <img src="/brand/clefs-key.webp" alt="" aria-hidden="true" className="cb-cta__mark" loading="lazy" decoding="async" />
-          {/* The copy follows the lead magnet that exists (OTA_AUDIT_LIVE in
-              lib/seo.ts): the audit once Profit Guard ships it, the Google
-              check until then, so the promise matches the page it opens. */}
-          {OTA_AUDIT_LIVE ? (
-            <>
-              <h2 className="cb-cta__title">
-                Start with{" "}
-                <span className="cb-nowrap"><em className="clefs-gilt">one</em> OTA statement.</span>
-              </h2>
-              <p className="cb-cta__desc">
-                Upload one statement. Clefs checks every line and shows you what looks wrong, with
-                the calculation. Lines that depend on your contract are marked for you to confirm.
-                There is no cost and nothing to install.
-              </p>
-            </>
-          ) : (
-            <>
-              <h2 className="cb-cta__title">
-                Start with{" "}
-                <span className="cb-nowrap"><em className="clefs-gilt">one</em> Google check.</span>
-              </h2>
-              <p className="cb-cta__desc">
-                See whether your official site price shows on Google Hotels next to the OTAs, and
-                whether the prices match. There is no cost and nothing to install.
-              </p>
-            </>
-          )}
+          <h2 className="cb-cta__title">
+            See it work, <span className="cb-nowrap"><em className="clefs-gilt">in two minutes.</em></span>
+          </h2>
+          <p className="cb-cta__desc">
+            Be the guest in Room 204 and ask for towels. Watch the job reach Maria&apos;s phone in her
+            language, then sign in as the duty manager. A demo hotel with sample data, live now.
+          </p>
           <div className="mk-cta__btns">
-            <Link href={PRIMARY_LEAD.href} className="cb-btn cb-btn--gold cb-btn--lg">
-              {PRIMARY_LEAD.label} <LuArrowRight size={17} aria-hidden="true" />
+            <Link href={TRY_URL} className="cb-btn cb-btn--gold cb-btn--lg">
+              Try the live prototype <LuArrowRight size={17} aria-hidden="true" />
             </Link>
             <a href={DEMO_URL} className="cb-btn cb-btn--ghost cb-btn--lg" target="_blank" rel="noopener noreferrer">
               <LuMic size={17} aria-hidden="true" /> Book a demo
@@ -761,15 +829,14 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
         </div>
       </section>
 
-      {/* ── Footer ── The four older SEO pages keep their URLs (ranking
-          equity) and are grouped under Service Control. */}
+      {/* ── Footer ── */}
       <footer className="cb-footer">
         <div className="cb-footer__inner">
           <div className="cb-footer__brand">
             <img src="/brand/clefs-key.webp" alt="" className="cb-footer__mark" loading="lazy" />
             <div>
               <div className="cb-footer__word clefs-gilt">CLEFS</div>
-              <div className="cb-footer__tag">{BRAND.tagline}</div>
+              <div className="cb-footer__tag">{TAGLINE}</div>
             </div>
           </div>
           <nav className="mk-footer__groups" aria-label="Footer">
@@ -787,50 +854,28 @@ export default function MarketingHomepage({ claimDate }: { claimDate?: string } 
               </div>
             ))}
           </nav>
-          <p className="cb-footer__copy">© {new Date().getFullYear()} Clefs<br />Made for hotels in the UAE.</p>
+          <p className="cb-footer__copy">© {new Date().getFullYear()} Clefs<br />Made for hotels in India and the UAE.</p>
         </div>
       </footer>
     </div>
   );
 }
 
-/* The right-hand column of each product block. Profit Guard carries the only
-   market numbers on the page, and each one renders through <Claim> so its
-   source, population and expiry travel with it (Canon 21). Service Control
-   keeps the guest phone and job ticket demo that used to be the main visual. */
-function productAside(id: string, claimDate?: string) {
-  if (id === "profit-guard") {
-    return (
-      <div className="mk-context" data-reveal>
-        <p className="mk-context__h">Why it matters now</p>
-        <Claim id="jll_uae_revpar_ytd_jun_2026" variant="stat" today={claimDate} />
-        <Claim id="cloudbeds_2025_ota_direct_share" variant="stat" today={claimDate} />
-        <Claim id="cloudbeds_2025_cancellations" variant="stat" today={claimDate} />
-        <p className="mk-context__note">
-          When revenue falls, every payout error matters more. Clefs checks yours, line by line.
-        </p>
-      </div>
-    );
-  }
-  if (id === "demand-radar") {
-    return (
-      <figure className="mk-radar" data-reveal aria-label="Example of demand signals">
-        {[
-          ["Exhibition at a nearby venue", "Demand building", "high"],
-          ["Public holiday weekend", "Watch pickup", "mid"],
-          ["Competitor prices rising for your dates", "Review rates", "mid"],
-          ["Quiet midweek, no events found", "Hold rates", "low"],
-        ].map(([t, a, lvl]) => (
-          <div key={t} className={`mk-radar__row mk-radar__row--${lvl}`}>
-            <span className="mk-radar__dot" aria-hidden="true" />
-            <span className="mk-radar__t">{t}</span>
-            <span className="mk-radar__a">{a}</span>
-          </div>
-        ))}
-        <figcaption className="mk-radar__cap">Illustration. Each signal links to its source.</figcaption>
-      </figure>
-    );
-  }
+/* One card of a grid: the problem, what goes wrong, the features, trust. */
+function ItemCard({ item, delay = 0, tone }: { item: Item; delay?: number; tone?: "warn" }) {
+  const Icon = item.icon;
+  return (
+    <article className={`mk-card ${tone === "warn" ? "mk-card--warn" : ""}`} data-reveal style={{ transitionDelay: `${delay}ms` }}>
+      <span className="mk-card__icon" aria-hidden="true"><Icon size={18} /></span>
+      <h3 className="mk-card__t">{item.t}</h3>
+      <p className="mk-card__d">{item.d}</p>
+    </article>
+  );
+}
+
+/* The deck's guest screen and the job card staff get: the moment the
+   prototype opens on (Room 204, Maria, about 5 minutes). Illustration. */
+function GuestPhone() {
   return (
     <div className="cb-stage" data-reveal>
      <div className="cb-stage__inner">
@@ -846,7 +891,7 @@ function productAside(id: string, claimDate?: string) {
             <img src="/female.webp" alt="" loading="lazy" decoding="async" />
           </div>
           <p className="cb-phone__guest">&ldquo;Can we get extra towels?&rdquo;</p>
-          <p className="cb-phone__reply">&ldquo;Of course. Housekeeping has been notified. Maria is on her way.&rdquo;</p>
+          <p className="cb-phone__reply">&ldquo;Of course. Housekeeping has been notified. Maria is on her way, about 5 minutes.&rdquo;</p>
         </div>
         <div className="cb-phone__foot">
           <span className="cb-phone__mic"><LuMic size={15} /></span>
@@ -1302,13 +1347,14 @@ const brandStyles = `
   }
 `;
 
-/* Styles for the owner-autopilot sections (products, proof bar, brief card,
-   calculators, grouped footer). Kept apart from brandStyles so the hero and
-   avatar CSS above stays untouched by this rewrite. */
+/* Styles for the deck's sections (problem cards, steps, features, stack,
+   benchmarks, pricing, trust, pilots, grouped footer). Kept apart from
+   brandStyles so the hero, avatar, phone and ticket CSS above stays as is. */
 const mkStyles = `
   /* The hero grid column must be allowed to shrink below its content: the
-     secondary CTA is a sentence, and globals.css keeps .cb-btn on one line. */
+     buttons are sentences, and globals.css keeps .cb-btn on one line. */
   .cb-hero__copy { min-width: 0; }
+  .mk-hero__note { margin: 22px 0 0; font-size: 0.86rem; line-height: 1.6; color: var(--clefs-ink-faint); max-width: 34em; }
 
   /* ══ PROOF BAR ══ */
   .mk-proof { position: relative; z-index: 1; border-top: 1px solid var(--clefs-line-soft); border-bottom: 1px solid var(--clefs-line-soft); background: rgba(255,255,255,0.015); }
@@ -1319,81 +1365,84 @@ const mkStyles = `
   .mk-proof__item { display: inline-flex; align-items: center; gap: 10px; font-size: 0.92rem; color: var(--clefs-ink); }
   .mk-proof__icon { color: var(--clefs-gold-500); flex: none; }
 
-  /* ══ PRODUCTS ══ */
-  .mk-products { display: flex; flex-direction: column; gap: clamp(56px, 8vw, 110px); }
-  .mk-product {
-    display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(32px, 6vw, 76px); align-items: center;
-    scroll-margin-top: 96px;
+  /* ══ CARDS (problem, what goes wrong, features, trust) ══ */
+  .mk-cards { display: grid; gap: clamp(14px, 2vw, 22px); }
+  .mk-cards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mk-cards--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mk-card {
+    padding: clamp(22px, 3vw, 30px); border-radius: 6px;
+    border: 1px solid var(--clefs-line-soft); background: var(--clefs-surface);
+    transition: border-color .45s var(--ease-out), background .45s var(--ease-out);
   }
-  .mk-product:nth-child(even) .mk-product__copy { order: 2; }
-  .mk-product__name {
-    display: inline-flex; align-items: center; gap: 10px; margin: 0 0 16px;
-    font-size: 0.74rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--clefs-gold-400);
+  .mk-card:hover { border-color: var(--clefs-line); background: var(--clefs-gold-wash); }
+  .mk-card__icon {
+    display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; margin-bottom: 16px;
+    color: var(--clefs-gold-500); background: var(--clefs-gold-wash); border: 1px solid var(--clefs-line);
   }
-  .mk-product__icon {
+  .mk-card--warn .mk-card__icon { color: var(--hc-warning); border-color: rgba(var(--hc-warning-rgb), 0.3); background: rgba(var(--hc-warning-rgb), 0.06); }
+  .mk-card__t { font-size: 1.12rem; line-height: 1.3; margin: 0 0 10px; }
+  .mk-card__d { margin: 0; font-size: 0.92rem; line-height: 1.7; color: var(--clefs-ink-muted); }
+  .mk-answer {
+    margin: clamp(40px, 5vw, 60px) auto 0; text-align: center;
+    font-family: var(--clefs-serif); font-size: clamp(1.4rem, 2.6vw, 2rem); line-height: 1.3;
+  }
+  .mk-subhead {
+    margin: clamp(56px, 7vw, 84px) 0 22px; text-align: center;
+    font-size: clamp(1.3rem, 2.3vw, 1.75rem);
+  }
+
+  /* Steps: single-digit numbers sit in a narrower column. */
+  .mk-steps .cb-step { grid-template-columns: 40px 1fr; padding: 18px 0; }
+  .mk-steps .cb-step__num { font-size: 1.6rem; }
+
+  /* ══ GOOGLE CLOUD ══ */
+  .mk-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px clamp(18px, 3vw, 36px); max-width: 980px; margin: 0 auto; }
+  .mk-stack__item { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; padding: 16px 0; border-bottom: 1px solid var(--clefs-line-soft); }
+  .mk-stack__icon {
     display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
     color: var(--clefs-gold-500); background: var(--clefs-gold-wash); border: 1px solid var(--clefs-line);
   }
-  .mk-product__title { font-size: clamp(1.45rem, 2.6vw, 2.05rem); line-height: 1.22; margin: 0 0 16px; }
-  .mk-product__text { font-size: 0.97rem; line-height: 1.75; color: var(--clefs-ink-muted); margin: 0 0 20px; max-width: 54ch; }
-  .mk-product__list { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 10px; }
-  .mk-product__list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.92rem; line-height: 1.55; color: var(--clefs-ink); }
-  .mk-product__list svg { color: var(--clefs-gold-500); flex: none; margin-top: 3px; }
-  .mk-product__link {
-    display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem;
-    color: var(--clefs-gold-400); text-decoration: none; border-bottom: 1px solid var(--clefs-line-gold); padding-bottom: 3px;
-  }
-  .mk-product__link:hover { color: var(--clefs-gold-500); }
-  .mk-product__aside { min-width: 0; }
+  .mk-stack__t { margin: 0 0 4px; font-weight: 600; font-size: 0.98rem; color: var(--clefs-ink); }
+  .mk-stack__d { margin: 0; font-size: 0.9rem; line-height: 1.6; color: var(--clefs-ink-muted); }
 
-  /* Market context (Profit Guard aside): every number here is a <Claim>. */
-  .mk-context {
-    display: grid; gap: 24px; padding: clamp(22px, 3vw, 34px);
-    border: 1px solid var(--clefs-line); border-radius: 6px; background: rgba(255,255,255,0.02);
-  }
-  .mk-context__h { margin: 0; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--clefs-ink-faint); }
-  .mk-context__note { margin: 0; font-size: 0.86rem; line-height: 1.65; color: var(--clefs-ink-muted); }
+  /* ══ BENCHMARKS ══ */
+  .mk-bench { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mk-bench .cb-metric { padding: clamp(26px, 3vw, 40px) 14px; }
+  .mk-footnote { margin: 22px auto 0; text-align: center; font-size: 0.8rem; color: var(--clefs-ink-faint); max-width: 60ch; }
 
-  /* Demand signals mock (Demand Radar aside). */
-  .mk-radar { margin: 0; display: grid; gap: 10px; padding: clamp(20px, 3vw, 30px); border: 1px solid var(--clefs-line); border-radius: 6px; background: rgba(255,255,255,0.02); }
-  .mk-radar__row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--clefs-line-soft); }
-  .mk-radar__row:last-of-type { border-bottom: 0; }
-  .mk-radar__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--clefs-ink-faint); }
-  .mk-radar__row--high .mk-radar__dot { background: var(--clefs-gold-400); box-shadow: 0 0 10px rgba(242,198,125,0.6); }
-  .mk-radar__row--mid .mk-radar__dot { background: var(--clefs-gold-600); }
-  .mk-radar__t { font-size: 0.9rem; color: var(--clefs-ink); }
-  .mk-radar__a { font-size: 0.76rem; color: var(--clefs-gold-400); white-space: nowrap; }
-  .mk-radar__cap { font-size: 0.74rem; color: var(--clefs-ink-faint); margin-top: 6px; }
+  /* ══ PRICING ══ */
+  .mk-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 2vw, 22px); }
+  .mk-plan {
+    text-align: center; padding: clamp(28px, 3.5vw, 44px) 20px; border-radius: 6px;
+    border: 1px solid var(--clefs-line-soft); background: var(--clefs-surface);
+  }
+  .mk-plan--main { border-color: var(--clefs-line-gold); background: linear-gradient(180deg, rgba(225,175,104,0.07), rgba(255,255,255,0.015)); }
+  .mk-plan__name { margin: 0 0 14px; font-size: 0.74rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--clefs-gold-400); }
+  .mk-plan__val { margin: 0 0 12px; font-family: var(--clefs-serif); font-size: clamp(2.2rem, 4vw, 3rem); line-height: 1; }
+  .mk-plan__note { margin: 0 auto; font-size: 0.9rem; line-height: 1.6; color: var(--clefs-ink-muted); max-width: 26ch; }
+  .mk-needs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: clamp(18px, 4vw, 48px);
+    margin-top: clamp(36px, 5vw, 56px); padding-top: clamp(28px, 4vw, 40px); border-top: 1px solid var(--clefs-line-soft);
+  }
+  .mk-needs__h { margin: 0 0 14px; font-size: 0.74rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--clefs-ink-muted); }
+  .mk-needs__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .mk-needs__list li { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--clefs-ink); }
+  .mk-needs__list svg { color: var(--hc-success); flex: none; }
+  .mk-needs__list--never svg { color: var(--clefs-ink-faint); }
 
-  /* ══ OWNER BRIEF CARD ══ */
-  .mk-brief {
-    margin: 0; padding: clamp(20px, 3vw, 28px); border-radius: 8px;
-    border: 1px solid var(--clefs-line-gold); background: linear-gradient(180deg, rgba(225,175,104,0.06), rgba(255,255,255,0.015));
-    box-shadow: 0 30px 80px -40px rgba(0,0,0,0.8);
-  }
-  .mk-brief__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
-  .mk-brief__title { font-family: var(--clefs-serif); font-size: 1.35rem; color: var(--clefs-ink); }
-  .mk-brief__when { font-size: 0.74rem; letter-spacing: 0.08em; color: var(--clefs-ink-faint); }
-  .mk-brief__items { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
-  .mk-brief__item {
-    display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center;
-    padding: 14px 0; border-top: 1px solid var(--clefs-line-soft);
-  }
-  .mk-brief__tag { grid-column: 1 / -1; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clefs-gold-400); }
-  .mk-brief__text { font-size: 0.93rem; line-height: 1.5; color: var(--clefs-ink); }
-  .mk-brief__meta { grid-row: 3; font-size: 0.74rem; color: var(--clefs-ink-faint); }
-  .mk-brief__act {
-    grid-column: 2; grid-row: 2 / span 2; align-self: center; white-space: nowrap;
-    font-size: 0.76rem; padding: 7px 12px; border-radius: 999px;
-    border: 1px solid var(--clefs-line-gold); color: var(--clefs-gold-400); background: var(--clefs-gold-wash);
-  }
-  .mk-brief__foot { margin-top: 14px; font-size: 0.74rem; color: var(--clefs-ink-faint); }
+  /* ══ PILOTS ══ */
+  .mk-pilots .cb-container--narrow { text-align: center; }
+  .mk-pilots .clefs-eyebrow { display: block; margin-bottom: 18px; }
+  .mk-pilots__text { margin: 22px auto 0; font-size: 1rem; line-height: 1.75; color: var(--clefs-ink-muted); max-width: 56ch; }
+  .mk-pilots__list { list-style: none; margin: 26px auto 0; padding: 0; display: inline-grid; gap: 10px; text-align: left; }
+  .mk-pilots__list li { display: flex; align-items: center; gap: 10px; font-size: 0.93rem; color: var(--clefs-ink); }
+  .mk-pilots__list svg { color: var(--clefs-gold-500); flex: none; }
 
-  /* ══ CALCULATORS ══ */
+  /* ══ CALCULATOR ══ */
   .mk-calc { margin-top: clamp(56px, 7vw, 88px); padding-top: clamp(36px, 5vw, 56px); border-top: 1px solid var(--clefs-line-soft); }
   .mk-calc__title { font-size: clamp(1.3rem, 2.3vw, 1.75rem); line-height: 1.25; margin: 0 0 10px; }
   .mk-calc__desc { font-size: 0.93rem; line-height: 1.7; color: var(--clefs-ink-muted); margin: 0; max-width: 60ch; }
-  .mk-calc .dhc, .mk-calc .mk-olc { margin-top: 28px; }
+  .mk-calc .dhc { margin-top: 28px; }
 
   /* ══ CTA + FOOTER ══ */
   .mk-cta__btns { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; }
@@ -1407,19 +1456,19 @@ const mkStyles = `
   .cb-footer__inner .cb-footer__copy { flex-basis: 100%; text-align: left; padding-top: 18px; border-top: 1px solid var(--clefs-line-soft); }
 
   @media (max-width: 1000px) {
-    .mk-product { grid-template-columns: 1fr; }
-    .mk-product:nth-child(even) .mk-product__copy { order: 0; }
+    .mk-cards--3, .mk-cards--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mk-bench { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mk-plans { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
     .mk-footer__groups { justify-content: center; text-align: left; }
     .cb-footer__inner .cb-footer__copy { text-align: center; }
   }
   @media (max-width: 620px) {
+    .mk-cards--3, .mk-cards--4, .mk-stack, .mk-needs { grid-template-columns: 1fr; }
+    .mk-bench { grid-template-columns: 1fr; }
     .mk-proof__list { flex-direction: column; align-items: flex-start; }
     .cb-hero__btns .cb-btn, .mk-cta__btns .cb-btn { white-space: normal; text-align: center; line-height: 1.35; justify-content: center; }
     .mk-cta__btns { flex-direction: column; }
     .mk-cta__btns .cb-btn { width: 100%; justify-content: center; }
-    .mk-brief__item { grid-template-columns: 1fr; }
-    .mk-brief__act { grid-column: 1; grid-row: auto; justify-self: start; }
-    .mk-brief__meta { grid-row: auto; }
     .mk-footer__groups { flex-direction: column; align-items: center; text-align: center; }
     .mk-footer__group { align-items: center; }
   }

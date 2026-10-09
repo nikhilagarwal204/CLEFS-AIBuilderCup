@@ -1,38 +1,81 @@
 import type { Metadata } from "next";
 import MarketingHomepage from "./MarketingHomepage";
-import { claimToday } from "./lib/claims";
 import { HOME_FAQS } from "./lib/faq";
 import {
   SITE,
+  BRAND,
   jsonLd,
   organizationSchema,
   websiteSchema,
-  softwareSchema,
   faqSchema,
 } from "./lib/seo";
 
 // Server component by design: the interactive UI lives in MarketingHomepage so
 // the marketing copy is present in the initial HTML for the crawlers that never
-// execute JavaScript (Bing, PerplexityBot, ClaudeBot).
+// execute JavaScript (Bing, PerplexityBot and other AI crawlers).
+
+const TITLE = "Clefs: the AI Guest Service Desk for Hotels";
+const DESCRIPTION =
+  "Guests ask once, in their language, from the QR card in their room. Clefs sends each request to the right free staff member in their language, escalates late jobs, and closes them only with photo proof. Built on Google Cloud with Gemini.";
+
 export const metadata: Metadata = {
   // `absolute` so the root template's "| Clefs" suffix is not appended twice.
-  title: { absolute: "Hotel OTA Audit and Profit Control in the UAE - Clefs" },
-  description:
-    "Find the profit leaks your hotel systems miss. Clefs audits OTA payouts and rate integrity, spots local demand early, and sends your owner the actions to approve every morning.",
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
   alternates: { canonical: "/" },
+  // A page's openGraph replaces the layout's whole object, so it repeats the
+  // site name and locale (the image still comes from app/opengraph-image.jpg).
+  openGraph: { title: TITLE, description: DESCRIPTION, url: SITE, siteName: "Clefs", locale: "en_US", type: "website" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+};
+
+// The homepage tells the AI Builder Cup deck's story (05 spec), so its own
+// Organization and SoftwareApplication nodes say what the page says. The
+// shared builders in lib/seo.ts keep serving the other pages.
+const ORGANIZATION = {
+  ...organizationSchema(),
+  description:
+    "Clefs is an AI guest service desk for hotels. Guests ask by voice or text, in their language, from a room QR code; Clefs dispatches each request to the right staff member in their language and closes it only with photo proof.",
+  areaServed: [
+    { "@type": "Country", name: "India", identifier: "IN" },
+    { "@type": "Country", name: "United Arab Emirates", identifier: "AE" },
+  ],
+};
+
+const SOFTWARE = {
+  "@type": "SoftwareApplication",
+  "@id": `${SITE}/#software`,
+  name: BRAND.name,
+  applicationCategory: "BusinessApplication",
+  applicationSubCategory: "Hotel guest service desk",
+  operatingSystem: "Web browser",
+  url: SITE,
+  publisher: { "@id": `${SITE}/#organization` },
+  description: DESCRIPTION,
+  featureList: [
+    "Voice and text from a room QR code, in the guest's language",
+    "Answers only from hotel-approved facts",
+    "Dispatch to the right free staff member with an ETA",
+    "Jobs shown to staff in their own language",
+    "Photo proof checked by Gemini vision before closure",
+    "Automatic escalation to supervisor, duty manager and GM",
+    "Emergency words page the duty manager at once",
+    "Service recovery approved by the duty manager",
+    "Owner view of response times by team, floor and shift",
+  ],
 };
 
 // The FAQPage node is built from HOME_FAQS, the same array the page renders as a
 // visible accordion. Google requires marked-up FAQ content to be on the page.
 const schema = jsonLd([
-  organizationSchema(),
+  ORGANIZATION,
   websiteSchema(),
-  softwareSchema(),
+  SOFTWARE,
   {
     "@type": "WebPage",
     "@id": `${SITE}/#webpage`,
     url: SITE,
-    name: "Profit and Service Control for Hotels | Clefs",
+    name: TITLE,
     isPartOf: { "@id": `${SITE}/#website` },
     about: { "@id": `${SITE}/#software` },
     inLanguage: "en",
@@ -40,19 +83,11 @@ const schema = jsonLd([
   faqSchema(HOME_FAQS, "/"),
 ]);
 
-// Dated registry claims render on the homepage (the proof column). Regenerate
-// hourly so their expiry and tense follow the calendar rather than the build.
-export const revalidate = 3600;
-
 export default function Page() {
-  // Read once per (re)render on the server and handed to the client tree, so
-  // the server HTML and the hydration render judge every claim by the same
-  // date: a visitor's clock can never produce a hydration mismatch.
-  const claimDate = claimToday();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: schema }} />
-      <MarketingHomepage claimDate={claimDate} />
+      <MarketingHomepage />
     </>
   );
 }

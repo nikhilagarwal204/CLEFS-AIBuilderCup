@@ -3,9 +3,16 @@ Demo part "core": the property and its people (02 spec 9, "Property").
 
 Al Rigga Crest Hotel: Deira, 3-star, 80 rooms on 8 floors of 10
 (40 STD_KING, 30 STD_TWIN, 10 FAM_2BR with two bedrooms), Dubai tax profile
-hotel_3 convention A, the OTA and direct channels, Service departments, 16
-staff with PINs, five console users (owner, GM, finance, revenue, front
-desk) and one paired front-desk device.
+hotel_3 convention A, the OTA and direct channels, Service departments, 18
+staff with PINs, six console users (owner, GM, finance, revenue, front desk
+and the duty manager) and one paired front-desk device.
+
+The deck cast (05 spec section 4) lives here too: Room 204 on floor 2,
+Maria Santos (Housekeeping attendant, floors 1-4, reads Tagalog), Priya
+Sharma (Housekeeping attendant, floors 5-8), the Housekeeping supervisor,
+the duty manager and the GM. The deck part (deck.py) puts them on shift for
+the next 14 days and pairs Maria's phone; /try (clefs.core.demo_access)
+signs reviewers in as them.
 
 Everything goes through core services (rooms, tax, devices, stays
 channels). The only raw writes are core tables without a writer function
@@ -25,6 +32,22 @@ from clefs.core import rooms, tax
 
 PART_ORDER = 10
 ACTOR = SimpleNamespace(kind="system", user_id=None, device_id=None, label="demo-seed")
+
+# ─── The deck cast (05 spec section 4) ───
+# /try (clefs.core.demo_access), the deck part and docs/DEMO.md name these
+# people; a rename here is a rename there.
+DECK_ROOM = "204"
+DECK_ATTENDANT = "Maria Santos"
+# Fixed so /try can print it: it opens Maria's shift only on a phone already
+# paired to a demo hotel, which only /try or a manager can pair.
+DECK_ATTENDANT_PIN = "2046"
+DECK_SECOND_ATTENDANT = "Priya Sharma"
+DECK_SUPERVISOR = "Rekha Nair"
+DECK_DUTY_MANAGER = "Omar Khalid"
+DECK_GM = "Sarah Thompson"
+# The console login /try signs reviewers in with (dept_head at this hotel only).
+DUTY_MANAGER_LOCAL = "dutymanager"
+DUTY_MANAGER_ROLE = "dept_head"
 
 # ─── Rooms ───
 
@@ -150,14 +173,16 @@ def seed_departments(ctx: Any) -> dict:
 # ─── Staff ───
 
 # name, legacy role, legacy department, department_key, role_key, floors,
-# languages. Dubai-typical names for a Deira 3-star team (02 spec 9).
+# languages. Dubai-typical names for a Deira 3-star team (02 spec 9). The
+# first language is the one a person reads their jobs in (05 spec 2.10):
+# Maria reads Tagalog (fil), Priya Hindi.
 STAFF = (
-    ("Maria Santos", "Housekeeping Supervisor", "Housekeeping", "housekeeping", "supervisor", [], ["en", "tl"]),
+    (DECK_ATTENDANT, "Room Attendant", "Housekeeping", "housekeeping", "staff", ["1", "2", "3", "4"], ["fil", "en"]),
     ("Joy Dela Cruz", "Room Attendant", "Housekeeping", "housekeeping", "staff", ["1", "2"], ["en", "tl"]),
     ("Anita Gurung", "Room Attendant", "Housekeeping", "housekeeping", "staff", ["3", "4"], ["en", "ne", "hi"]),
-    ("Rekha Nair", "Room Attendant", "Housekeeping", "housekeeping", "staff", ["5", "6"], ["en", "ml", "hi"]),
+    (DECK_SUPERVISOR, "Housekeeping Supervisor", "Housekeeping", "housekeeping", "supervisor", [], ["en", "ml", "hi"]),
     ("Grace Wanjiru", "Room Attendant", "Housekeeping", "housekeeping", "staff", ["7", "8"], ["en", "sw"]),
-    ("Sunil Perera", "Houseman", "Housekeeping", "housekeeping", "staff", [], ["en", "si"]),
+    ("Sunil Perera", "Night Housekeeping Supervisor", "Housekeeping", "housekeeping", "supervisor", [], ["en", "si"]),
     ("Arjun Menon", "In-Room Dining Supervisor", "Food & Beverage", "ird", "supervisor", [], ["en", "ml", "hi"]),
     ("Ahmed Farouk", "Order Taker", "Food & Beverage", "ird", "staff", [], ["en", "ar"]),
     ("Kiran Thapa", "Room Service Waiter", "Food & Beverage", "ird", "staff", [], ["en", "ne", "hi"]),
@@ -165,9 +190,14 @@ STAFF = (
     ("Imran Qureshi", "Chief Engineer", "Maintenance", "engineering", "supervisor", [], ["en", "ur", "hi"]),
     ("Rajesh Kumar", "Maintenance Technician", "Maintenance", "engineering", "staff", [], ["en", "hi"]),
     ("Bilal Hassan", "Maintenance Technician", "Maintenance", "engineering", "staff", [], ["en", "ur"]),
-    ("Omar Khalid", "Duty Manager", "Front Desk", "front_office", "duty_manager", [], ["en", "ar"]),
-    ("Priya Sharma", "Guest Service Agent", "Front Desk", "front_office", "staff", [], ["en", "hi"]),
+    (DECK_DUTY_MANAGER, "Duty Manager", "Front Desk", "front_office", "duty_manager", [], ["en", "ar"]),
+    (DECK_SECOND_ATTENDANT, "Room Attendant", "Housekeeping", "housekeeping", "staff", ["5", "6", "7", "8"],
+     ["hi", "en"]),
     ("Mohammed Rafiq", "Night Auditor", "Front Desk", "front_office", "staff", [], ["en", "ar", "ur"]),
+    ("Hessa Al Ali", "Assistant Front Office Manager", "Front Desk", "front_office", "duty_manager", [], ["ar", "en"]),
+    # The GM is on the escalation ladder (10 minutes) but takes no jobs: no
+    # Service department, so routing never offers them a towel run.
+    (DECK_GM, "General Manager", "Management", None, "gm", [], ["en"]),
 )
 
 
@@ -186,7 +216,7 @@ def _pin(rng: Any, used: set[str]) -> str:
 
 def seed_staff(ctx: Any) -> dict:
     rng = ctx.rng("core:staff")
-    used: set[str] = set()
+    used: set[str] = {DECK_ATTENDANT_PIN}
     v2 = ctx.table_exists("svc_departments")  # Service's v2 columns ship with its migrations
     ids: dict[str, int] = {}
     pins: dict[str, str] = {}
@@ -205,7 +235,7 @@ def seed_staff(ctx: Any) -> dict:
                 "UPDATE staff_members SET department_key = %s, role_key = %s, languages = %s WHERE id = %s",
                 (dkey, rkey, langs, sid),
             )
-        pin = _pin(rng, used)
+        pin = DECK_ATTENDANT_PIN if name == DECK_ATTENDANT else _pin(rng, used)
         devices.set_staff_pin(ctx.cur, ctx.slug, sid, pin, actor=ACTOR)
         ids[name] = sid
         pins[full] = pin
@@ -217,14 +247,19 @@ def seed_staff(ctx: Any) -> dict:
 
 # ─── Console users ───
 
-# role, email local part, display name, departments
+# role, email local part, display name, departments. The duty manager is a
+# department head over every department (empty list = all): the deck's
+# approver of recovery gestures and the login /try hands reviewers.
 USERS = (
     ("owner", "owner", "Khalid Al Mansoori", []),
-    ("gm", "gm", "Sarah Thompson", []),
+    ("gm", "gm", DECK_GM, []),
     ("finance", "finance", "Vikram Iyer", []),
     ("revenue", "revenue", "Elena Petrova", []),
     ("front_desk", "frontdesk", "Aisha Rahman", ["front_office"]),
+    (DUTY_MANAGER_ROLE, DUTY_MANAGER_LOCAL, DECK_DUTY_MANAGER, []),
 )
+# Staff rows that are the same person as a console login (staff_members.user_id).
+STAFF_USER_LINKS = ((DECK_DUTY_MANAGER, DUTY_MANAGER_ROLE), (DECK_GM, "gm"))
 
 
 def demo_email(local: str, slug: str) -> str:
@@ -268,6 +303,11 @@ def seed_users(ctx: Any) -> dict:
         )
         ids[role] = uid
         out[role] = {"email": email, "password": pw, "name": demo_name(name)}
+    staff = ctx.ids.get("staff") or {}
+    for person, role in STAFF_USER_LINKS:
+        if person in staff and role in ids:
+            ctx.cur.execute("UPDATE staff_members SET user_id = %s WHERE id = %s AND hotel_slug = %s",
+                            (ids[role], staff[person], ctx.slug))
     ctx.ids["users"] = ids
     ctx.credentials["users"] = out
     return {"users": len(ids)}

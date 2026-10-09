@@ -360,7 +360,8 @@ def _brief_result(result: Any) -> str:
 
 # ─── Plants ───
 
-TITLES = {"core": "Property and stays", "profit_guard": "Profit Guard (OTA leakage, tourism dirham)",
+TITLES = {"core": "Property and stays", "deck": "AI Builder Cup deck cast",
+          "profit_guard": "Profit Guard (OTA leakage, tourism dirham)",
           "service": "Service Control", "amenities": "Amenities", "reviews": "Reviews",
           "guests": "Guests and journeys", "inquiries": "Inquiry Guard", "upsell": "Upsell",
           "demand": "Demand Radar", "visibility": "Visibility", "finance": "Finance", "brief": "Brief"}
@@ -603,6 +604,24 @@ def core_section(cur: Any, slug: str, scale: float) -> Section:
     return s
 
 
+def deck_section(cur: Any, slug: str) -> Section:
+    """The deck cast (seed part deck.py): Room 204, Maria on shift and on
+    her phone, Priya, the ladder, the duty manager login, the shadow week
+    and the 22 standard tests. A seed run without the deck part shows it
+    failing, which is the point: the deck's demo needs every line."""
+    from clefs.seed.demo_uae import deck
+
+    s = Section("deck", TITLES["deck"])
+    try:
+        with _savepoint(cur):
+            results = deck.deck_checks(cur, slug)
+    except Exception as exc:  # a broken check is a failed check, not a crash
+        s.rows.append(Row("deck checks", False, f"{type(exc).__name__}: {exc}"[:200]))
+        return s
+    s.rows += [Row(name, ok, detail) for name, ok, detail in results]
+    return s
+
+
 def module_sections(cur: Any, slug: str, plants: list[dict], anchor: date, scale: float) -> list[Section]:
     """One Section per module in SECTIONS order. A module with no planted case
     at all fails: every module has plants in the spec, so an empty one means
@@ -659,6 +678,7 @@ def run(cur: Any, slug: str, *, manifest_path: str | None = None, anchor: date |
             rep.refused = sorted(set(refused))
             rep.platform_jobs = hotel_jobs(cur, slug)[1]
         rep.sections.append(core_section(cur, slug, scale))
+        rep.sections.append(deck_section(cur, slug))
         if manifest is None:
             rep.sections[0].rows.append(Row("planted-case manifest", False, source))
         else:

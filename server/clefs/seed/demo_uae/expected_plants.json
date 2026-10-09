@@ -3394,6 +3394,657 @@
           "pms_res_id": "RC900074"
         }
       ]
+    },
+    {
+      "dedupe_key": "am.request_logging_gap",
+      "detector": "am.request_logging_gap",
+      "key": "shaving-kits",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Shaving kits handed out 2.2x the logged requests over 14 days.",
+      "subjects": [
+        {
+          "item_key": "SHAVING_KIT",
+          "logged": 13,
+          "unlogged": 16
+        }
+      ]
+    },
+    {
+      "dedupe_key": "am.sup_compliance",
+      "detector": "am.sup_compliance",
+      "key": "single-use-plastic",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Plastic dental, shaving and shower-cap kits issued under the Dubai single-use plastic policy.",
+      "subjects": [
+        {
+          "item_key": "DENTAL_KIT"
+        },
+        {
+          "item_key": "SHAVING_KIT"
+        },
+        {
+          "item_key": "SHOWER_CAP"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "am.variance.spike",
+      "key": "closet-fill-monday",
+      "klass": "DECOY",
+      "module": "amenities",
+      "note": "Monday two-day closet fill: a doubled Monday, an empty Tuesday, a normal week. Must not fire.",
+      "subjects": [
+        {
+          "item_key": "WATER_500",
+          "mondays": 2
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "am.variance.spike",
+      "key": "dental-floor6-night",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Floor 6 night shift issues dental kits at ~3x for 10 nights with no request behind them.",
+      "subjects": [
+        {
+          "days": 10,
+          "floor": "6",
+          "item_key": "DENTAL_KIT",
+          "shift": "night",
+          "units": 120
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "am.variance.spike",
+      "key": "slippers-one-cart",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Slippers over-issued to one cart (9 extra pairs a day for 9 days).",
+      "subjects": [
+        {
+          "item_key": "SLIPPERS",
+          "location": "HK Cart 3F",
+          "pairs": 81
+        }
+      ]
+    },
+    {
+      "detector": "brief.daily",
+      "key": "2026-09-27",
+      "klass": "ROW",
+      "module": "brief",
+      "note": "the anchor's daily brief ranks the top 5 by AED at stake",
+      "subjects": {
+        "cadence": "daily",
+        "currency": "AED",
+        "top": 5
+      }
+    },
+    {
+      "detector": "brief.weekly_report",
+      "key": "2026-09-21",
+      "klass": "ROW",
+      "module": "brief",
+      "note": "the weekly verified-value report",
+      "subjects": {
+        "cadence": "weekly"
+      }
+    },
+    {
+      "detector": "dr.calibration",
+      "key": "EXPO",
+      "klass": "ROW",
+      "module": "demand",
+      "note": "the expo is a calibration point; its nights show a lift over the baseline",
+      "subjects": {
+        "category": "EXPO",
+        "event": "demo-summer-expo-2026",
+        "positive_lift": true
+      }
+    },
+    {
+      "detector": "dr.comp_sold_out",
+      "key": "gitex-2026:demo-trade-axis",
+      "klass": "ROW",
+      "module": "demand",
+      "note": "",
+      "subjects": {
+        "comp": "Trade Axis Hotel",
+        "end": "2026-12-11",
+        "start": "2026-12-07"
+      }
+    },
+    {
+      "detector": "dr.comp_uplift",
+      "key": "cabsat-2026",
+      "klass": "ROW",
+      "module": "demand",
+      "note": "",
+      "subjects": {
+        "end": "2026-10-07",
+        "start": "2026-10-05",
+        "uplift_pct": 15
+      }
+    },
+    {
+      "detector": "dr.comp_uplift",
+      "key": "gitex-2026",
+      "klass": "ROW",
+      "module": "demand",
+      "note": "",
+      "subjects": {
+        "end": "2026-12-11",
+        "start": "2026-12-07",
+        "uplift_pct": 60
+      }
+    },
+    {
+      "detector": "dr.event",
+      "key": "demo-summer-expo-2026",
+      "klass": "ROW",
+      "module": "demand",
+      "note": "hotel-scoped calibration event with visible pickup",
+      "subjects": {
+        "end": "2026-08-20",
+        "start": "2026-08-18",
+        "title": "Demo Summer Expo",
+        "venue": "DWTC"
+      }
+    },
+    {
+      "detector": "dr.recommendation",
+      "key": "cabsat-2026",
+      "klass": "ROW",
+      "module": "demand",
+      "note": "BAR left at an ordinary night while comps are up 15%",
+      "subjects": {
+        "direction": "up",
+        "end": "2026-10-07",
+        "start": "2026-10-05"
+      }
+    },
+    {
+      "detector": "fin.anomaly",
+      "key": "labour_ratio:2026-06",
+      "klass": "SIGNAL",
+      "module": "finance",
+      "note": "labour at least 4 pp above the trailing 6-month mean",
+      "subjects": {
+        "labour_pct": "31.56",
+        "month": "2026-06-01",
+        "payroll": 142000,
+        "tor": 450000
+      }
+    },
+    {
+      "detector": "fin.anomaly",
+      "key": "other-months",
+      "klass": "DECOY",
+      "module": "finance",
+      "note": "generated months stay inside the constraints, so nothing else fires",
+      "subjects": {
+        "months": "2025-08..2026-08 except 2026-06 and 2026-07"
+      }
+    },
+    {
+      "dedupe_key": "fin.booked_net:2026-07-01",
+      "detector": "fin.booked_net",
+      "key": "2026-07",
+      "klass": "SIGNAL",
+      "module": "finance",
+      "note": "OTA revenue booked net",
+      "subjects": {
+        "commission_line": 0,
+        "expected_commission": 44100,
+        "month": "2026-07-01",
+        "pms_rooms_revenue": 400000,
+        "rooms_revenue": 355900
+      }
+    },
+    {
+      "dedupe_key": null,
+      "detector": "guests.j1_guest_stay",
+      "key": "booking-j1-phone",
+      "klass": "ROW",
+      "module": "guests",
+      "note": "A J1-page phone on an OTA stay: guest_stay, no J8.",
+      "subjects": [
+        {
+          "pms_res_id": "RC100508"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "guests.j5_negative_ticket",
+      "key": "ac-not-cooling",
+      "klass": "ROW",
+      "module": "guests",
+      "note": "J5 reply 'AC is not cooling' opened a Service ticket (source whatsapp_journey).",
+      "subjects": [
+        {
+          "pms_res_id": "RC100397",
+          "room": "504"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "guests.j7_feedback",
+      "key": "ratings-1-to-5",
+      "klass": "ROW",
+      "module": "guests",
+      "note": "J7 answers at every rating, identical review links; ratings <= 2 filed a GM follow-up.",
+      "subjects": [
+        {
+          "ratings": [
+            5,
+            4,
+            3,
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "guests.meta_131049",
+      "key": "j3-offer",
+      "klass": "ROW",
+      "module": "guests",
+      "note": "J3 blocked twice by Meta 131049, skipped.",
+      "subjects": [
+        {
+          "pms_res_id": "RC100430"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "guests.optout",
+      "key": "j7-stop",
+      "klass": "ROW",
+      "module": "guests",
+      "note": "STOP after J7: suppressed.",
+      "subjects": [
+        {
+          "phone": "+971500000713",
+          "pms_res_id": "RC100387"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "guests.registration_card_consent",
+      "key": "booking-guest-j8",
+      "klass": "ROW",
+      "module": "guests",
+      "note": "Own mobile + WhatsApp + marketing + transfer consent from the registration card; J8 planned.",
+      "subjects": [
+        {
+          "pms_res_id": "RC100229"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.google_duplicate",
+      "key": "lead-retry",
+      "klass": "ROW",
+      "module": "inquiries",
+      "note": "A duplicate Google delivery is one inquiry.",
+      "subjects": [
+        {
+          "contact": "Aigerim Bekova",
+          "outcome": "appended"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.leaked_to_ota",
+      "key": "decoys",
+      "klass": "DECOY",
+      "module": "inquiries",
+      "note": "Same name +35 d, same name other phone and dates, web email vs Booking alias: no leak.",
+      "subjects": [
+        {
+          "contacts": [
+            "Rania Aziz",
+            "Omar Haddad",
+            "Julia Weber"
+          ]
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.leaked_to_ota",
+      "key": "web-to-booking",
+      "klass": "SIGNAL",
+      "module": "inquiries",
+      "note": "Web inquiry A-17, Booking reservation A-13 with the same phone (pms_ota): leaked, AED ~182.52.",
+      "subjects": [
+        {
+          "contact": "Karim Nasser"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.quote_awaiting_approval",
+      "key": "group-12x3",
+      "klass": "SIGNAL",
+      "module": "inquiries",
+      "note": "Group 12 rooms x 3 nights at 10% below BAR: the send waits for approval.",
+      "subjects": [
+        {
+          "contact": "Hessa Al Mansoori"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.unanswered",
+      "key": "unanswered:Meera Iyer",
+      "klass": "SIGNAL",
+      "module": "inquiries",
+      "note": "Unanswered past SLA; the brief reads '2 unanswered > 2 h'.",
+      "subjects": [
+        {
+          "contact": "Meera Iyer"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.unanswered",
+      "key": "unanswered:Stefan Novak",
+      "klass": "SIGNAL",
+      "module": "inquiries",
+      "note": "Unanswered past SLA; the brief reads '2 unanswered > 2 h'.",
+      "subjects": [
+        {
+          "contact": "Stefan Novak"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "inq.verified_direct",
+      "key": "ngenius-deposit",
+      "klass": "ROW",
+      "module": "inquiries",
+      "note": "N-Genius paid webhook (fixture) for the first-night deposit, DIRECT_WEB match, verified in September.",
+      "subjects": [
+        {
+          "contact": "Priya Menon",
+          "deposit_minor": 50434,
+          "fee_minor": 1261,
+          "pms_res_id": "RC700001"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "reviews.drafted_replies",
+      "key": "recent-unanswered",
+      "klass": "ROW",
+      "module": "reviews",
+      "note": "Every recent review without an owner reply has a draft.",
+      "subjects": [
+        {
+          "days": 14
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "reviews.linked_request",
+      "key": "friday-towels",
+      "klass": "ROW",
+      "module": "reviews",
+      "note": "A 2-star Google review names the room of a Friday-evening request; analysis links it.",
+      "subjects": [
+        {
+          "external_id": "demo-google-linked",
+          "room": "101"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "reviews.negative_review",
+      "key": "friday-towels",
+      "klass": "SIGNAL",
+      "module": "reviews",
+      "note": "Negative review signal with the draft reply.",
+      "subjects": [
+        {
+          "external_id": "demo-google-linked"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.l1_incident",
+      "key": "l1:2026-08-17",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "L1 via intake: incident beside the request, GM signal at creation.",
+      "subjects": [
+        {
+          "day": "2026-08-17",
+          "open": false,
+          "room": "105"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.l1_incident",
+      "key": "l1:2026-09-18",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "L1 via intake: incident beside the request, GM signal at creation.",
+      "subjects": [
+        {
+          "day": "2026-09-18",
+          "open": false,
+          "room": "209"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.l1_incident",
+      "key": "l1:2026-09-27",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "L1 via intake: incident beside the request, GM signal at creation.",
+      "subjects": [
+        {
+          "day": "2026-09-27",
+          "open": true,
+          "room": "303"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.recovery_case",
+      "key": "noise:last-night",
+      "klass": "ROW",
+      "module": "service",
+      "note": "Complaint via intake opens the case; gesture AED 120 within the duty manager's authority.",
+      "subjects": [
+        {
+          "pms_res_id": "RC100397",
+          "room": "504"
+        }
+      ]
+    },
+    {
+      "dedupe_key": "service.repeat_fault:room:504:ac",
+      "detector": "service.repeat_fault",
+      "key": "room:504:ac",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "AC reported on A-4 and again by the J5 reply on the anchor.",
+      "subjects": [
+        {
+          "pms_res_id": "RC100397",
+          "room": "504"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.sla_breach_cluster",
+      "key": "friday-evening:2026-09-25",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "Friday evenings carry the SLA breaches (history ~36% vs ~4%); the last Friday is live.",
+      "subjects": [
+        {
+          "business_date": "2026-09-25",
+          "requests": 8
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "upsell.funnel",
+      "key": "ird-30-days",
+      "klass": "ROW",
+      "module": "upsell",
+      "note": "Quote -> pairing -> order funnel over 30 days, one live order.",
+      "subjects": [
+        {
+          "abandoned": 11,
+          "delivered": 47,
+          "ordered": 1,
+          "sessions": 59
+        }
+      ]
+    },
+    {
+      "detector": "vis.ai_competitor_win",
+      "key": "comp_set",
+      "klass": "ROW",
+      "module": "visibility",
+      "note": "answers that name comps and not the hotel",
+      "subjects": {
+        "comps": [
+          "Barsha Metro Hotel",
+          "Creekview Inn",
+          "Gold Souk Boutique",
+          "Port Saeed Suites",
+          "Trade Axis Hotel"
+        ]
+      }
+    },
+    {
+      "detector": "vis.ai_fact_error",
+      "key": "checkin_time:12:00",
+      "klass": "SIGNAL",
+      "module": "visibility",
+      "note": "an AI answer contradicts the concierge KB",
+      "subjects": {
+        "claimed": "12:00",
+        "error_type": "wrong_value",
+        "fact_key": "checkin_time",
+        "kb": "14:00"
+      }
+    },
+    {
+      "detector": "vis.ai_fact_error",
+      "key": "parking:no",
+      "klass": "SIGNAL",
+      "module": "visibility",
+      "note": "an AI answer contradicts the concierge KB",
+      "subjects": {
+        "claimed": "no",
+        "error_type": "false_absent",
+        "fact_key": "parking",
+        "kb": "free"
+      }
+    },
+    {
+      "detector": "vis.ai_mention",
+      "key": "self",
+      "klass": "ROW",
+      "module": "visibility",
+      "note": "discovery answers name the hotel about 40% of the time",
+      "subjects": {
+        "engines": [
+          "gemini_web_search",
+          "serpapi_ai_mode"
+        ],
+        "intents": [
+          "generic",
+          "persona",
+          "event"
+        ]
+      }
+    },
+    {
+      "detector": "vis.ai_model_change",
+      "key": "gemini_web_search",
+      "klass": "ROW",
+      "module": "visibility",
+      "note": "a new baseline epoch",
+      "subjects": {
+        "from": "gemini-2.5-flash",
+        "to": "gemini-2.5-flash-preview-09-2025"
+      }
+    },
+    {
+      "dedupe_key": "vis.official_price_missing",
+      "detector": "vis.official_price_missing",
+      "key": "2026-10-27",
+      "klass": "SIGNAL",
+      "module": "visibility",
+      "note": "",
+      "subjects": {
+        "stay_date": "2026-10-27"
+      }
+    },
+    {
+      "dedupe_key": "vis.parity_gap_google:2026-10-02",
+      "detector": "vis.parity_gap_google",
+      "key": "2026-10-02",
+      "klass": "SIGNAL",
+      "module": "visibility",
+      "note": "official site price above Booking.com on Google Hotels",
+      "subjects": {
+        "currency": "AED",
+        "gap": 38,
+        "lowest": 412,
+        "official": 450,
+        "source": "Booking.com"
+      }
+    },
+    {
+      "dedupe_key": "vis.parity_gap_google:2026-10-26",
+      "detector": "vis.parity_gap_google",
+      "key": "2026-10-26",
+      "klass": "DECOY",
+      "module": "visibility",
+      "note": "inside the 1% tolerance",
+      "subjects": {
+        "gap_pct": "0.78",
+        "lowest": 508,
+        "official": 512
+      }
     }
   ],
   "seed": 20261001

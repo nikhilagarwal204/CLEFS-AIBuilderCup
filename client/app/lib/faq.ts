@@ -1,4 +1,3 @@
-import { PRICING_NOTE } from "./pricing";
 import type { Faq } from "./seo";
 
 /**
@@ -26,44 +25,48 @@ import type { Faq } from "./seo";
  * build on an untagged percentage or currency amount here. These answers carry
  * no market statistics at all: they are product facts, stated for hotels in the
  * UAE, branded or not. Say "hotels", never "independent hotels only".
+ *
+ * AI BUILDER CUP (05 spec): the homepage tells the guest service desk story,
+ * so these answers do too. The one price answer is tagged with Clefs' own
+ * price-list row (claims.ts clefs_price_list_2026). Say "in your language",
+ * never "any language" (the registry bans it).
  */
 export const HOME_FAQS: Faq[] = [
   {
     q: "What is Clefs?",
-    a: "Clefs finds the profit leaks your hotel systems miss. It checks OTA payouts and rates against your own records. It watches demand around your hotel. Every morning it sends the owner a short list of actions to approve, each with its evidence. It also runs guest requests for your team, with an Arabic and English guest assistant.",
+    a: "Clefs is an AI guest service desk for hotels. A guest scans the QR card in the room and asks once, by voice or text, in their language. Clefs turns each ask into a job for the right free staff member, in that person's language, and closes it only with proof.",
   },
   {
-    q: "Do I have to replace my PMS or channel manager?",
-    a: "No. Clefs works next to the systems you already use. It reads your reservation exports, OTA statements and rate calendar. Your PMS and channel manager stay in charge of bookings and rates. Clefs never changes a rate or a booking on its own.",
+    q: "Do guests need to download an app?",
+    a: "No. The QR card in the room opens a web page on the guest's own phone. The guest agrees to the AI processing first, and the assistant says it is an AI.",
   },
   {
-    q: "How does the free OTA audit work?",
-    a: "You upload one OTA statement, as a PDF, CSV or Excel file. Clefs checks each line and shows the reason and the calculation. The total is an estimate of commission charged on no-shows, cancellations and refunded amounts. Fee lines, and percentages above a default per OTA, are marked to confirm with you and left out of the total. The file is deleted after 30 days.",
+    q: "Which languages does it speak?",
+    a: "Eight guest languages today: English, Arabic, Russian, Hindi, Urdu, Chinese, German and French. Each staff member reads the job in their own language, and their replies reach the guest in the guest's language.",
   },
   {
-    q: "Who approves the actions Clefs suggests?",
-    a: "You do, or the person you choose. Every action comes with its evidence and the amount at stake. Refunds, rate changes and OTA changes always wait for a person to approve them. For routine tasks, you decide how much Clefs may do on its own, and you can take that back at any time. After an action runs, Clefs checks the result and shows you the value it verified.",
+    q: "How does Clefs avoid making up answers?",
+    a: "It answers only from facts your hotel approved, such as check-out time or the Wi-Fi password. If the answer is not there, it says so and passes the question to a person. It never promises a price, a refund or an exception.",
   },
   {
-    q: "Where is my hotel's data stored?",
-    a: "Today our database runs in Singapore, and AI processing runs in the United States. Hosting in the UAE is available when your contract requires it. Moving the database does not stop AI processing abroad, so guests are asked for consent to that transfer. Our security page lists every sub-processor and its country.",
+    q: "What happens when nobody takes a job?",
+    a: "Clefs climbs the ladder on its own. If no one accepts the job, the supervisor is told after 3 minutes, the duty manager after 5 and the GM after 10, and a late job moves to the next free person. Emergency words page the duty manager at once.",
   },
   {
-    q: "Which languages does the guest assistant speak?",
-    a: "Arabic, English and six more, tested for your hotel before go-live. Guests can speak or type. Your team always reads the request in their own language.",
+    q: "How do we know a job was really done?",
+    a: "Staff mark a job done with a photo. Gemini checks the photo against the request before the job can close. Then the guest is asked if everything is fine. If not, the job reopens and the duty manager is asked to approve a gesture before the guest writes a review.",
   },
   {
-    q: "How does the pilot work?",
-    a: "The pilot runs for 14 days and is free. Day 1 is the day we import your first file. Days 1 to 3 set a baseline, Days 4 to 13 run live, and Day 14 is the report. Before Day 1 we write down with you what success means.",
-  },
-  {
-    q: "Is Clefs only for independent hotels?",
-    a: "No. Clefs works for any hotel in the UAE, branded or independent. A general manager of a chain property uses the same product and the same demo.",
+    q: "What does the hotel need to start?",
+    a: "QR cards for the rooms, one shared staff tablet, and your staff names and roles. Clefs does not need access to your PMS, financial files or card data, and your phones stay as they are.",
   },
   {
     q: "How much does Clefs cost?",
-    // The pilot letter's terms, the one sentence /pilot shows (lib/pricing.ts).
-    // check-claims judges its value there (a *_NOTE constant), not here.
-    a: PRICING_NOTE,
+    // claim: clefs_price_list_2026
+    a: "USD 3 per room per month with voice and text, and at least USD 99 a month. A text-only plan is USD 1.50 per room per month. The 30-day pilot is free.",
+  },
+  {
+    q: "Is it safe to put in front of guests?",
+    a: "Before going live, every hotel must pass 22 safety and accuracy tests, with Gemini as the judge, and run 7 days in shadow mode, where the desk works out every escalation without messaging anyone. Guests give consent first, and staff stay in charge of every exception.",
   },
 ];

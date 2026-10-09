@@ -1,13 +1,35 @@
 # Clefs
 
-Clefs is the owner's profit-and-service control layer for hotels in the UAE. It reads the files and feeds a hotel already has (OTA statements, payouts, bank and card exports, the PMS folio, P&L, reviews, inquiries, Google and AI answers), finds money that is leaking or waiting to be collected, runs day-to-day guest service, and puts the few things that matter today in front of the owner as one ranked brief, in AED, with the evidence attached.
+**Ask once, in your language, and it gets done.** Clefs is an AI guest service desk for hotels. Hotels have more guests and fewer staff, and requests get lost between phone calls, languages and shifts. With Clefs a guest scans the QR card in the room and asks by voice or text, in their language. Gemini understands the ask, files one job per request with the right free staff member (in that person's language, with an ETA for the guest), climbs the escalation ladder when nobody accepts, and closes the job only with a photo that Gemini vision checks and the guest confirms.
 
-Every recommendation becomes an **action** that moves through an audited state machine, and an **autonomy dial** per action type decides how far Clefs may go on its own (from `off` to `auto`). Refunds, folio, rate and OTA changes always need a person.
+This repository is the **AI Builder Cup prototype**, running on Google Cloud:
 
-The same product serves independent owners and chain-property GMs. There are no org or portfolio features.
+- **Final Product Link:** https://clefs-632652019887.asia-south1.run.app (the homepage tells the deck's story).
+- **Live prototype for reviewers:** [/try](https://clefs-632652019887.asia-south1.run.app/try) opens the three screens on the demo hotel: the guest in Room 204, Maria's staff app and the duty manager's console, one tap each.
+- **Demo script, in deck order:** [docs/DEMO.md](docs/DEMO.md).
+
+## The prototype
+
+The deck's flow (slide 5) is the acceptance test: the guest speaks, Gemini understands intent, items, urgency and mood, one job is created per ask, dispatch picks the free staff member nearest the room and gives an ETA, staff read the job in their language, the work is done and photographed, Gemini vision verifies the photo, and the job closes with the guest notified and the dashboard updated. When something goes wrong: no acceptance pages the supervisor at 3 minutes, the duty manager at 5 and the GM at 10; a photo that does not match keeps the job open; "not fixed" or detected frustration opens a recovery case the duty manager approves.
+
+| Deck item | Where it lives |
+|---|---|
+| Talk or type from a room QR, in your language (8 guest languages) | `client/app/stay/`, `client/app/ClefsConcierge.tsx`, `server/clefs/modules/concierge/` (Gemini Live voice, Gemini Flash text) |
+| Approved answers only | the concierge knowledge base (`concierge/kb.py`), approved by the hotel |
+| Smart dispatch with ETA, one job per ask | `server/clefs/modules/service/routing.py`, `intake.py` |
+| Staff in their own language, proof before closure | the staff app `client/app/device/`, `service/devices_api.py` (Gemini vision photo check) |
+| Escalation 3/5/10, safety first, recovery before the review | `service/sla.py`, `escalation.py`, `safety.py`, `recovery.py` |
+| Owner view: response times by team, floor and shift | the console's Service analytics (`client/app/app/[hotelSlug]/(console)/service/`) |
+| 22 safety and accuracy tests, 7 days in shadow mode | `server/clefs/modules/trust/evals/` (the go-live gate, Gemini as judge), Trust > Quality gate |
+| Reviewer access | `server/clefs/core/demo_access.py` (demo hotels only) and `client/app/try/` |
+
+**On Google Cloud:** Cloud Run for the web app (`clefs`) and the API (`clefs-api`), a Cloud Run job for the demo seed (`clefs-seed`), Cloud Scheduler for the minute tick (`clefs-tick`), Cloud SQL (Postgres), Secret Manager for every key, Gemini on Vertex AI (Flash for text, vision for photos) and the Gemini Live API for voice, and Cloud Storage for proof photos. See [docs/DEPLOY.md](docs/DEPLOY.md) section 20.
+
+**Product focus.** The platform has fifteen modules (below). The prototype runs the guest service desk only: `clefs-api` sets `CLEFS_DISABLED_MODULES=profit_guard,demand,reviews,brief,ask,voice,visibility,inquiries,finance`, which keeps service, concierge, guests, amenities, upsell (the concierge's in-room menu) and trust. Switched-off modules keep their tables; their routes, jobs and console tabs go.
 
 ## Contents
 
+- [The prototype](#the-prototype)
 - [Modules](#modules)
 - [Repository layout](#repository-layout)
 - [Local setup](#local-setup)
@@ -18,7 +40,7 @@ The same product serves independent owners and chain-property GMs. There are no 
 
 ## Modules
 
-Fifteen modules sit on one foundation (auth, devices, signals, actions, the autonomy dial, jobs, notifications, files, AI, audit). Each can be switched off per hotel.
+Fifteen modules sit on one foundation (auth, devices, signals, actions, the autonomy dial, jobs, notifications, files, AI, audit). Each can be switched off per hotel, or for the whole deployment with `CLEFS_DISABLED_MODULES` (the prototype keeps six: Service Control, Guest Concierge, Amenities, Menus and upsell, Guests and Trust). Every recommendation becomes an **action** that moves through an audited state machine, and an **autonomy dial** per action type decides how far Clefs may go on its own; refunds, folio, rate and OTA changes always need a person.
 
 | Module | Console tab | What it does for the owner |
 |---|---|---|
@@ -112,6 +134,8 @@ Useful client flags: `NEXT_PUBLIC_AVATAR_RIG=viseme` evaluates the viseme lip-sy
 
 `python -m clefs.cli seed-demo` builds **Al Rigga Crest Hotel (DEMO)** (`demo-deira-crest`): a 3-star, 80-room Deira hotel on 8 floors, 120 days of history, forward bookings into January, OTA statements, payouts, bank and card exports, a credit note, a PMS folio, P&L, reviews, inquiries, journeys, visibility fixtures and a planted case (plus decoys) for every detector. Everything is synthetic, labelled "(DEMO)", and deterministic for a given anchor date. No vendor or model is called.
 
+The deck's cast is part of it (`server/clefs/seed/demo_uae/core.py` and `deck.py`): the assistant is called Clefs and speaks all 8 guest languages; Room 204 is on floor 2; **Maria Santos** (Housekeeping attendant, floors 1-4, reads Tagalog, PIN 2046) and **Priya Sharma** (Housekeeping attendant, floors 5-8, reads Hindi) are on shift round the clock for the next 14 days with the Housekeeping supervisor and **Omar Khalid**, the duty manager; the GM is on the ladder; Maria's phone is paired with her shift open; the shadow week is over; and the 22 standard safety and accuracy tests are queued, so the first tick after a seed runs them with Gemini as the judge.
+
 It prints, once:
 
 ```
@@ -121,12 +145,16 @@ demo logins (password shown once; re-run to rotate):
   finance     finance+demo-deira-crest@example.com     <password>
   revenue     revenue+demo-deira-crest@example.com     <password>
   front_desk  frontdesk+demo-deira-crest@example.com   <password>
+  dept_head   dutymanager+demo-deira-crest@example.com <password>
 staff PINs:
   <pin>  <staff name>
+deck demo (the keyed room link opens the guest page as that room):
+  room_204  http://localhost:3000/stay/demo-deira-crest/204?k=<key>
+  try       http://localhost:3000/try
 pair this browser as a device: http://localhost:3000/... (code ..., expires HH:MM UTC)
 ```
 
-- Log in at http://localhost:3000/login. The console lives at `/app/demo-deira-crest/brief`.
+- Log in at http://localhost:3000/login, or open http://localhost:3000/try and tap "Open the manager console" (the duty manager, this demo hotel only). The service desk lives at `/app/demo-deira-crest/service`.
 - `--password` (or `CLEFS_DEMO_PASSWORD`) sets one fixed password for every demo user; otherwise each run generates new ones.
 - `--anchor YYYY-MM-DD` is the last history day (default: today in Dubai). Deadlines in the brief are relative to it, so reseed on the day you present. Without `--anchor` the seed is live: it runs as of the real clock (printed as `as_of=`), so nothing it plants (open requests, inquiries, the brief) lies after the moment you open the console; before 09:00 Dubai it seeds as of last night. With `--anchor` it runs as of 21:00 Dubai on that day, which is deterministic but looks like the future when presented earlier that day. The OTA statements are fixed at June-August 2026, so an anchor before 23 September 2026 skips the Profit Guard part.
 - A re-run wipes and rebuilds only a hotel whose status is `demo`; a real hotel is refused.
@@ -182,7 +210,8 @@ npm run build                         # next build
 ## Further reading
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layout, the module registry, contracts, the build waves, how to add a module.
-- [docs/DEMO.md](docs/DEMO.md): a 10-15 minute demo script for UAE owners and GMs.
+- [docs/DEMO.md](docs/DEMO.md): the AI Builder Cup demo, in deck order, on the Cloud Run deployment.
+- [docs/specs/05-ai-builder-cup-prototype.md](docs/specs/05-ai-builder-cup-prototype.md): the prototype's settled decisions and contracts.
 - [docs/DEPLOY.md](docs/DEPLOY.md): Vercel + Neon deployment, Google Cloud Run, environment variables, cron, WhatsApp, Google Gemini (including the Live API phone path) and the other vendor setups.
 - `server/clefs/CONTRACTS.md`: every foundation interface, as built.
 - `docs/specs/00-CANON.md`: the decisions that override the design specs, including amendments K1-K5.
