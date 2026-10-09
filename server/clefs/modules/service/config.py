@@ -63,15 +63,25 @@ def staff_department_names(cur: Any, hotel_slug: str, key: str) -> list[str]:
 
 
 def request_types(cur: Any, hotel_slug: str) -> dict[str, dict]:
-    out = {k: {"key": k, "sensitive": False, "active": True, **v} for k, v in C.REQUEST_TYPES.items()}
+    """key -> type. `needs_proof` (05 decision 8) is the default from
+    constants.PROOF_TYPES unless the hotel's row sets it."""
+    out = {k: {"key": k, "sensitive": False, "active": True, "needs_proof": k in C.PROOF_TYPES, **v}
+           for k, v in C.REQUEST_TYPES.items()}
     cur.execute(
-        """SELECT key, label_en, label_ar, department_key, default_severity, is_amenity, sensitive, legacy_type, active
+        """SELECT key, label_en, label_ar, department_key, default_severity, is_amenity, sensitive, legacy_type, active,
+                  needs_proof
            FROM svc_request_types WHERE hotel_slug = %s""",
         (hotel_slug,),
     )
     for r in cur.fetchall():
-        out[r["key"]] = {**out.get(r["key"], {}), **{k: v for k, v in dict(r).items() if v is not None}}
+        base = out.get(r["key"]) or {"needs_proof": r["key"] in C.PROOF_TYPES}
+        out[r["key"]] = {**base, **{k: v for k, v in dict(r).items() if v is not None}}
     return out
+
+
+def needs_proof(cur: Any, hotel_slug: str, request_type_key: str | None) -> bool:
+    """Does a job of this type close only with a checked photo?"""
+    return bool(request_types(cur, hotel_slug).get(request_type_key or "", {}).get("needs_proof"))
 
 
 def _refine(key: str | None, text: str, types: dict[str, dict]) -> str | None:

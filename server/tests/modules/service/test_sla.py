@@ -302,11 +302,12 @@ def test_emergency_pages_security_duty_manager_and_gm_at_once(cur, hotel_uae, ma
     guard = _staff(cur, s, "Sam Security", "Security", phone="+971500000009")
     _roster(cur, s, guard, "attendant", start=T0 - timedelta(hours=1), dept="security")
     _live(cur, s)
-    row = _file(cur, s, "501", "Other", description="there is smoke in the bathroom", source="voice")
-    assert row["severity"] == "L1"
     outbox.reset()
-    res = sla.page_now(cur, s, row["id"])
-    assert res["escalated"] == 3 and res["sent"] == 3
+    # intake pages at once (05 spec: safety first), no sweep needed
+    row = _file(cur, s, "501", "Other", description="there is smoke in the bathroom", source="voice")
+    assert row["severity"] == "L1" and row["escalation_level"] == 3
+    assert len(outbox.captured()) == 3
+    assert sla.page_now(cur, s, row["id"])["escalated"] == 0  # the steps are taken: nobody is paged twice
     assert [(e["level"], e["target_role"]) for e in _escalations(cur, row["id"])] == [
         (1, "security"), (2, "duty_manager"), (3, "gm")]
     assert all(t.startswith("URGENT") or "URGENT" in t for t in _texts(outbox))

@@ -25,10 +25,19 @@ compensation authority matrix, recorded in the actions ledger.
   (Canon: "suggest, auto only up to AED X once per stay"). A hotel that sets
   auto_within_limits with max_amount_minor lets the system give gestures up
   to that value, once per stay per room; the check is limit_checker below.
+- Recovery before the review (05 spec): flag() opens (or joins) a case for a
+  guest who says it is not fixed, a frustrated guest or a job that never
+  arrived, with a gesture Gemini suggests (the fast model, 3 s; a sensible
+  default when AI is off), kept within the front desk's own authority so any
+  manager can approve it. The duty manager on shift is alerted. decide()
+  approves (the gesture is recorded and reaches the guest in their
+  language) or dismisses it; either way the case leaves the "Needs your
+  approval" list.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import date, datetime, timedelta
@@ -204,8 +213,15 @@ actions.register_action_type(actions.ActionType(
 # ─── Cases ───
 
 CASE_KEYS = ("id", "request_id", "room", "guest_ref", "category_key", "severity", "status", "reason", "learn", "notes",
-             "opened_by_staff_id", "opened_by_user_id", "opened_at", "closed_at", "updated_at")
-REASONS = ("complaint", "not_resolved", "post_checkout", "manual")
+             "opened_by_staff_id", "opened_by_user_id", "opened_at", "closed_at", "updated_at", "summary", "session_id",
+             "guest_language", "suggested_gesture", "suggested_kind", "suggested_value_minor", "suggestion_source",
+             "approval_status", "approved_gesture", "decided_at", "gesture_id")
+REASONS = ("complaint", "not_resolved", "post_checkout", "manual", "frustration", "never_arrived")
+# api.flag_recovery's kinds -> the case reason they open with.
+FLAG_KINDS = {"not_fixed": "not_resolved", "frustration": "frustration", "never_arrived": "never_arrived"}
+# ...and how a case reads back as one of them (the approvals panel's chip).
+REASON_KIND = {"not_resolved": "not_fixed", "post_checkout": "not_fixed", "frustration": "frustration",
+               "never_arrived": "never_arrived", "complaint": "complaint", "manual": "manual"}
 
 
 def _uuid(v: Any) -> str | None:
@@ -219,13 +235,15 @@ def _uuid(v: Any) -> str | None:
 
 def case_out(r: dict, gestures: list[dict] | None = None) -> dict:
     out = {k: r.get(k) for k in CASE_KEYS}
-    for k in ("opened_at", "closed_at", "updated_at"):
+    for k in ("opened_at", "closed_at", "updated_at", "decided_at"):
         out[k] = r[k].isoformat() if r.get(k) else None
     learn = r.get("learn") or {}
     out["learn"] = {s: bool(learn.get(s)) for s in C.LEARN_STEPS}
     out["learn_done"] = sum(out["learn"].values())
     cat = C.COMPLAINT_CATEGORIES.get(r.get("category_key") or "", {})
     out["category_label"] = cat.get("label_en")
+    out["kind"] = REASON_KIND.get(r.get("reason") or "", r.get("reason"))
+    out["needs_approval"] = r.get("status") == "open" and r.get("approval_status") == "pending"
     if gestures is not None:
         out["gestures"] = gestures
         ccy = next((g["currency"] for g in gestures), None)
@@ -594,6 +612,287 @@ def propose_gesture(cur: Any, hotel_slug: str, case: dict, *, kind: str, amount_
     return g
 
 
+# ─── Recovery before the review: flag, suggest, decide (05 spec) ───
+
+SUGGEST_TIMEOUT_S = 3.0
+# A suggestion stays within the front desk's own authority, so whoever
+# approves it on the Dashboard may give it.
+SUGGEST_ROLE = "staff"
+
+
+class GestureSuggestion(BaseModel):
+    """What the fast model proposes for the duty manager to approve."""
+
+    gesture: str
+    kind: Literal["amenity", "fnb_credit", "other"]
+    value: float | None = None
+    reason: str
+
+
+DEFAULT_GESTURES: dict[str, tuple[str, str]] = {
+    "not_fixed": ("amenity", "We are sorry it was not right the first time. As an apology, we are sending a "
+                             "complimentary fruit platter to your room."),
+    "frustration": ("fnb_credit", "We are sorry for the trouble. The duty manager will look after you personally, "
+                                  "and your next drink at the lobby lounge is on us."),
+    "never_arrived": ("amenity", "We are sorry your request did not reach you. It is on its way now, with a "
+                                 "complimentary dessert as our apology."),
+}
+
+
+def _suggest_cap(cur: Any, hotel: Any) -> tuple[int, list[str], str]:
+    """(max value in minor units, kinds, currency) a suggestion keeps to."""
+    m = authority_matrix(cur, hotel)[SUGGEST_ROLE]
+    cap = m["max_minor"] if m["max_minor"] is not None else money.to_minor(Decimal("100"), m["currency"])
+    return int(cap), [k for k in ("amenity", "fnb_credit") if k in m["allowed_kinds"]], m["currency"]
+
+
+def suggest_gesture(cur: Any, hotel: Any, *, kind: str, summary: str, room: str | None, request: dict | None) -> dict:
+    """{gesture, kind, value_minor, reason, source: ai|default}: one gesture
+    for the duty manager to approve, by the fast model within 3 seconds, else
+    the default for the kind. Never raises."""
+    from clefs import ai
+    from clefs.settings import get_settings
+
+    cap, kinds, ccy = _suggest_cap(cur, hotel)
+    default_kind, default_text = DEFAULT_GESTURES.get(kind, DEFAULT_GESTURES["not_fixed"])
+    fallback = {"gesture": default_text, "kind": default_kind if default_kind in kinds else "other",
+                "value_minor": cap // 2 if default_kind in kinds else 0,
+                "reason": "Standard gesture for this kind of problem.", "source": "default"}
+    facts = {"problem": kind.replace("_", " "), "summary": (summary or "")[:500], "room": room,
+             "request": (request or {}).get("item_label"), "times_reopened": (request or {}).get("reopen_count") or 0,
+             "hotel": hotel.name}
+    try:
+        out = ai.structured(
+            "service.recovery_gesture",
+            system=(
+                "You suggest one service-recovery gesture a hotel's duty manager can approve for an unhappy guest. "
+                "kind is amenity (something sent to the room), fnb_credit (food or drink on the house) or other (no "
+                f"cost, such as a personal call from the duty manager). value is in {ccy}, at most "
+                f"{money.money_str(cap, ccy)}, or null when it costs nothing. Write gesture as one or two warm "
+                "sentences to the guest, in English, that apologise and name the gesture; never promise refunds, "
+                "discounts, upgrades or free nights. Write reason, for the manager, in one short sentence."
+            ),
+            input=json.dumps(facts), schema=GestureSuggestion, hotel_slug=hotel.slug,
+            model=get_settings().AI_MODEL_FAST, max_output_tokens=300, timeout_s=SUGGEST_TIMEOUT_S, temperature=0.3,
+        )
+    except Exception as exc:  # AIDisabled, AIError, a timeout: the default
+        log.info("gesture suggestion skipped for %s: %s", hotel.slug, type(exc).__name__)
+        return fallback
+    text = " ".join((out.gesture or "").split())[:500]
+    if not text:
+        return fallback
+    gkind = out.kind if out.kind in kinds else "other"
+    value = 0
+    if gkind != "other" and out.value:
+        try:
+            value = min(cap, max(0, money.to_minor(Decimal(str(out.value)), ccy)))
+        except (ArithmeticError, ValueError):
+            value = 0
+    return {"gesture": text, "kind": gkind, "value_minor": value, "reason": " ".join((out.reason or "").split())[:300],
+            "source": "ai"}
+
+
+def _open_for_flag(cur: Any, hotel_slug: str, *, reason: str, req: dict | None, room: str | None,
+                   session_id: str | None, summary: str) -> tuple[dict, bool]:
+    """The case a flag joins: the conversation's open case, else the
+    request's, else the room's for the same reason in the last hour; a new
+    one otherwise."""
+    if session_id:
+        cur.execute("SELECT * FROM svc_recovery_cases WHERE hotel_slug = %s AND session_id = %s AND status = 'open' "
+                    "ORDER BY id DESC LIMIT 1", (hotel_slug, session_id))
+        hit = cur.fetchone()
+        if hit:
+            return dict(hit), False
+    if req is None and room:
+        cur.execute("""SELECT * FROM svc_recovery_cases WHERE hotel_slug = %s AND room = %s AND reason = %s
+                         AND status = 'open' AND opened_at > %s ORDER BY id DESC LIMIT 1""",
+                    (hotel_slug, room, reason, clock.now() - timedelta(hours=1)))
+        hit = cur.fetchone()
+        if hit:
+            return dict(hit), False
+    return open_case(cur, hotel_slug, actor=actions.SYSTEM, request_id=(req or {}).get("id"), room=room,
+                     reason=reason, severity=(req or {}).get("severity") or "L2", notes=summary or None,
+                     guest_ref=(req or {}).get("guest_ref"))
+
+
+def flag(cur: Any, hotel_slug: str, *, kind: str, room: str | None, summary: str, request_id: int | None = None,
+         session_id: str | None = None, guest_language: str | None = None, post_checkout: bool = False) -> dict:
+    """api.flag_recovery's body. Opens (or joins) the case, asks the fast
+    model for a gesture (once per case), alerts the duty manager on shift
+    and tells the console and the devices. -> flag_out(case)."""
+    from clefs.modules.service import staff_lang, state
+    from clefs.modules.service import settings as svc_settings
+
+    if kind not in FLAG_KINDS:
+        raise ClefsError(400, f"kind must be one of {', '.join(FLAG_KINDS)}", "bad_request")
+    reason = "post_checkout" if post_checkout else FLAG_KINDS[kind]
+    summary = " ".join((summary or "").split())[:1000]
+    session_id = (str(session_id)[:80] if session_id else None) or None
+    req = None
+    if request_id is not None:
+        req = state.load(cur, hotel_slug, int(request_id))
+        if req is None:
+            raise ClefsError(404, "Request not found", "request_not_found")
+    elif session_id:
+        cur.execute("SELECT * FROM staff_requests WHERE hotel_slug = %s AND session_id = %s ORDER BY id DESC LIMIT 1",
+                    (hotel_slug, session_id))
+        found = cur.fetchone()
+        req = dict(found) if found else None
+    room = ((room or "").strip()[:64] or None) or (req or {}).get("room")
+    lang = staff_lang.norm_lang(guest_language or (req or {}).get("language"))
+    case, created = _open_for_flag(cur, hotel_slug, reason=reason, req=req, room=room, session_id=session_id,
+                                   summary=summary)
+    if created and reason in ("not_resolved", "post_checkout"):
+        # the hotel's own default gesture still goes to the dial (on_not_resolved)
+        s = svc_settings.load(cur, hotel_slug)
+        if s.gesture_default_minor > 0 and s.gesture_default_kind in C.GESTURE_KINDS:
+            propose_gesture(cur, hotel_slug, case, kind=s.gesture_default_kind, amount_minor=s.gesture_default_minor)
+    changes: dict[str, Any] = {}
+    if summary and summary not in (case.get("summary") or ""):
+        changes["summary"] = f"{case['summary']}\n{summary}"[:2000] if case.get("summary") else summary
+    if session_id and not case.get("session_id"):
+        changes["session_id"] = session_id
+    if not case.get("guest_language") or guest_language:
+        changes["guest_language"] = lang
+    hotel = get_hotel(cur, hotel_slug)
+    alert = case.get("approval_status") is None
+    if alert:
+        item = staff_lang.item_label(req) if req else None
+        s = suggest_gesture(cur, hotel, kind=kind, summary=summary or case.get("summary") or "", room=room,
+                            request={"item_label": item, "reopen_count": (req or {}).get("reopen_count")})
+        changes.update(suggested_gesture=s["gesture"], suggested_kind=s["kind"], suggested_value_minor=s["value_minor"],
+                       suggestion_source=s["source"], approval_status="pending")
+    if changes:
+        cols = list(changes)
+        cur.execute(f"UPDATE svc_recovery_cases SET {', '.join(f'{c} = %s' for c in cols)}, updated_at = %s "
+                    "WHERE id = %s RETURNING *", [changes[c] for c in cols] + [clock.now(), case["id"]])
+        case = dict(cur.fetchone())
+    if alert:
+        _alert_duty_manager(cur, hotel, case, req, kind)
+    out = flag_out(cur, hotel, case)
+    out["created"] = created
+    return out
+
+
+def flag_out(cur: Any, hotel: Any, case: dict) -> dict:
+    ccy = money.ccy(hotel.currency or "AED")
+    minor = case.get("suggested_value_minor")
+    return {"case_id": case["id"], "kind": REASON_KIND.get(case.get("reason") or "", case.get("reason")),
+            "reason": case.get("reason"), "status": case.get("status"), "approval_status": case.get("approval_status"),
+            "request_id": case.get("request_id"), "room": case.get("room"), "session_id": case.get("session_id"),
+            "summary": case.get("summary"), "suggested_gesture": case.get("suggested_gesture"),
+            "suggested_kind": case.get("suggested_kind"), "suggested_value_minor": minor,
+            "suggested_value": money.money_str(minor, ccy) if minor else None, "currency": ccy,
+            "suggestion_source": case.get("suggestion_source")}
+
+
+def _alert_duty_manager(cur: Any, hotel: Any, case: dict, req: dict | None, kind: str) -> None:
+    """The duty manager on shift hears of a gesture to approve: a message
+    (live unless the hotel is in shadow mode), the request's feed event (the
+    devices chime) and the console's service.recovery_changed."""
+    from clefs.modules.service import escalation, staff_lang, state
+    from clefs.modules.service import settings as svc_settings
+
+    what = {"not_fixed": "says it is not fixed", "frustration": "is frustrated",
+            "never_arrived": "says it never arrived"}.get(kind, "needs recovery")
+    item = f" ({staff_lang.item_label(req)})" if req else ""
+    text = f"Needs your approval: room {case.get('room') or '-'} guest {what}{item}. Open the Clefs Dashboard."
+    live = svc_settings.escalation_live(cur, hotel.slug)
+    people = escalation.alert(cur, hotel, "duty_manager", req or {"department_key": None}, text,
+                              key=f"svc.recovery:{case['id']}", live=live)
+    if req is not None:
+        state.record_event(cur, req, "recovery", state.SYSTEM,
+                           payload={"case_id": case["id"], "kind": kind, "to": "duty_manager", "alarm": "chime",
+                                    "shadow": not live, "recipients": [p.name for p in people]})
+    events.publish(hotel.slug, "service.recovery_changed",
+                   {"case_id": case["id"], "status": "open", "approval_status": "pending", "kind": kind},
+                   audience={"roles": ["owner", "gm", "dept_head", "front_desk"]}, cur=cur)
+
+
+def decide(cur: Any, ctx: Any, case_id: int, action: Literal["approve", "dismiss"], *, gesture: str | None = None,
+           kind: str | None = None, value_minor: int | None = None) -> dict:
+    """The Dashboard's Approve / Edit / Dismiss. Approve records the gesture
+    (within the approver's authority: 403 above it), writes it to the guest
+    in their language and resolves the case; dismiss closes the case with
+    nothing sent. -> case_view."""
+    from clefs.modules.service import staff_lang, state
+
+    slug = ctx.hotel.slug
+    case = get_case(cur, slug, case_id, lock=True)
+    if case is None:
+        raise ClefsError(404, "Case not found", "case_not_found")
+    if case.get("approval_status") in ("approved", "dismissed") or case["status"] != "open":
+        raise ClefsError(409, "This case was already decided", "already_decided")
+    who = _who(ctx, None, authority_role(cur, ctx, None), "console")
+    now = clock.now()
+    if action == "dismiss":
+        cur.execute(
+            """UPDATE svc_recovery_cases SET approval_status = 'dismissed', status = 'closed', closed_at = %s,
+                   decided_at = %s, decided_by = %s, updated_at = %s WHERE id = %s RETURNING *""",
+            (now, now, Json(who), now, case_id),
+        )
+        new = dict(cur.fetchone())
+        audit(cur, ctx, "service.recovery_case.dismiss", "svc_recovery_cases", str(case_id),
+              before={"approval_status": case.get("approval_status")}, after={"approval_status": "dismissed"},
+              hotel_slug=slug)
+        events.publish(slug, "service.recovery_changed", {"case_id": case_id, "status": "closed",
+                                                          "approval_status": "dismissed"},
+                       audience={"roles": ["owner", "gm", "dept_head", "front_desk"]}, cur=cur)
+        return case_view(cur, slug, new)
+    text = " ".join((gesture or case.get("suggested_gesture") or "").split())[:500]
+    if not text:
+        raise ClefsError(400, "Write the gesture the guest will read", "gesture_required")
+    gkind = kind or case.get("suggested_kind") or "other"
+    if gkind not in C.GESTURE_KINDS:
+        raise ClefsError(400, f"kind must be one of {', '.join(C.GESTURE_KINDS)}", "bad_request")
+    value = int(value_minor if value_minor is not None else (case.get("suggested_value_minor") or 0))
+    if value < 0:
+        raise ClefsError(400, "A gesture cannot be negative", "bad_request")
+    hotel = get_hotel(cur, slug)
+    matrix = authority_matrix(cur, hotel)
+    role = authority_role(cur, ctx, None)
+    if value > 0 and not covers(matrix[role], gkind, value):
+        raise ClefsError(403, "This gesture is above your authority: ask a manager who can give it, or change it",
+                         "above_authority")
+    if value > 0:
+        g, _ = add_gesture(cur, ctx, case_id, kind=gkind, amount_minor=value, description=text)
+    else:
+        # a gesture that costs nothing (an apology, a call) needs no authority
+        cur.execute(
+            """INSERT INTO svc_recovery_actions (hotel_slug, case_id, kind, description, value_minor, currency, status,
+                   within_authority, authorized_by, requested_by, decided_at, created_at)
+               VALUES (%s, %s, %s, %s, 0, %s, 'given', TRUE, %s, %s, %s, %s) RETURNING *""",
+            (slug, case_id, gkind, text, matrix[role]["currency"], Json(who), Json(who), now, now),
+        )
+        g = dict(cur.fetchone())
+    req = state.load(cur, slug, case["request_id"]) if case.get("request_id") else None
+    lang = staff_lang.norm_lang(case.get("guest_language") or (req or {}).get("language"))
+    for_guest, translated = staff_lang.english_to(slug, text, lang, cur=cur)
+    msg = staff_lang.add_message(cur, slug, kind="gesture", text=for_guest, language=lang,
+                                 request_id=case.get("request_id"), session_id=case.get("session_id"), case_id=case_id,
+                                 text_original=text, language_original="en", translated=translated, via="approval")
+    if req is not None:
+        state.record_event(cur, req, "guest_message", state.Actor.from_ctx(ctx),
+                           payload={"message_id": msg["id"], "kind": "gesture", "case_id": case_id,
+                                    "text_original": text, "text_for_guest": for_guest, "language": lang})
+        state.publish_changed(cur, req, "guest_message")
+    cur.execute(
+        """UPDATE svc_recovery_cases SET approval_status = 'approved', approved_gesture = %s, gesture_id = %s,
+               status = 'resolved', closed_at = %s, decided_at = %s, decided_by = %s, updated_at = %s
+           WHERE id = %s RETURNING *""",
+        (text, g["id"], now, now, Json(who), now, case_id),
+    )
+    new = dict(cur.fetchone())
+    audit(cur, ctx, "service.recovery_case.approve", "svc_recovery_cases", str(case_id),
+          before={"approval_status": case.get("approval_status")},
+          after={"approval_status": "approved", "gesture_id": g["id"], "kind": gkind, "value_minor": value,
+                 "edited": text != (case.get("suggested_gesture") or "")}, hotel_slug=slug)
+    events.publish(slug, "service.recovery_changed", {"case_id": case_id, "status": "resolved",
+                                                      "approval_status": "approved"},
+                   audience={"roles": ["owner", "gm", "dept_head", "front_desk"]}, cur=cur)
+    return case_view(cur, slug, new)
+
+
 # ─── Queries for api.py ───
 
 
@@ -638,7 +937,7 @@ class CaseIn(BaseModel):
     room: str | None = Field(None, max_length=64)
     category_key: str | None = Field(None, max_length=40)
     severity: Literal["L1", "L2", "L3"] | None = None
-    reason: Literal["complaint", "not_resolved", "post_checkout", "manual"] = "manual"
+    reason: Literal["complaint", "not_resolved", "post_checkout", "manual", "frustration", "never_arrived"] = "manual"
     notes: str | None = Field(None, max_length=4000)
     learn: dict[str, bool] | None = None
     client_event_id: str | None = None
@@ -668,15 +967,56 @@ class DecideIn(BaseModel):
 
 
 def case_view(cur: Any, slug: str, row: dict) -> dict:
-    return case_out(row, [gesture_out(g) for g in gestures_for(cur, slug, row["id"])])
+    """case_out with the gestures, the suggestion's value in the hotel's
+    currency and the request it is about (what the approvals panel shows)."""
+    from clefs.modules.service import staff_lang
+    from clefs.modules.service.routing import first_name
+
+    out = case_out(row, [gesture_out(g) for g in gestures_for(cur, slug, row["id"])])
+    ccy = money.ccy(get_hotel(cur, slug).currency or "AED")
+    minor = row.get("suggested_value_minor")
+    out["suggested_value"] = money.money_str(minor, ccy) if minor else None
+    out["currency"] = ccy
+    out["request"] = None
+    if row.get("request_id"):
+        cur.execute("SELECT * FROM staff_requests WHERE id = %s AND hotel_slug = %s", (row["request_id"], slug))
+        r = cur.fetchone()
+        if r is not None:
+            out["request"] = {"id": r["id"], "room": r["room"], "item_label": staff_lang.item_label(dict(r)),
+                              "state": r["state"], "staff_first_name": first_name(r["assigned_to"]) if r["assigned_staff_id"] else None,
+                              "reopen_count": r["reopen_count"], "language": r["language"]}
+    return out
 
 
 @router.get("/recovery-cases")
 def get_cases(slug: str, status: Literal["open", "resolved", "closed", "all"] = "open", room: str | None = None,
-              limit: int = Query(100, ge=1, le=500),
+              approval: Literal["pending"] | None = None, limit: int = Query(100, ge=1, le=500),
               ctx: HotelCtx = Depends(require_perm_or_device("service.view"))) -> list[dict]:
+    """Cases, newest first. ?status=open lists what still needs a manager;
+    approval=pending narrows it to gestures waiting for a decision (the
+    Dashboard's "Needs your approval" panel)."""
     with db.db() as cur:
-        return [case_view(cur, slug, r) for r in list_cases(cur, slug, status=status, room=room, limit=limit)]
+        rows = list_cases(cur, slug, status=status, room=room, limit=limit)
+        if approval == "pending":
+            rows = [r for r in rows if r.get("approval_status") == "pending"]
+        return [case_view(cur, slug, r) for r in rows]
+
+
+class CaseDecideIn(BaseModel):
+    """Approve (optionally with the gesture edited) or dismiss. kind and
+    value_minor change the suggestion's kind and value (minor units)."""
+
+    action: Literal["approve", "dismiss"]
+    gesture: str | None = Field(None, max_length=500)
+    kind: Literal["amenity", "fnb_credit", "late_checkout", "room_night", "upgrade", "discount", "other"] | None = None
+    value_minor: int | None = Field(None, ge=0)
+
+
+@router.post("/recovery-cases/{case_id}/decide")
+def post_case_decide(slug: str, case_id: int, body: CaseDecideIn,
+                     ctx: HotelCtx = Depends(require_perm("service.manage"))) -> dict:
+    with db.db() as cur:
+        return decide(cur, ctx, case_id, body.action, gesture=body.gesture, kind=body.kind, value_minor=body.value_minor)
 
 
 @router.post("/recovery-cases")

@@ -18,7 +18,15 @@ than 30 s: Vercel's cron is the clock, a busy dashboard is the backup.
   - Digests are sent at the end: one message per recipient per sweep.
   - Shadow mode (settings.escalation_live false; the first 7 days by
     default): everything above is computed, stored and shown, nothing
-    external is sent (svc_escalations.shadow = true).
+    external is sent (svc_escalations.shadow = true). An emergency is the
+    exception: life safety pages for real from day one, like a staff SOS.
+  - Late jobs move (05 spec, decision 7): when the supervisor step (3
+    minutes, nobody accepted) fires, the job also goes to the next free
+    person (routing.free_staff) if there is one. The ladder clock is kept,
+    so the duty manager still hears at 5 minutes and the GM at 10, counted
+    from the guest's request.
+  - Closure (05 spec, decision 8): a completed job the guest has not
+    answered for 30 minutes is closed (closure_reason no_reply).
 
 Pre-v2 rows (intake_version NULL) never escalate: their clocks were never
 set, and a deploy must not page the GM about last month's backlog.
@@ -41,6 +49,13 @@ log = logging.getLogger("clefs.service.sla")
 
 EVAL_ON_READ_S = 30
 MAX_ROWS = 500
+# A completed job with no answer from the guest for this long is closed.
+NO_REPLY_CLOSE_MIN = 30
+
+
+def _life_safety(row: dict) -> bool:
+    """An emergency pages for real even in shadow mode (safety first)."""
+    return row.get("sensitivity") == "emergency"
 
 # ─── Lock and bookkeeping ───
 
@@ -67,7 +82,7 @@ class _Run:
         self.now_ms = clock.now_ms()
         self.digests: dict[str, dict] = {}
         self.result = {"escalated": 0, "ack_breached": 0, "resolve_breached": 0, "sent": 0, "shadow": not live,
-                       "recipients": 0, "unreached": 0}
+                       "recipients": 0, "unreached": 0, "reassigned": 0, "closed": 0}
         self._staff: list[dict] | None = None
         self._policies: dict[tuple, list] = {}
 
@@ -99,7 +114,8 @@ class _Run:
 def _item(row: dict, now_ms: int) -> dict:
     start = row.get("ladder_started_at") or row.get("timestamp") or now_ms
     return {"request_id": row["id"], "room": row.get("room"), "label": escalation.item_label(row),
-            "minutes": max(0, (now_ms - int(start)) // 60_000), "urgent": escalation.is_urgent(row)}
+            "minutes": max(0, (now_ms - int(start)) // 60_000), "urgent": escalation.is_urgent(row),
+            "life_safety": _life_safety(row)}
 
 
 def _escalate_row(run: _Run, row: dict) -> int:
@@ -110,6 +126,7 @@ def _escalate_row(run: _Run, row: dict) -> int:
     current = int(row.get("escalation_level") or 0)
     crossed = 0
     top = current
+    shadow = not (run.live or _life_safety(row))
     for step in escalation.ladder_for(row, run.policy_ladder(row)):
         if step["level"] == 0 or step["after_min"] > elapsed_min or step["level"] <= current:
             continue  # level 0 is local: the device repeats its chime
@@ -120,7 +137,7 @@ def _escalate_row(run: _Run, row: dict) -> int:
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                ON CONFLICT (request_id, cycle, level) DO NOTHING RETURNING id""",
             (slug, row["id"], cycle, step["level"], step["to"], Json([p.public() for p in people]), channels,
-             not run.live, clock.now()),
+             shadow, clock.now()),
         )
         got = cur.fetchone()
         top = max(top, step["level"])
@@ -132,7 +149,14 @@ def _escalate_row(run: _Run, row: dict) -> int:
             run.add(p, item, got["id"])
         if not people:
             run.result["unreached"] += 1
-        _feed_event(cur, row, step, people, shadow=not run.live)
+        _feed_event(cur, row, step, people, shadow=shadow)
+        if step["to"] == "supervisor":
+            # 05 decision 7: nobody accepted in 3 minutes, so the job moves
+            # to the next free person too (savepoint: a failed hand-over
+            # must never undo the escalation bookkeeping).
+            moved = state.guarded(cur, "auto_reassign", _auto_reassign, run, row)
+            if moved:
+                run.result["reassigned"] += 1
         if step["level"] == 3:
             # Level 3 is the GM (03 spec 1.4): the brief hears it too. Only
             # the sweeper whose INSERT won gets here, so it is raised once
@@ -141,11 +165,38 @@ def _escalate_row(run: _Run, row: dict) -> int:
             from clefs.modules.service import signals as svc_signals
 
             state.guarded(cur, "l3_signal", svc_signals.l1_or_ack_breach, cur, run.hotel, row,
-                          shadow=not run.live, recipients=len(people))
+                          shadow=shadow, recipients=len(people))
     if top > current:
         cur.execute("UPDATE staff_requests SET escalation_level = %s WHERE id = %s", (top, row["id"]))
         row["escalation_level"] = top
     return crossed
+
+
+def _auto_reassign(run: _Run, row: dict) -> dict | None:
+    """Hand an unaccepted job to the best free colleague, keeping the ladder
+    clock (state.transition keep_clock). Never for urgent work (its own
+    ladder pages managers at once) or work someone already accepted. The
+    sweep's copy of the row is updated in place. -> the new row, or None
+    when nobody else is free."""
+    from clefs.modules.service import routing  # routing is not needed by the rest of the sweep
+
+    if escalation.is_urgent(row) or row.get("state") not in C.UNACKED_STATES:
+        return None
+    holder = row.get("assigned_staff_id")
+    free = routing.free_staff(run.cur, run.hotel, row, exclude_staff=[holder] if holder else [])
+    if not free:
+        return None
+    best = free[0]
+    action = "reassign" if row.get("state") == "assigned" else "assign"
+    out = state.transition(
+        run.cur, run.hotel.slug, row["id"], action, state.SYSTEM, target={"staff_id": best["staff_id"]},
+        keep_clock=True, note=f"Not accepted in time: moved to {best['name']}",
+        extra={"auto": True, "reason": "not_accepted", "from_staff_id": holder,
+               "from_device_id": row.get("assigned_device_id"), "pool": "free"},
+    )
+    routing.notify_assignee(run.cur, out["row"])
+    row.update(out["row"])
+    return out["row"]
 
 
 def _feed_event(cur: Any, row: dict, step: dict, people: list, *, shadow: bool) -> None:
@@ -198,10 +249,12 @@ def _resolution(run: _Run, rows: list[dict]) -> None:
 
 
 def _flush(run: _Run) -> None:
-    """One digest per person for everything this sweep collected."""
+    """One digest per person for everything this sweep collected. A digest
+    carrying an emergency goes out even in shadow mode."""
     for d in run.digests.values():
         p = d["person"]
-        out = escalation.send_digest(run.cur, run.hotel, p, d["items"], d["ids"], live=run.live)
+        live = run.live or any(i.get("life_safety") for i in d["items"])
+        out = escalation.send_digest(run.cur, run.hotel, p, d["items"], d["ids"], live=live)
         run.result["recipients"] += 1
         if out["sent"]:
             run.result["sent"] += 1
@@ -210,6 +263,30 @@ def _flush(run: _Run) -> None:
                     "UPDATE svc_escalations SET notify_ids = array_append(notify_ids, %s) WHERE id = ANY(%s)",
                     (out["outbox_id"], d["ids"]),
                 )
+
+
+def _close_unanswered(run: _Run) -> list[dict]:
+    """Completed v2 jobs the guest has not answered for 30 minutes are
+    closed with closure_reason no_reply (a "yes" closed them already; a
+    "no" reopened them). The guest may still answer within the tracker's
+    24 h window: "not fixed" reopens a closed job too."""
+    run.cur.execute(
+        """
+        UPDATE staff_requests SET closed_at = %s, closure_reason = 'no_reply'
+        WHERE id IN (
+            SELECT id FROM staff_requests
+            WHERE hotel_slug = %s AND state = 'completed' AND closed_at IS NULL AND intake_version IS NOT NULL
+              AND resolved_at IS NOT NULL AND resolved_at <= %s
+            ORDER BY resolved_at LIMIT %s FOR UPDATE SKIP LOCKED)
+        RETURNING *
+        """,
+        (run.now_ms, run.hotel.slug, run.now_ms - NO_REPLY_CLOSE_MIN * 60_000, MAX_ROWS),
+    )
+    rows = [dict(r) for r in run.cur.fetchall()]
+    for row in rows:
+        state.record_event(run.cur, row, "closed", state.SYSTEM, payload={"closure_reason": "no_reply"})
+    run.result["closed"] += len(rows)
+    return rows
 
 
 def _mark_acked(cur: Any, hotel_slug: str) -> None:
@@ -272,10 +349,13 @@ def sweep(cur: Any, hotel_slug: str) -> dict:
     overdue = [dict(r) for r in cur.fetchall()]
     _resolution(run, overdue)
     changed.update({r["id"]: r for r in overdue})
+    closed = _close_unanswered(run)
     _flush(run)
     _mark_acked(cur, hotel_slug)
     for row in changed.values():
         state.publish_changed(cur, row, "sla")
+    for row in closed:
+        state.publish_changed(cur, row, "closed")
     _signals(run, list(changed.values()))
     cur.execute(
         "UPDATE svc_sweep_state SET last_sweep_at = %s, last_result = %s WHERE hotel_slug = %s",

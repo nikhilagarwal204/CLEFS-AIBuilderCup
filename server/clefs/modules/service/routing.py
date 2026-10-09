@@ -1,9 +1,18 @@
 """
-Routing: who gets a request (03 spec 1.4 routing.assign).
+Routing: who gets a request (03 spec 1.4 routing.assign; 05 spec decisions 5
+and 6: free staff and the ETA).
 
   1. Sensitive or L1: the duty manager on shift, else a security device (or
      whoever is logged in on it), else the GM. No ladder: page now.
-  2. Candidate pools, first non-empty wins:
+  2. Free staff (free_staff, the one definition the auto-assign, the
+     manager's "Choose staff" list and the ETA share): on shift now as an
+     attendant on the roster, in the request's department, not off duty on
+     their device, below their max_open. Ranked by fewest open jobs, then
+     floor distance (the room's floor against the floors they work), then
+     longest idle (ties: speaks the guest's language, then the oldest member).
+     The first free person gets the job (pool "free").
+  3. Nobody free (a hotel without a roster, everyone busy or off): the
+     candidate pools, first non-empty wins:
        dept_floor   staff logged in on a device, in the department, whose
                     roster floors include the room's floor (zoned departments:
                     Housekeeping and Engineering)
@@ -15,11 +24,16 @@ Routing: who gets a request (03 spec 1.4 routing.assign).
        dept_legacy  legacy is_online staff of the department (the bridge
                     until devices roll out; this is the old auto-assigner's pool)
        fo_online    Front Office online, then fo_any: Front Office at all
-  3. Score = 2*open_weighted + sla_pressure - idle_bonus - language_bonus
-     - continuity_bonus; the lowest wins. Ties keep the legacy fairness order
-     (free first, never-worked first, longest idle, then the oldest member).
-  4. Cap: people at max_open are skipped while anyone else is free; when
-     everyone is at the cap the least loaded still gets it (flag over_cap).
+     Inside a pool: score = 2*open_weighted + sla_pressure - idle_bonus
+     - language_bonus - continuity_bonus; the lowest wins. Ties keep the
+     legacy fairness order (free first, never-worked first, longest idle, then
+     the oldest member). People at max_open are skipped while anyone else is
+     free; when everyone is at the cap the least loaded still gets it (flag
+     over_cap). Nobody who went off duty on the staff app is picked.
+
+ETA (05 decision 6): base minutes for the request type + 3 per open job
+ahead in the holder's queue + 1 per floor of distance, capped at 45. The
+state machine stores it (eta_minutes, eta_at) whenever the holder changes.
 
 pick() only chooses. assign() applies the choice through state.transition
 (state imports this module lazily, for decline and handoff).
@@ -57,12 +71,15 @@ def _staff(cur: Any, hotel_slug: str) -> list[dict]:
     cur.execute(
         """
         SELECT s.id, s.name, s.department, s.department_key, s.languages, s.max_open, s.role_key,
-               s.is_online, s.floors AS staff_floors,
-               (SELECT ds.device_id FROM device_sessions ds
-                 WHERE ds.staff_member_id = s.id AND ds.hotel_slug = s.hotel_slug AND ds.ended_at IS NULL
-                 ORDER BY ds.started_at DESC LIMIT 1) AS session_device_id,
+               s.is_online, s.floors AS staff_floors, s.off_duty_at,
+               ds.device_id AS session_device_id, ds.started_at AS session_started_at,
                sa.floors AS shift_floors, sa.shift_role, sa.department_key AS shift_department
         FROM staff_members s
+        LEFT JOIN LATERAL (
+            SELECT device_id, started_at FROM device_sessions d
+            WHERE d.staff_member_id = s.id AND d.hotel_slug = s.hotel_slug AND d.ended_at IS NULL
+            ORDER BY d.started_at DESC LIMIT 1
+        ) ds ON TRUE
         LEFT JOIN LATERAL (
             SELECT floors, shift_role, department_key FROM svc_shift_assignments a
             WHERE a.staff_member_id = s.id AND a.hotel_slug = s.hotel_slug AND a.status = 'planned'
@@ -79,9 +96,21 @@ def _staff(cur: Any, hotel_slug: str) -> list[dict]:
         d = dict(r)
         d["dept"] = d.get("shift_department") or d.get("department_key") or config.department_for(cur, hotel_slug, d.get("department"))
         d["floors"] = [str(f) for f in (d.get("shift_floors") or d.get("staff_floors") or [])]
+        d["reading_languages"] = [str(x).lower() for x in (d.get("languages") or []) if x]
         d["languages"] = [str(x).lower()[:2] for x in (d.get("languages") or [])]
         out.append(d)
     return out
+
+
+def off_duty(person: dict) -> bool:
+    """Off duty on the staff app: they switched off after their current PIN
+    session began (a shift started later is a fresh start), or with no
+    session open at all."""
+    off = person.get("off_duty_at")
+    if off is None:
+        return False
+    started = person.get("session_started_at")
+    return started is None or off >= started
 
 
 def _devices(cur: Any, hotel_slug: str) -> list[dict]:
@@ -182,6 +211,171 @@ def _best(cur: Any, hotel_slug: str, row: dict, people: list[dict]) -> tuple[dic
     return best, stats.get(best["id"], {}), over_cap
 
 
+# ─── Free staff and the ETA (05 spec, decisions 5 and 6) ───
+
+# Shift roles that take jobs. Supervisors and duty managers on the roster are
+# the escalation ladder's people, not the queue's.
+FREE_SHIFT_ROLES = frozenset({"attendant"})
+# "Never finished a job" ranks as this many idle minutes (the longest idle).
+IDLE_RANK_CAP_MIN = 24 * 60
+# A distance nobody can compute (a room or roster floor that is not a
+# number) ranks after "on that floor" and before "one floor away".
+UNKNOWN_DISTANCE = 0.5
+
+
+def _floor_no(value: Any) -> int | None:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def floor_distance(room_floor: Any, floors: list[str] | tuple[str, ...] | None) -> int | None:
+    """Floors between the room and the nearest floor the person works, or
+    None when either side is unknown."""
+    rf = _floor_no(room_floor)
+    nums = [n for n in (_floor_no(f) for f in floors or ()) if n is not None]
+    if rf is None or not nums:
+        return None
+    return min(abs(rf - n) for n in nums)
+
+
+def eta_minutes(request_type_key: str | None, open_ahead: int, distance: int | None) -> int:
+    """Decision 6: base for the type + 3 per open job ahead + 1 per floor, capped at 45."""
+    base = C.ETA_BASE_MIN.get(request_type_key or "", C.ETA_DEFAULT_MIN)
+    total = base + C.ETA_PER_JOB_MIN * max(0, int(open_ahead or 0)) + C.ETA_PER_FLOOR_MIN * max(0, int(distance or 0))
+    return min(C.ETA_CAP_MIN, total)
+
+
+def first_name(name: str | None) -> str | None:
+    """The guest-facing name: the first word only ("Maria Santos" -> "Maria")."""
+    parts = (name or "").split()
+    return parts[0] if parts else None
+
+
+def _candidate(p: dict, s: dict, row: dict, now_ms: int) -> dict:
+    last = s.get("last_resolved")
+    idle = None if last is None else max(0, (now_ms - int(last)) // 60_000)
+    distance = floor_distance(row.get("floor"), p["floors"])
+    lang = (row.get("language") or "").lower()[:2]
+    open_n = int(s.get("open_n") or 0)
+    return {
+        "staff_id": p["id"],
+        "name": p["name"],
+        "first_name": first_name(p["name"]),
+        "department_key": p["dept"],
+        "shift_role": p.get("shift_role"),
+        "floors": p["floors"],
+        "languages": p.get("reading_languages") or [],
+        "open_jobs": open_n,
+        "max_open": int(p.get("max_open") or 4),
+        "floor_distance": distance,
+        "idle_min": idle,
+        "on_device": bool(p.get("session_device_id")),
+        "device_id": p.get("session_device_id"),
+        "speaks_guest_language": bool(lang and lang != "en" and lang in p.get("languages", [])),
+        "eta_minutes": eta_minutes(row.get("request_type_key"), open_n, distance),
+    }
+
+
+def _rank(c: dict) -> tuple:
+    distance = c["floor_distance"] if c["floor_distance"] is not None else UNKNOWN_DISTANCE
+    idle = c["idle_min"] if c["idle_min"] is not None else IDLE_RANK_CAP_MIN
+    return (c["open_jobs"], distance, -min(idle, IDLE_RANK_CAP_MIN), 0 if c["speaks_guest_language"] else 1, c["staff_id"])
+
+
+def _is_free(p: dict, dept: str) -> bool:
+    return p["dept"] == dept and p.get("shift_role") in FREE_SHIFT_ROLES and not off_duty(p)
+
+
+def free_staff(cur: Any, hotel: Any, row: dict, *, exclude_staff: list[int] | tuple[int, ...] = (),
+               staff: list[dict] | None = None) -> list[dict]:
+    """Everyone free for this request, best first (decision 5):
+    [{staff_id, name, first_name, department_key, shift_role, floors,
+    languages, open_jobs, max_open, floor_distance, idle_min, on_device,
+    device_id, speaks_guest_language, eta_minutes}]. `row` needs
+    department_key, floor, request_type_key and language (a request row or
+    an intake draft). Pure: nothing is written."""
+    exclude = {int(x) for x in exclude_staff if x is not None}
+    staff = staff if staff is not None else _staff(cur, hotel.slug)
+    dept = row.get("department_key") or "front_office"
+    people = [p for p in staff if p["id"] not in exclude and _is_free(p, dept)]
+    if not people:
+        return []
+    stats = _stats(cur, hotel.slug, row, people)
+    now_ms = clock.now_ms()
+    out = [_candidate(p, stats.get(p["id"], {}), row, now_ms) for p in people]
+    return sorted((c for c in out if c["open_jobs"] < c["max_open"]), key=_rank)
+
+
+def staff_options(cur: Any, hotel: Any, row: dict) -> dict:
+    """The manager's "Choose staff" list for one request: {free: free_staff
+    (same order), others: everyone else active, each with why they are not
+    free (other_department | off_duty | not_on_shift | shift_role |
+    at_capacity)}. Every entry says whether it is the current holder."""
+    staff = _staff(cur, hotel.slug)
+    free = free_staff(cur, hotel, row, staff=staff)
+    holder = row.get("assigned_staff_id")
+    free_ids = {c["staff_id"] for c in free}
+    rest = [p for p in staff if p["id"] not in free_ids]
+    stats = _stats(cur, hotel.slug, row, rest)
+    dept = row.get("department_key") or "front_office"
+    now_ms = clock.now_ms()
+    others = []
+    for p in rest:
+        c = _candidate(p, stats.get(p["id"], {}), row, now_ms)
+        if p["dept"] != dept:
+            c["reason"] = "other_department"
+        elif off_duty(p):
+            c["reason"] = "off_duty"
+        elif not p.get("shift_role"):
+            c["reason"] = "not_on_shift"
+        elif p.get("shift_role") not in FREE_SHIFT_ROLES:
+            c["reason"] = "shift_role"
+        else:
+            c["reason"] = "at_capacity"
+        others.append(c)
+    order = {"at_capacity": 0, "not_on_shift": 1, "shift_role": 2, "off_duty": 3, "other_department": 4}
+    others.sort(key=lambda c: (order[c["reason"]], c["open_jobs"], c["name"]))
+    for c in (*free, *others):
+        c["current"] = holder is not None and c["staff_id"] == holder
+    return {"free": free, "others": others}
+
+
+def eta_for(cur: Any, hotel: Any, row: dict, *, staff_id: int | None, device_id: int | None = None) -> tuple[int | None, int | None]:
+    """(eta_minutes, eta_at in epoch ms) when `staff_id` (or a shared device)
+    takes `row` now; (None, None) with nobody. A shared device's ETA is the
+    type's base: nobody's queue is known yet."""
+    if staff_id is None and device_id is None:
+        return None, None
+    open_ahead, distance = 0, None
+    if staff_id is not None:
+        now = clock.now()
+        cur.execute(
+            """
+            SELECT s.floors AS staff_floors, sa.floors AS shift_floors,
+                   (SELECT COUNT(*) FROM staff_requests r
+                     WHERE r.hotel_slug = s.hotel_slug AND r.assigned_staff_id = s.id AND r.state = ANY(%s)
+                       AND r.id <> %s) AS open_n
+            FROM staff_members s
+            LEFT JOIN LATERAL (
+                SELECT floors FROM svc_shift_assignments a
+                WHERE a.staff_member_id = s.id AND a.hotel_slug = s.hotel_slug AND a.status = 'planned'
+                  AND a.start_at <= %s AND a.end_at > %s
+                ORDER BY a.start_at DESC LIMIT 1
+            ) sa ON TRUE
+            WHERE s.id = %s AND s.hotel_slug = %s
+            """,
+            (list(OPEN_STATES), row.get("id") or 0, now, now, staff_id, hotel.slug),
+        )
+        r = cur.fetchone()
+        if r is not None:
+            open_ahead = int(r["open_n"] or 0)
+            distance = floor_distance(row.get("floor"), [str(f) for f in (r["shift_floors"] or r["staff_floors"] or [])])
+    minutes = eta_minutes(row.get("request_type_key"), open_ahead, distance)
+    return minutes, clock.now_ms() + minutes * 60_000
+
+
 # ─── pick() ───
 
 
@@ -225,17 +419,24 @@ def _urgent(cur: Any, hotel_slug: str, row: dict, staff: list[dict], exclude: se
 def pick(cur: Any, hotel: Any, row: dict, *, exclude_staff: list[int] | tuple[int, ...] = ()) -> dict | None:
     """{pool, staff_id, name, device_id, over_cap, open_n} or None when the
     hotel has nobody at all. `row` needs department_key, floor, room,
-    language, severity and sensitivity (a staff_requests row or the intake
-    draft)."""
+    language, severity, sensitivity and request_type_key (a staff_requests
+    row or the intake draft)."""
     slug = hotel.slug
     exclude = {int(x) for x in exclude_staff if x is not None}
-    staff = _staff(cur, slug)
+    # Whoever went off duty on the staff app takes nothing new, on any path.
+    staff = [p for p in _staff(cur, slug) if not off_duty(p)]
     dept = row.get("department_key") or "front_office"
     floor = row.get("floor")
     if row.get("severity") == "L1" or row.get("sensitivity") in ("emergency", "sensitive"):
         hit = _urgent(cur, slug, row, staff, exclude)
         if hit:
             return hit
+    free = free_staff(cur, hotel, row, exclude_staff=list(exclude), staff=staff)
+    if free:
+        c = free[0]
+        return {"pool": "free", "staff_id": c["staff_id"], "name": c["name"], "device_id": c["device_id"],
+                "over_cap": False, "open_n": c["open_jobs"], "floor_distance": c["floor_distance"],
+                "eta_minutes": c["eta_minutes"]}
     avail = [p for p in staff if p["id"] not in exclude]
     in_dept = [p for p in avail if p["dept"] == dept]
     on_device = [p for p in in_dept if p.get("session_device_id")]
@@ -329,9 +530,12 @@ def assign(cur: Any, hotel_slug: str, request_id: int, *, actor: Any = None, exc
     understaffed(cur, hotel, row, choice)
     if choice is None:
         return None
+    extra = {"pool": choice["pool"], "over_cap": choice["over_cap"]}
+    if "floor_distance" in choice:
+        extra.update(floor_distance=choice["floor_distance"], open_n=choice["open_n"])
     out = state.transition(cur, hotel_slug, request_id, "assign", actor or state.SYSTEM,
                            target={"staff_id": choice["staff_id"], "device_id": choice["device_id"]}, publish=False,
-                           extra={"pool": choice["pool"], "over_cap": choice["over_cap"]})
+                           extra=extra)
     out["choice"] = choice
     notify_assignee(cur, out["row"])
     return out

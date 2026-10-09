@@ -21,6 +21,12 @@ sees the whole hotel.
 - POST /device/service/sos, incident close (supervisor PIN), handover (read,
   acknowledge, notes), staff-created requests (source 'staff'), recovery
   (LEARN, gestures, supervisor approval) and lost-and-found.
+- The staff app of the 05 spec: GET /me (who is working, on duty, active
+  and done-today counts), POST /duty (Go off / on duty), GET /requests and
+  GET /requests/{id} (each job with display_title and display_text in the
+  worker's language), POST /requests/{id}/proof (Mark as Done with a photo
+  Gemini checks) and POST /requests/{id}/reply (typed or a voice note, sent
+  to the guest in the guest's language).
 """
 
 from __future__ import annotations
@@ -31,18 +37,20 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from clefs import db
+from clefs.audit import audit
 from clefs.auth.deps import HotelCtx, acting_staff, require_device
 from clefs.core import clock
 from clefs.core import money
 from clefs.core import time as htime
 from clefs.core.errors import ClefsError
 from clefs.core.hotels import get_hotel
-from clefs.modules.service import config, handover, incidents, intake, recovery, roster, state
-from clefs.modules.service.router import card, event_out
+from clefs.modules.service import config, handover, incidents, intake, proof, recovery, roster, routing, staff_lang, state
+from clefs.modules.service import constants as C
+from clefs.modules.service.router import card, conflict_response, event_out
 
 router = APIRouter(prefix="/device/service", tags=["service-device"])
 log = logging.getLogger("clefs.service.devices")
@@ -520,3 +528,193 @@ def log_found(body: incidents.LostFoundIn, request: Request, ctx: HotelCtx = Dep
         row, replayed = incidents.log_found(cur, ctx, body, staff_id=staff_id)
         _touch(cur, ctx, staff_id)
         return {**incidents.lf_out(row), "replayed": replayed}
+
+
+# ─── The staff app (05 spec, section 3) ───
+
+
+def _device_card(row: dict, display: dict) -> dict:
+    """A job as the staff app shows it: the console card plus the title and
+    text in the worker's language (display_title, display_text)."""
+    return {**card(row), **display}
+
+
+@router.get("/me")
+def me(request: Request, ctx: HotelCtx = Depends(require_device())) -> dict:
+    """The person working this device: "Hi, Maria", role and department,
+    whether they are on duty, their shift, and the Active tasks / Done today
+    counters (hotel-local day)."""
+    staff_id = _staff(ctx, request, required=True)
+    slug = _slug(ctx)
+    with db.db(readonly=True) as cur:
+        hotel = get_hotel(cur, slug)
+        cur.execute(
+            """SELECT s.id, s.name, s.role, s.department, s.department_key, s.role_key, s.languages, s.off_duty_at,
+                      (SELECT started_at FROM device_sessions d WHERE d.staff_member_id = s.id AND d.ended_at IS NULL
+                        ORDER BY started_at DESC LIMIT 1) AS session_started_at
+               FROM staff_members s WHERE s.id = %s AND s.hotel_slug = %s""",
+            (staff_id, slug),
+        )
+        s = dict(cur.fetchone())
+        t0, _ = htime.local_day_bounds(hotel, htime.local_date(hotel))
+        cur.execute(
+            """SELECT COUNT(*) FILTER (WHERE state = ANY(%s) AND assigned_staff_id = %s) AS active,
+                      COUNT(*) FILTER (WHERE state = 'completed' AND completed_by_staff_id = %s AND resolved_at >= %s)
+                          AS done_today
+               FROM staff_requests WHERE hotel_slug = %s AND (assigned_staff_id = %s OR completed_by_staff_id = %s)""",
+            (list(routing.OPEN_STATES), staff_id, staff_id, htime.to_ms(t0), slug, staff_id, staff_id),
+        )
+        counts = dict(cur.fetchone())
+        shift = roster.current_assignment(cur, slug, staff_id)
+    dept = s.get("department_key") or C.department_key(s.get("department"))
+    return {
+        "staff": {"id": s["id"], "name": s["name"], "first_name": routing.first_name(s["name"]), "role": s.get("role"),
+                  "role_key": s.get("role_key"), "department": s.get("department"), "department_key": dept,
+                  "languages": list(s.get("languages") or []),
+                  "reading_language": staff_lang.norm_lang((s.get("languages") or ["en"])[0])},
+        "on_duty": not routing.off_duty(s),
+        "shift": None if shift is None else {
+            "shift_role": shift["shift_role"], "floors": shift["floors"], "department_key": shift.get("department_key"),
+            "start_at": shift["start_at"].astimezone(hotel.tz).isoformat(),
+            "end_at": shift["end_at"].astimezone(hotel.tz).isoformat()},
+        "counts": {"active": int(counts["active"] or 0), "done_today": int(counts["done_today"] or 0)},
+    }
+
+
+class DutyIn(BaseModel):
+    on_duty: bool
+
+
+@router.post("/duty")
+def duty(body: DutyIn, request: Request, ctx: HotelCtx = Depends(require_device())) -> dict:
+    """Go off duty / on duty on the staff app. Off duty takes the person out
+    of routing (no new jobs, on any path) without ending their PIN shift;
+    their open jobs stay theirs. A new PIN shift counts as on duty again."""
+    staff_id = _staff(ctx, request, required=True)
+    slug = _slug(ctx)
+    with db.db() as cur:
+        cur.execute(
+            """UPDATE staff_members SET off_duty_at = %s, is_online = %s WHERE id = %s AND hotel_slug = %s
+               RETURNING id, off_duty_at""",
+            (None if body.on_duty else clock.now(), body.on_duty, staff_id, slug),
+        )
+        r = cur.fetchone()
+        if r is None:
+            raise ClefsError(404, "Staff member not found", "staff_not_found")
+        audit(cur, ctx, "service.staff.duty", "staff_member", staff_id, after={"on_duty": body.on_duty}, hotel_slug=slug)
+        _touch(cur, ctx, staff_id)
+    return {"staff_id": staff_id, "on_duty": body.on_duty,
+            "off_duty_at": r["off_duty_at"].isoformat() if r["off_duty_at"] else None}
+
+
+@router.get("/requests")
+def list_requests(
+    request: Request,
+    state_filter: Literal["open", "all", "closed"] = Query("open", alias="state"),
+    mine: bool = False,
+    limit: int = Query(100, ge=1, le=300),
+    ctx: HotelCtx = Depends(require_device()),
+) -> list[dict]:
+    """The device's jobs in its scope (its floors and departments, plus
+    work with no floor or department), emergencies first, then L1, then
+    URGENT, then the earliest ack due; mine=true keeps the acting person's
+    own. Each carries display_title and display_text in the worker's
+    language (staff_members.languages[0]), translated once and cached."""
+    staff_id = _staff(ctx, request)
+    slug = _slug(ctx)
+    with db.db(readonly=True) as cur:
+        floors, depts = _scope(cur, ctx)
+        sql = ["SELECT * FROM staff_requests WHERE hotel_slug = %s"]
+        params: list[Any] = [slug]
+        if state_filter == "open":
+            sql.append("AND state = ANY(%s)")
+            params.append(list(C.OPEN_STATES))
+        elif state_filter == "closed":
+            sql.append("AND state = ANY(%s)")
+            params.append(list(C.TERMINAL_STATES))
+        if floors:
+            sql.append("AND (floor IS NULL OR floor = ANY(%s))")
+            params.append(floors)
+        if depts:
+            sql.append("AND (department_key IS NULL OR department_key = ANY(%s))")
+            params.append(depts)
+        if mine and staff_id:
+            sql.append("AND assigned_staff_id = %s")
+            params.append(staff_id)
+        if state_filter == "closed":
+            sql.append("ORDER BY COALESCE(resolved_at, cancelled_at, \"timestamp\") DESC, id DESC LIMIT %s")
+        else:
+            sql.append("""ORDER BY (sensitivity = 'emergency') DESC, COALESCE(severity, 'L3'), (priority = 'high') DESC,
+                          COALESCE(ack_due_at, "timestamp"), id LIMIT %s""")
+        params.append(limit)
+        cur.execute(" ".join(sql), params)
+        rows = [dict(r) for r in cur.fetchall()]
+        lang = staff_lang.reading_language(cur, slug, staff_id)
+    display = staff_lang.display_fields(slug, rows, lang)
+    return [_device_card(r, display[r["id"]]) for r in rows]
+
+
+@router.get("/requests/{request_id}")
+def get_request(request_id: int, request: Request, ctx: HotelCtx = Depends(require_device())) -> dict:
+    """One job for the staff app: the card in the worker's language, its
+    history, the guest messages and its photo checks."""
+    staff_id = _staff(ctx, request)
+    slug = _slug(ctx)
+    with db.db(readonly=True) as cur:
+        row = state.load(cur, slug, request_id)
+        if row is None:
+            raise ClefsError(404, "Request not found", "request_not_found")
+        lang = staff_lang.reading_language(cur, slug, staff_id)
+        evs = state.events_after(cur, slug, 0, request_id=request_id, limit=500)
+        messages = staff_lang.messages_for(cur, slug, row)
+        cur.execute("SELECT * FROM svc_request_proofs WHERE hotel_slug = %s AND request_id = %s ORDER BY id DESC LIMIT 5",
+                    (slug, request_id))
+        proofs = [proof.proof_out(dict(p)) for p in cur.fetchall()]
+    display = staff_lang.translate_job(slug, row, lang)
+    return {"request": _device_card(row, display), "events": [event_out(e) for e in evs], "messages": messages,
+            "proofs": proofs}
+
+
+@router.post("/requests/{request_id}/proof")
+def post_proof(request_id: int, request: Request, photo: UploadFile = File(...),
+               client_event_id: str | None = Form(None), ctx: HotelCtx = Depends(require_device())) -> Any:
+    """Mark as Done with a photo (multipart `photo`, JPEG or PNG, at most
+    3 MB). Gemini checks it against the job in this call: a match completes
+    the job; a mismatch leaves it open, says why (in the worker's language)
+    and alerts the supervisor. -> {verified, reason, reason_en, completed,
+    proof_status, proof, replayed, request}. 409 with {conflict} when the job
+    was already closed."""
+    staff_id = _staff(ctx, request, required=True)
+    slug = _slug(ctx)
+    data = photo.file.read(proof.MAX_BYTES + 1)
+    try:
+        out = proof.submit(ctx, request_id, staff_id=staff_id, data=data, content_type=photo.content_type,
+                           client_event_id=client_event_id)
+    except state.TransitionConflict as exc:
+        return conflict_response(exc)
+    row = out.pop("row")
+    with db.db() as cur:
+        lang = staff_lang.reading_language(cur, slug, staff_id)
+        _touch(cur, ctx, staff_id)
+    return {**out, "request": _device_card(row, staff_lang.translate_job(slug, row, lang)) if row else None}
+
+
+class ReplyIn(BaseModel):
+    """A reply for the guest: typed text, or a voice note (base64 audio and
+    its mime type, e.g. audio/webm) that Gemini transcribes."""
+
+    text: str | None = Field(None, max_length=1000)
+    audio_b64: str | None = Field(None, max_length=3_000_000)
+    mime: str | None = Field(None, max_length=100)
+
+
+@router.post("/requests/{request_id}/reply")
+def post_reply(request_id: int, body: ReplyIn, request: Request, ctx: HotelCtx = Depends(require_device())) -> dict:
+    """-> {text_original, text_for_guest, language, translated, via,
+    message}: the worker's words, as the guest will read them, in the
+    guest's language (the job's language)."""
+    staff_id = _staff(ctx, request, required=True)
+    out = staff_lang.reply(ctx, request_id, staff_id=staff_id, text=body.text, audio_b64=body.audio_b64, mime=body.mime)
+    with db.db() as cur:
+        _touch(cur, ctx, staff_id)
+    return out

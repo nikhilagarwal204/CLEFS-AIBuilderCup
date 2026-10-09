@@ -1,15 +1,21 @@
 """
 Public guest tracker (03 spec 1.7): the link a guest gets after filing a
 request. The 22-character token is the only credential (128 random bits,
-stored hashed), so there is no hotel in the path and no staff name in any
-response. This is the superset of router_public.py (same paths and shapes,
-plus the WhatsApp opt-in and the recovery hooks).
+stored hashed), so there is no hotel in the path. Staff appear by first
+name only (05 spec: "Maria is on her way"); never a surname. This is the
+superset of router_public.py (same paths and shapes, plus the WhatsApp
+opt-in and the recovery hooks).
 
-- GET  /public/r/{token}: api.guest_view + {whatsapp_available, subscribed}.
-- POST /public/r/{token}/confirm {resolved, comment?}: yes confirms; no
-  reopens the request, routes it again and opens (or joins) a recovery case.
-  After checkout a "no" opens a post-checkout case and does not reopen (no
-  one can fix a room the guest has left).
+- GET  /public/r/{token}: api.guest_view + {whatsapp_available, subscribed}
+  + the 05 spec's item_label, quantity, staff_first_name, eta_minutes,
+  eta_at, accepted_at, proof_status, needs_guest_confirmation, closed_at and
+  messages (staff replies and approved gestures in the guest's language).
+- POST /public/r/{token}/feedback {fixed, comment?} (05 spec) and its older
+  twin POST /public/r/{token}/confirm {resolved, comment?}: yes confirms
+  and closes; no reopens the request, routes it again and flags recovery (a
+  case with a suggested gesture for the duty manager). After checkout a
+  "no" flags a post-checkout case and does not reopen (no one can fix a
+  room the guest has left).
 - POST /public/r/{token}/whatsapp {phone, consent: true, language?}: records
   whatsapp_updates consent against the hashed phone (never the raw number:
   core.privacy.contact_ref), stores the sealed phone, and sends the
@@ -26,17 +32,19 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from clefs import db, ratelimit
-from clefs.core import clock, consent, privacy
+from clefs.core import consent, privacy
 from clefs.core.context import request_info
 from clefs.core.errors import ClefsError
 from clefs.core.hotels import get_hotel
 from clefs.core.phone import normalize_phone
-from clefs.modules.service import api, intake, recovery, routing, state
+from clefs.modules.service import api, intake, state
 
 router = APIRouter(prefix="/public/r", tags=["service-public"])
 
-# Generous: a guest refreshes the page; this only stops token scanning.
-IP_LIMIT = 120
+# Generous: the guest page polls each open job's card every 10 s, so one
+# guest with a few open jobs reads often; tokens are long and random, so this
+# only needs to stop token scanning.
+IP_LIMIT = 600
 IP_WINDOW_S = 600
 # Opt-ins send a message to a number the caller typed: tight, per token and IP.
 OPTIN_TOKEN_LIMIT = 3
@@ -64,7 +72,9 @@ def _whatsapp_available(cur: Any, hotel_slug: str) -> bool:
 
 
 def view(cur: Any, slug: str, row: dict) -> dict:
-    out = api.guest_view(row)
+    from clefs.modules.service import dispatch  # dispatch imports api, which this module also serves
+
+    out = dispatch.tracker_view(cur, slug, row)
     cur.execute(
         "SELECT 1 FROM svc_tracker_subscriptions WHERE request_id = %s AND opted_out_at IS NULL LIMIT 1", (row["id"],)
     )
@@ -113,31 +123,37 @@ def _checked_out(cur: Any, slug: str, row: dict) -> bool:
         return False
 
 
-@router.post("/{token}/confirm")
-def confirm(token: str, body: ConfirmIn) -> dict:
-    """"Was it sorted?" Yes confirms. No reopens the request, routes it again
-    (the ack clock restarts from now) and opens a recovery case; after
-    checkout it only opens the case."""
+def _answer(token: str, fixed: bool, comment: str | None) -> dict:
+    from clefs.modules.service import dispatch
+
     with db.db() as cur:
         slug, row = _load(cur, token)
         if not api.guest_view(row)["can_confirm"]:
             raise ClefsError(409, "This request can no longer be confirmed", "cannot_confirm")
-        comment = (body.comment or "").strip()[:1000] or None
-        if comment:
-            cur.execute("UPDATE staff_requests SET guest_comment = %s WHERE id = %s", (comment, row["id"]))
-        if body.resolved:
-            state.transition(cur, slug, row["id"], "confirm", state.GUEST, note=comment)
-        elif _checked_out(cur, slug, row):
-            cur.execute(
-                "UPDATE staff_requests SET guest_confirmation = 'no', guest_confirmed_at = %s WHERE id = %s",
-                (clock.now_ms(), row["id"]),
-            )
-            recovery.on_not_resolved(cur, slug, state.load(cur, slug, row["id"]), post_checkout=True, comment=comment)
-        else:
-            out = state.transition(cur, slug, row["id"], "reopen", state.GUEST, note=comment)
-            routing.assign(cur, slug, row["id"], actor=state.GUEST)
-            recovery.on_not_resolved(cur, slug, out["row"], post_checkout=False, comment=comment)
-        return view(cur, slug, state.load(cur, slug, row["id"]))
+        checked_out = (not fixed) and _checked_out(cur, slug, row)
+        after = dispatch.feedback(cur, slug, row, fixed=fixed, comment=comment, checked_out=checked_out)
+        return view(cur, slug, after)
+
+
+@router.post("/{token}/confirm")
+def confirm(token: str, body: ConfirmIn) -> dict:
+    """"Was it sorted?" Yes confirms. No reopens the request, routes it again
+    (the ack clock restarts from now) and flags recovery; after checkout it
+    only flags recovery."""
+    return _answer(token, body.resolved, body.comment)
+
+
+class FeedbackIn(BaseModel):
+    fixed: bool
+    comment: str | None = Field(None, max_length=1000)
+
+
+@router.post("/{token}/feedback")
+def feedback(token: str, body: FeedbackIn) -> dict:
+    """The guest card's "Is everything OK?" (05 spec): fixed=true confirms
+    and closes the job; fixed=false reopens it and flags recovery. Returns
+    the tracker view."""
+    return _answer(token, body.fixed, body.comment)
 
 
 # ─── WhatsApp opt-in ───

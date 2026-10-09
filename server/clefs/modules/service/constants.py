@@ -168,6 +168,31 @@ TYPE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 AC_TYPES = frozenset({"ac"})
 
+# ─── Proof before closure (05 spec, decision 8) ───
+# Types with physical work in the guest's room: "Mark as Done" uploads a
+# photo and Gemini checks it against the job. Information, a desk call or a
+# wake-up call need none. minibar and laundry are hotel-defined types in the
+# demo cast; a hotel can switch any type on or off (svc_request_types.needs_proof).
+PROOF_TYPES = frozenset({
+    "towels", "linen", "pillows", "extra_bed", "amenities", "water", "make_up_room", "turndown",
+    "maintenance", "ac", "plumbing", "electrical", "minibar", "laundry",
+})
+
+# ─── ETA (05 spec, decision 6) ───
+# Minutes = base for the request type + 3 per open job ahead in the holder's
+# queue + 1 per floor between the room and the holder's floors, capped at 45.
+ETA_BASE_MIN: dict[str, int] = {
+    "towels": 5, "water": 5, "linen": 5,
+    "amenities": 7, "pillows": 7, "extra_bed": 7, "minibar": 7, "laundry": 7,
+    "make_up_room": 20, "turndown": 20,
+    "maintenance": 15, "ac": 15, "plumbing": 15, "electrical": 15,
+    "ird": 25, "breakfast": 25, "drinks": 25,
+}
+ETA_DEFAULT_MIN = 10
+ETA_PER_JOB_MIN = 3
+ETA_PER_FLOOR_MIN = 1
+ETA_CAP_MIN = 45
+
 # ─── SLA seeds (03 spec 1.3, minutes: ack / resolve) ───
 
 SLA_REQUEST_TYPE: dict[str, tuple[int, int]] = {
@@ -212,6 +237,10 @@ DEFAULT_LADDER: tuple[dict, ...] = (
     {"after_min": 10, "to": "gm"},
 )
 LADDER_ROLES = ("assignee", "supervisor", "duty_manager", "gm")
+# What a request row calls the highest ladder step it reached (05 spec 3:
+# escalation_level is supervisor | duty_manager | gm | null, never L1-L3,
+# which is the severity scale).
+ESCALATION_LABEL = {1: "supervisor", 2: "duty_manager", 3: "gm"}
 LADDER_CHANNELS: dict[str, tuple[str, ...]] = {
     "assignee": (),
     "supervisor": ("whatsapp",),

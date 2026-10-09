@@ -53,7 +53,8 @@ def test_zoned_department_prefers_the_attendant_rostered_on_that_floor(cur, hote
         _roster(cur, s, sid, floors=[floor])
         _login(cur, s, dev, sid)
     row = _file(cur, s, "201")
-    assert row["assigned_staff_id"] == two and _pool(cur, row["id"]) == "dept_floor"
+    # rostered attendants are free staff (05 decision 5): equal load, so the floor decides
+    assert row["assigned_staff_id"] == two and _pool(cur, row["id"]) == "free"
     row = _file(cur, s, "102", "linen")
     assert row["assigned_staff_id"] == one
 
