@@ -114,6 +114,10 @@ class AIRequest:
     max_output_tokens: int | None = None
     hotel_slug: str | None = None
     file_ids: list[str] = field(default_factory=list)
+    # Inline images or audio sent with the input: (bytes, mime type) pairs,
+    # e.g. a completion photo to check or a staff voice reply to transcribe.
+    # Never written to ai_calls, even with AI_LOG_CONTENT on.
+    media: list[tuple[bytes, str]] = field(default_factory=list)
     store: bool = False
     timeout_s: float = 30.0
     # None: the model's default. Sent only when set (an eval judge asks for 0).
@@ -143,6 +147,10 @@ COST_CURRENCY = "USD"
 # USD per 1M tokens: (input, cached input, output). Public list prices; a
 # price change is an AI_PRICE_<MODEL> env var, not a deploy.
 MODEL_PRICES: dict[str, tuple[str, str | None, str]] = {
+    "gemini-3.6-flash": ("1.50", "0.15", "7.50"),
+    "gemini-3.5-flash": ("1.50", "0.15", "9.00"),
+    "gemini-3.5-flash-lite": ("0.30", "0.03", "2.50"),
+    "gemini-3.1-flash-lite": ("0.25", "0.025", "1.50"),
     "gemini-3-pro-preview": ("2.00", "0.20", "12.00"),
     "gemini-3-flash-preview": ("0.50", "0.05", "3.00"),
     "gemini-2.5-pro": ("1.25", "0.125", "10.00"),
@@ -301,14 +309,65 @@ class GeminiBackend:
         thinking = _thinking_config(req.model)
         if thinking:
             config["thinking_config"] = thinking
+        fallback = fallback_model(req.model)
+        # With a fallback the primary model gets 60% of the time budget, so an
+        # overloaded model (a 504 after ~20 s on Vertex's global endpoint)
+        # still leaves room for one fast retry inside the caller's timeout.
+        if fallback:
+            config["http_options"] = {"timeout": int(req.timeout_s * 600)}
         try:
             resp = self._client.models.generate_content(model=req.model, contents=contents, config=config)
         except Exception as exc:  # network, quota, 4xx/5xx
-            raise AIError(f"Gemini call failed: {type(exc).__name__}") from exc
+            if not (fallback and _retryable(exc)):
+                raise AIError(f"Gemini call failed: {_describe(exc)}") from exc
+            log.warning("ai task %s: %s on %s, retrying once on %s", req.task, type(exc).__name__, req.model, fallback)
+            resp = self._retry_on(fallback, req, contents, config, exc)
         out = _parse_gemini(resp)
         if req.schema is not None and grounded and out.output_text:
             out.output_text = _extract_json(out.output_text)
         return out
+
+
+    def _retry_on(self, model: str, req: AIRequest, contents: list[dict], config: dict, first: Exception) -> Any:
+        """One attempt on the fallback model with the rest of the time budget.
+        Thought signatures belong to the model that wrote them, so replayed
+        function calls carry the documented bypass value instead."""
+        retry = {k: v for k, v in config.items() if k != "thinking_config"}
+        thinking = _thinking_config(model)
+        if thinking:
+            retry["thinking_config"] = thinking
+        retry["http_options"] = {"timeout": max(int(req.timeout_s * 400), 4000)}
+        for content in contents:
+            for part in content["parts"]:
+                if "function_call" in part:
+                    if _is_gemini_3(model):
+                        part["thought_signature"] = _SKIP_SIGNATURE
+                    else:
+                        part.pop("thought_signature", None)
+        try:
+            return self._client.models.generate_content(model=model, contents=contents, config=retry)
+        except Exception as exc:
+            raise AIError(f"Gemini call failed: {_describe(first)}; then on {model}: {_describe(exc)}") from exc
+
+
+def _describe(exc: Exception) -> str:
+    """The error class and the API's own message (status and reason, never
+    the prompt), so a failure can be diagnosed from the logs and ai_calls."""
+    return f"{type(exc).__name__}: {' '.join(str(exc).split())[:240]}"
+
+
+def fallback_model(model: str | None) -> str | None:
+    """The model a failed call retries on once: AI_MODEL_FALLBACK, else
+    AI_MODEL_FAST; None when that is the model that just failed."""
+    fallback = (env("AI_MODEL_FALLBACK") or get_settings().AI_MODEL_FAST or "").strip()
+    return fallback if fallback and fallback != (model or "").strip() else None
+
+
+def _retryable(exc: Exception) -> bool:
+    """Overload and timeouts (429, 5xx, a client-side timeout) are worth one
+    retry on another model; a 4xx about the request itself is not."""
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    return code in (429, 500, 502, 503, 504) or "timeout" in type(exc).__name__.lower()
 
 
 def _is_gemini_3(model: str | None) -> bool:
@@ -414,6 +473,10 @@ def _contents(req: AIRequest) -> tuple[str | None, list[dict]]:
                 system.append(text)
             elif text:
                 add("model" if role == "assistant" else "user", {"text": text})
+    if req.media:
+        if not contents or contents[-1]["role"] != "user":
+            contents.append({"role": "user", "parts": []})
+        contents[-1]["parts"] += [{"inline_data": {"data": data, "mime_type": mime}} for data, mime in req.media]
     if req.file_ids:
         if not contents or contents[-1]["role"] != "user":
             contents.append({"role": "user", "parts": []})
@@ -862,11 +925,15 @@ def structured(
     store: bool = False,
     timeout_s: float = 30.0,
     temperature: float | None = None,
+    media: list[tuple[bytes, str]] | tuple[tuple[bytes, str], ...] = (),
 ) -> T:
+    """media: (bytes, mime type) images or audio sent with the input, e.g.
+    structured("service.proof", ..., media=[(jpeg, "image/jpeg")])."""
     req = AIRequest(
         task=task, kind="structured", model=model or ai_model_for(task), system=system, input=input,
         schema=strict_schema(schema), schema_name=schema.__name__, hotel_slug=hotel_slug, file_ids=list(file_ids),
         max_output_tokens=max_output_tokens, store=store, timeout_s=timeout_s, temperature=temperature,
+        media=list(media),
     )
     return _call(req, schema)[1]
 
@@ -881,10 +948,13 @@ def text(
     max_output_tokens: int = 2000,
     store: bool = False,
     timeout_s: float = 30.0,
+    media: list[tuple[bytes, str]] | tuple[tuple[bytes, str], ...] = (),
 ) -> str:
+    """media: (bytes, mime type) images or audio sent with the input, e.g. a
+    staff voice reply to transcribe: text(..., media=[(webm, "audio/webm")])."""
     req = AIRequest(
         task=task, kind="text", model=model or ai_model_for(task), system=system, input=input, hotel_slug=hotel_slug,
-        max_output_tokens=max_output_tokens, store=store, timeout_s=timeout_s,
+        max_output_tokens=max_output_tokens, store=store, timeout_s=timeout_s, media=list(media),
     )
     return _call(req)[0].output_text or ""
 

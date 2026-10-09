@@ -268,7 +268,7 @@ class Settings(BaseModel):
     GOOGLE_CLOUD_LOCATION: str = "global"
     VOICE_WEBHOOK_SECRET: str | None = None
     AI_ENABLED: bool = False
-    AI_MODEL_DEFAULT: str = "gemini-3.8-flash"
+    AI_MODEL_DEFAULT: str = "gemini-3.5-flash"
     AI_MODEL_FAST: str = "gemini-3.1-flash-lite"
     AI_LOG_CONTENT: bool = False
     REALTIME_MODEL: str = "gemini-2.5-flash-native-audio-preview-09-2025"
@@ -613,7 +613,7 @@ def load_settings() -> Settings:
         "AI_ENABLED": _bool(
             "AI_ENABLED", bool(env("GEMINI_API_KEY") or env("GOOGLE_API_KEY")) or _bool("GOOGLE_GENAI_USE_VERTEXAI", False)
         ),
-        "AI_MODEL_DEFAULT": env("AI_MODEL_DEFAULT", "gemini-3.8-flash"),
+        "AI_MODEL_DEFAULT": env("AI_MODEL_DEFAULT", "gemini-3.5-flash"),
         "AI_MODEL_FAST": env("AI_MODEL_FAST", "gemini-3.1-flash-lite"),
         "AI_LOG_CONTENT": _bool("AI_LOG_CONTENT", False),
         "REALTIME_MODEL": env("REALTIME_MODEL", "gemini-2.5-flash-native-audio-preview-09-2025"),
