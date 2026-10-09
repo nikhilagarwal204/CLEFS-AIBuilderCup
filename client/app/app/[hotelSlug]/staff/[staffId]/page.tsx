@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { API_PREFIX, apiFetch, hotelPath, openHotelStream } from "../../../../lib/api";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { API_PREFIX, ApiError, apiFetch, hotelPath, openHotelStream } from "../../../../lib/api";
 import { DEFAULT_TIMEZONE, localDateKey } from "../../../../lib/format";
 
 // Same-origin proxy (next.config rewrite): the device cookie rides along.
 const API_BASE = API_PREFIX;
+
+/* One worker screen (05 spec, staff-proof audit): the floor-device app at
+   /device/{slug} is the deck's worker screen, with the job in the worker's
+   language, the photo check and replies to the guest. This page bypasses
+   all of that (legacy PATCH, no ack, no proof), so a hotel that has left
+   legacy open access is sent there. Hotels still on legacy open access keep
+   the page (CONTRACTS.md: redirecting them before every hotel has paired
+   devices would break working personal links), with a link to the app.
+   A network blip never redirects; only a definite answer does. */
+type Mode = "checking" | "legacy" | "moving";
 
 /* Phase 1 of the personal-link retirement (03 spec 1.8): the date comes from
    the deploy, because the server has no sunset setting yet. Unset means the
@@ -118,9 +129,12 @@ function formatSunset(day: string): string {
 /* ── Main component ── */
 export default function StaffPersonalView() {
   const routeParams = useParams();
+  const router = useRouter();
   const hotelSlug = routeParams?.hotelSlug as string;
   const staffId = routeParams?.staffId as string;
+  const deviceHref = `/device/${encodeURIComponent(hotelSlug ?? "")}`;
 
+  const [mode, setMode] = useState<Mode>("checking");
   const [staff, setStaff] = useState<StaffMember | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,12 +167,27 @@ export default function StaffPersonalView() {
     }
   }, []);
 
-  /* ── Hotel timezone: "done today" is the hotel's day, not the phone's ── */
+  /* ── Which worker screen this hotel uses, and its timezone ("done today"
+        is the hotel's day, not the phone's) ── */
   useEffect(() => {
-    apiFetch<{ hotel?: { timezone?: string } }>(hotelPath(hotelSlug, "/context"), { silent401: true })
-      .then(c => { if (c?.hotel?.timezone) setHotelTz(c.hotel.timezone); })
-      .catch(() => {});
+    let live = true;
+    apiFetch<{ hotel?: { timezone?: string }; legacy_open_access?: boolean }>(hotelPath(hotelSlug, "/context"), { silent401: true })
+      .then(c => {
+        if (!live) return;
+        if (c?.hotel?.timezone) setHotelTz(c.hotel.timezone);
+        setMode(c?.legacy_open_access ? "legacy" : "moving");
+      })
+      .catch(err => {
+        if (!live) return;
+        // 401/403/404: this link cannot work here any more; offline: stay put.
+        setMode(err instanceof ApiError && err.status !== 0 && err.status < 500 ? "moving" : "legacy");
+      });
+    return () => { live = false; };
   }, [hotelSlug]);
+
+  useEffect(() => {
+    if (mode === "moving") router.replace(deviceHref);
+  }, [mode, router, deviceHref]);
 
   /* ── Fetch tasks assigned to this staff member (one list feeds both counts) ── */
   const fetchMyTasks = useCallback(async (staffName: string) => {
@@ -194,8 +223,9 @@ export default function StaffPersonalView() {
     } catch (_) {}
   }, [hotelSlug, hotelTz]);
 
-  /* ── Initial load ── */
+  /* ── Initial load (legacy hotels only) ── */
   useEffect(() => {
+    if (mode !== "legacy") return;
     async function init() {
       try {
         const res = await fetch(`${API_BASE}/hotels/${hotelSlug}/staff/${staffId}`);
@@ -210,7 +240,7 @@ export default function StaffPersonalView() {
       }
     }
     init();
-  }, [hotelSlug, staffId]);
+  }, [hotelSlug, staffId, mode]);
 
   /* ── Realtime: stream with a polling fallback (openHotelStream) ── */
   useEffect(() => {
@@ -264,11 +294,14 @@ export default function StaffPersonalView() {
     }
   };
 
-  /* ── Loading / not found states ── */
-  if (loading) {
+  /* ── Loading / moving / not found states ── */
+  if (mode !== "legacy" || loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#070C14", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: "1rem" }}>Loading…</div>
+      <div style={{ minHeight: "100vh", background: "#070C14", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, padding: 32 }}>
+        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: "1rem" }}>{mode === "moving" ? "Opening the staff app…" : "Loading…"}</div>
+        {mode === "moving" && (
+          <Link href={deviceHref} replace style={{ color: "#E1AF68", fontSize: "0.9rem" }}>Open the staff app</Link>
+        )}
       </div>
     );
   }
@@ -443,6 +476,8 @@ export default function StaffPersonalView() {
         {LINK_SUNSET
           ? <>This link stops working on {formatSunset(LINK_SUNSET)}. Ask your manager to pair a floor device.</>
           : <>This personal link is being retired. Ask your manager to pair a floor device.</>}
+        {" "}
+        <Link href={deviceHref} style={{ color: "#F2C67D", fontWeight: 600 }}>Open the staff app</Link>
       </div>
 
       {/* Stats row */}

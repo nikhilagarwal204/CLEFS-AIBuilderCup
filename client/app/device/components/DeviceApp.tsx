@@ -4,9 +4,18 @@
    The floor-device app (03 spec 1.6 and 1.8): pair -> lock (tiles + PIN)
    -> handover (must ack) -> queue, with the task sheet, SOS and LEARN on top.
 
+   The queue is the deck's worker screen (05 spec, slides 6 and 10): "Hi,
+   <name>", Go Off Duty with the Active dot, the Active tasks / Done today
+   counters, task cards with a big Mark as Done, "Powered by Clefs · Live
+   updates", all in the worker's own language. Mark as Done on a job that
+   needs proof opens the camera and Gemini checks the photo (ProofSheet);
+   Reply to guest sends typed or spoken words the server translates for the
+   guest (ReplySheet).
+
    State that must survive a reload or a dead battery lives in IndexedDB:
-   the device facts, open PIN sessions (with their handover acks), the feed
-   cursor, LEARN ticks and the outbox. Everything else is re-read.
+   the device facts, open PIN sessions (with their handover acks and duty
+   state), the feed cursor, LEARN ticks and the outbox. Everything else is
+   re-read.
 
    Shared device model: several people can hold an open PIN session on one
    device (a housekeeping pantry tablet). One of them is "at the screen"
@@ -22,22 +31,33 @@ import { DEFAULT_LOCALE, DEFAULT_TIMEZONE, formatTime } from "../../lib/format";
 import { Button, Textarea, ToastProvider, UiStyles, useToast } from "../../ui";
 import { alarmFor, DeviceAlerts } from "../lib/alerts";
 import {
-  endShift, getContext, getHandover, getQueue, getRequest, getRoster, inScope, OPEN_STATES,
+  endShift, getClosedSince, getContext, getHandover, getMe, getQueue, getRequest, getRoster, inScope, isMissingRoute, OPEN_STATES,
+  sendGuestReply, setDuty, uploadProof,
   type Card, type DeviceInfo, type Handover, type HotelContext, type PairResult, type RosterStaff, type ShiftSession,
 } from "../lib/deviceApi";
 import { resetFeedCursor, startFeed, type FeedStatus } from "../lib/feed";
+import { resolveStaffLang, staffDir, staffT, type StaffLang } from "../lib/i18n";
 import { idbGet, idbSet, KV } from "../lib/idb";
 import { forgetHotel, rememberHotel } from "../lib/lastHotel";
 import { applyPending, pendingRequestIds } from "../lib/optimistic";
 import { DeviceOutbox, type OutboxItem } from "../lib/outbox";
+import { newEventId } from "../lib/outboxCore";
+import { canSendAsIs, downsizeImage } from "../lib/proofImage";
 import { enablePush, notifyHidden, registerDeviceWorker } from "../lib/push";
 import { deviceStyles } from "../lib/styles";
+import {
+  CLOSED_LOOKBACK_MS, countDoneToday, isMine, needsProof, proofOutcome, type ReplyInput, type StaffMe,
+} from "../lib/worker";
 import { HandoverSheet } from "./HandoverSheet";
 import type { Learn } from "./LearnCard";
 import { LockScreen } from "./LockScreen";
 import { PairScreen } from "./PairScreen";
+import { ProofSheet, type ProofView } from "./ProofSheet";
 import { Queue } from "./Queue";
+import { ReplySheet } from "./ReplySheet";
 import { SosActive, SosButton } from "./SosButton";
+import { StaffHeader, StaffStats } from "./StaffHeader";
+import { StaffI18nProvider } from "./StaffI18n";
 import { TaskSheet, type TaskActionOpts } from "./TaskSheet";
 
 // ─── Constants and stored shapes ─────────────────────────────────────────
@@ -47,12 +67,18 @@ import { TaskSheet, type TaskActionOpts } from "./TaskSheet";
 const IDLE_LOCK_MS = 10 * 60_000;
 const QUEUE_SAFETY_POLL_MS = 60_000;
 const CLOCK_TICK_MS = 15_000;
+/** "Done today" re-reads the closed jobs at most this often (plus after each completion). */
+const DONE_REFRESH_MS = 30_000;
+/** The Gemini photo check runs inside the upload call; give it room. */
+const PROOF_TIMEOUT_MS = 45_000;
 
 type Phase = "boot" | "pair" | "locked" | "handover" | "queue";
 
 interface StoredSession extends ShiftSession {
   started_at: number;
   handover_acked: boolean;
+  /** Go Off Duty keeps the PIN session but takes the person out of routing. */
+  on_duty?: boolean;
 }
 
 type Sessions = Record<string, StoredSession>;
@@ -61,6 +87,8 @@ interface SosState { client_event_id: string; error: string | null; hidden: bool
 
 const devKey = (slug: string) => `device:${slug}`;
 const sessKey = (slug: string) => `sessions:${slug}`;
+/** Each worker's language pick on this device (a per-viewer convenience). */
+const langKey = (slug: string) => `clefs.device.lang.${slug}`;
 
 function plannedEnd(s: ShiftSession): number | null {
   if (s.planned_end_at == null) return null;
@@ -71,6 +99,22 @@ function plannedEnd(s: ShiftSession): number | null {
 function isSupervisor(s: RosterStaff): boolean {
   return /supervis|manager|duty|head|lead|captain|security/i.test(`${s.role ?? ""}`);
 }
+
+function loadLangPicks(slug: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(langKey(slug)) ?? "{}") as unknown;
+    return raw && typeof raw === "object" ? (raw as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLangPicks(slug: string, picks: Record<string, string>): void {
+  try { window.localStorage.setItem(langKey(slug), JSON.stringify(picks)); } catch { /* private mode */ }
+}
+
+const browserLangs = (): readonly string[] => (typeof navigator !== "undefined" ? navigator.languages ?? [navigator.language] : []);
 
 // ─── Component ───────────────────────────────────────────────────────────
 
@@ -97,10 +141,31 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
   const [logoutNote, setLogoutNote] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [soundOn, setSoundOn] = useState(false);
+  // The worker screen (05 spec).
+  const [langPicks, setLangPicks] = useState<Record<string, string>>(() => loadLangPicks(hotelSlug));
+  const [navLangs] = useState(browserLangs);
+  const [dutyBusy, setDutyBusy] = useState(false);
+  /** GET /device/service/me for the person at the screen. */
+  const [me, setMe] = useState<StaffMe | null>(null);
+  /** "Done today" on a server without /me: counted from the closed jobs. */
+  const [closedCards, setClosedCards] = useState<Card[] | null>(null);
+  const [doneBump, setDoneBump] = useState(0);
+  const [proof, setProof] = useState<ProofView | null>(null);
+  /** The last mismatch reason per job in the worker's language (the card
+      itself carries the English one). */
+  const [proofNotes, setProofNotes] = useState<Record<number, string>>({});
+  const [replyFor, setReplyFor] = useState<Card | null>(null);
 
   const alertsRef = useRef<DeviceAlerts | null>(null);
   const outboxRef = useRef<DeviceOutbox | null>(null);
   const lastTouch = useRef(0);
+  const photoInput = useRef<HTMLInputElement | null>(null);
+  const proofCard = useRef<Card | null>(null);
+  const proofBlob = useRef<Blob | null>(null);
+  const proofEventId = useRef<string | null>(null);
+  const previewUrl = useRef<string | null>(null);
+  const doneFetchedAt = useRef(0);
+  const meMissing = useRef(false);
 
   const tz = ctx?.hotel.timezone || DEFAULT_TIMEZONE;
   const locale = ctx?.hotel.locale || DEFAULT_LOCALE;
@@ -171,6 +236,19 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
       for (const [k, s] of Object.entries(storedSessions ?? {})) if (open.has(s.staff.id)) kept[k] = s;
       saveSessions(kept);
       rememberHotel(hotelSlug);
+      // A personal phone stays with its owner (it never idle-locks either):
+      // with exactly one PIN session open on it, reopen that session instead
+      // of the lock screen. The /try page pairs a reviewer's browser as
+      // Maria's phone and stores her open session (handover read) this way.
+      const own = storedDevice?.kind === "personal" ? Object.values(kept) : [];
+      if (own.length === 1) {
+        const s = own[0];
+        setActiveId(s.staff.id);
+        lastTouch.current = Date.now();
+        if (!s.handover_acked) setHandoverState({ loading: true, error: null });
+        setPhase(s.handover_acked ? "queue" : "handover");
+        return;
+      }
       setPhase("locked");
     } catch (err) {
       if (err instanceof ApiError && err.status === 0 && storedDevice) {
@@ -211,6 +289,79 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     void boot();
   }, [hotelSlug, boot, toast]);
 
+  // ─── The worker's language ───
+
+  // The server's word for the reading language: /me, else the language the
+  // cards were translated into (display_language).
+  const myProfile = me && activeId != null && me.staff.id === activeId ? me : null;
+  const cardLang = useMemo(
+    () => serverCards.find(c => c.display_language && c.display_translated !== false)?.display_language ?? null,
+    [serverCards],
+  );
+  const lang: StaffLang = resolveStaffLang({
+    stored: activeId != null ? langPicks[String(activeId)] : null,
+    server: myProfile?.staff.reading_language ?? cardLang,
+    browser: navLangs,
+  });
+  const t = useMemo(() => staffT(lang), [lang]);
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
+
+  const pickLang = useCallback((l: StaffLang) => {
+    if (activeId == null) return;
+    const next = { ...langPicks, [String(activeId)]: l };
+    setLangPicks(next);
+    saveLangPicks(hotelSlug, next);
+  }, [activeId, langPicks, hotelSlug]);
+
+  // ─── Who is at the screen, and Done today ───
+
+  /** The server's duty state wins over the copy kept with the session. */
+  const syncDuty = useCallback((staffId: number, onDutyNow: boolean) => {
+    setSessions(prev => {
+      const cur = prev[String(staffId)];
+      if (!cur || (cur.on_duty !== false) === onDutyNow) return prev;
+      const next = { ...prev, [String(staffId)]: { ...cur, on_duty: onDutyNow } };
+      void idbSet(KV, sessKey(hotelSlug), next);
+      return next;
+    });
+  }, [hotelSlug]);
+
+  const refreshDone = useCallback(async (force = false) => {
+    if (activeId == null) return;
+    const n = Date.now();
+    if (!force && n - doneFetchedAt.current < DONE_REFRESH_MS) return;
+    doneFetchedAt.current = n;
+    if (!meMissing.current) {
+      try {
+        const m = await getMe(activeId);
+        setMe(m);
+        setDoneBump(0);
+        syncDuty(m.staff.id, m.on_duty);
+        return;
+      } catch (err) {
+        if (!isMissingRoute(err)) return; // keep the last count; the next refresh tries again
+        meMissing.current = true;
+      }
+    }
+    try {
+      const closed = await getClosedSince(hotelSlug, activeId, n - CLOSED_LOOKBACK_MS);
+      setClosedCards(closed);
+      setDoneBump(0);
+    } catch { /* keep the last count; the next refresh tries again */ }
+  }, [hotelSlug, activeId, syncDuty]);
+
+  const refreshDoneRef = useRef(refreshDone);
+  useEffect(() => { refreshDoneRef.current = refreshDone; }, [refreshDone]);
+
+  /** A job of this person's just closed: count it now, confirm from the server shortly. */
+  const noteCompleted = useCallback(() => {
+    setDoneBump(b => b + 1);
+    setTimeout(() => { void refreshDoneRef.current(true); }, 1_500);
+  }, []);
+  const noteCompletedRef = useRef(noteCompleted);
+  useEffect(() => { noteCompletedRef.current = noteCompleted; }, [noteCompleted]);
+
   // ─── Alerts and outbox (one of each per mounted app) ───
 
   useEffect(() => {
@@ -228,9 +379,14 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
         try { return (await getRequest(hotelSlug, id, staffId)).request; } catch { return null; }
       },
       onChange: items => setPending(items),
-      onApplied: (_it, res) => {
+      onApplied: (it, res) => {
         const req = (res.data as { request?: Card } | undefined)?.request;
-        if (req?.id) setServerCards(cs => cs.map(c => (c.id === req.id ? req : c)));
+        // A closed job leaves the open list at once, not at the next refresh.
+        if (req?.id) setServerCards(cs => cs.map(c => (c.id === req.id ? req : c)).filter(c => OPEN_STATES.includes(c.state)));
+        if (it.kind === "transition" && it.action === "complete" && !res.replayed) {
+          noteCompletedRef.current();
+          toast.success(tRef.current("toast.jobClosed"));
+        }
       },
       onConflict: (_it, res) => { toast({ tone: "warn", title: res.message }); },
       onRejected: (it, res) => { toast({ tone: "bad", title: `Could not ${it.action ?? it.kind}`, body: res.message }); },
@@ -251,11 +407,13 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
 
   const onUnlocked = useCallback((s: ShiftSession) => {
     const prev = sessions[String(s.staff.id)];
+    const sameShift = prev?.session_id === s.session_id;
     const stored: StoredSession = {
       ...s,
       started_at: prev?.started_at ?? Date.now(),
-      // A new session id means a new shift: its handover is unread.
-      handover_acked: prev?.session_id === s.session_id ? prev.handover_acked : false,
+      // A new session id means a new shift: its handover is unread, and it starts on duty.
+      handover_acked: sameShift ? prev.handover_acked : false,
+      on_duty: sameShift ? prev.on_duty !== false : true,
     };
     saveSessions({ ...sessions, [String(s.staff.id)]: stored });
     setActiveId(s.staff.id);
@@ -266,12 +424,22 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     setPhase(stored.handover_acked ? "queue" : "handover");
   }, [sessions, saveSessions]);
 
+  /** Drop the shown photo's object URL (and remember the new one, if any). */
+  const setPreview = useCallback((url: string | null) => {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = url;
+  }, []);
+
   const lock = useCallback(() => {
     setActiveId(null);
     setOpenId(null);
+    // The next person at the screen must not inherit an open reply or photo check.
+    setReplyFor(null);
+    setProof(null);
+    setPreview(null);
     setPhase("locked");
     void loadRoster().catch(() => undefined);
-  }, [loadRoster]);
+  }, [loadRoster, setPreview]);
 
   const logout = useCallback(async () => {
     if (!active) return;
@@ -283,7 +451,7 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
       // here too. Anything else (offline) keeps the session so the person can
       // try again; the server's auto-logout ends it at shift end regardless.
       if (!(err instanceof ApiError && err.status === 404)) {
-        toast({ tone: "warn", title: "Could not log out", body: err instanceof Error ? err.message : undefined });
+        toast({ tone: "warn", title: t("logout.failed"), body: err instanceof Error ? err.message : undefined });
         return;
       }
     }
@@ -294,14 +462,14 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     setLogoutNote("");
     if (!Object.keys(next).length) void alertsRef.current?.keepAwake(false);
     lock();
-  }, [active, logoutNote, sessions, saveSessions, toast, lock]);
+  }, [active, logoutNote, sessions, saveSessions, toast, lock, t]);
 
   // Idle lock and the clock tick (SLA countdowns, shift end).
   useEffect(() => {
     const touch = () => { lastTouch.current = Date.now(); };
     window.addEventListener("pointerdown", touch);
     window.addEventListener("keydown", touch);
-    const t = setInterval(() => {
+    const tick = setInterval(() => {
       const n = Date.now();
       setNow(n);
       // Shared devices only: a personal device stays with its owner.
@@ -310,9 +478,29 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     return () => {
       window.removeEventListener("pointerdown", touch);
       window.removeEventListener("keydown", touch);
-      clearInterval(t);
+      clearInterval(tick);
     };
   }, [activeId, device, lock]);
+
+  // ─── Go Off Duty / Go On Duty ───
+
+  const onDuty = active?.on_duty !== false;
+
+  const toggleDuty = useCallback(async () => {
+    if (!active || dutyBusy) return;
+    const want = !onDuty;
+    setDutyBusy(true);
+    try {
+      const nowOn = await setDuty(want, active.staff.id);
+      syncDuty(active.staff.id, nowOn);
+      setMe(m => (m && m.staff.id === active.staff.id ? { ...m, on_duty: nowOn } : m));
+      toast({ tone: nowOn ? "ok" : "info", title: nowOn ? t("duty.nowOn") : t("duty.nowOff") });
+    } catch (err) {
+      toast({ tone: "warn", title: t("duty.failed"), body: err instanceof Error ? err.message : undefined });
+    } finally {
+      setDutyBusy(false);
+    }
+  }, [active, dutyBusy, onDuty, syncDuty, toast, t]);
 
   // ─── Queue, feed and the alarm ───
 
@@ -322,6 +510,7 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     try {
       const cards = await getQueue(hotelSlug, activeId);
       setServerCards(cards.filter(c => OPEN_STATES.includes(c.state)));
+      void refreshDoneRef.current();
     } catch (err) {
       if (err instanceof ApiError && err.code === "staff_not_on_shift" && activeId != null) {
         // The server ended this person's session (shift end + grace, idle,
@@ -370,12 +559,28 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     return () => { stop(); clearInterval(safety); if (timer) clearTimeout(timer); };
   }, [signedIn, hotelSlug, toPair]);
 
-  // A new person at the screen: re-read the queue under their name.
-  useEffect(() => { if (activeId != null) refreshQueueRef.current(); }, [activeId]);
+  // A new person at the screen: re-read the queue (and their count) under their name.
+  useEffect(() => {
+    if (activeId == null) return;
+    doneFetchedAt.current = 0;
+    refreshQueueRef.current();
+  }, [activeId]);
 
   const scoped = useMemo(() => serverCards.filter(c => inScope(c, device)), [serverCards, device]);
-  const cards = useMemo(() => applyPending(scoped, pending), [scoped, pending]);
+  const cards = useMemo(
+    // A rejected photo's reason reads in the worker's language (the proof
+    // answer's), while the card from the server carries the English one.
+    () => applyPending(scoped, pending).map(c => (c.proof_status === "rejected" && proofNotes[c.id] ? { ...c, proof_reason: proofNotes[c.id] } : c)),
+    [scoped, pending, proofNotes],
+  );
   const pendingIds = useMemo(() => pendingRequestIds(pending), [pending]);
+  const mine = useMemo(
+    () => (activeId != null ? cards.filter(c => isMine(c, activeId, device?.id ?? null)) : []),
+    [cards, activeId, device],
+  );
+  const doneToday = myProfile ? myProfile.counts.done_today + doneBump
+    : activeId != null && closedCards ? countDoneToday(closedCards, activeId, tz, now) + doneBump
+    : doneBump || null;
 
   // Level-triggered alarm: recomputed from the queue every time it changes.
   const alarm = useMemo(
@@ -386,7 +591,8 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
   useEffect(() => {
     alertsRef.current?.setAlarm(alarm);
     if (alarm !== "off" && prevAlarm.current === "off") {
-      void notifyHidden(alarm === "urgent" ? "URGENT request" : "New job", "Open the device to acknowledge it.", "svc-alarm", alarm === "urgent");
+      const tt = tRef.current;
+      void notifyHidden(alarm === "urgent" ? tt("notify.urgent") : tt("notify.new"), tt("notify.body"), "svc-alarm", alarm === "urgent");
     }
     prevAlarm.current = alarm;
   }, [alarm]);
@@ -447,8 +653,8 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
   const addNote = useCallback((c: Card, body: string) => {
     if (!active) return;
     void outboxRef.current?.enqueue({ kind: "note", request_id: c.id, base_version: c.version, staff_id: active.staff.id, payload: { body } });
-    toast.info("Note saved");
-  }, [active, toast]);
+    toast.info(t("toast.noteSaved"));
+  }, [active, toast, t]);
 
   const saveLearn = useCallback((c: Card, learn: Learn, caseId: number | null) => {
     if (!active) return;
@@ -457,6 +663,119 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
       payload: { case_id: caseId ?? undefined, learn, reason: (c.reopen_count ?? 0) > 0 ? "not_resolved" : "complaint" },
     });
   }, [active]);
+
+  // ─── Mark as Done with a photo (05 spec, decision 8) ───
+
+  /** Opens the camera. Must run inside the tap: a file picker needs the gesture. */
+  const openCamera = useCallback(() => {
+    const input = photoInput.current;
+    if (!input) return;
+    input.value = ""; // the same file twice still fires change
+    input.click();
+  }, []);
+
+  const markDone = useCallback((c: Card) => {
+    if (!active) return;
+    if (!needsProof(c)) { act(c, "complete"); return; }
+    proofCard.current = c;
+    openCamera();
+    setOpenId(null);
+    alertsRef.current?.snooze(60_000);
+    // Starting the work accepts it: the chime stops and the guest's
+    // "time taken" freezes now, not when the photo is checked.
+    if (c.state === "assigned" && isMine(c, active.staff.id, device?.id ?? null)) act(c, "ack");
+  }, [active, act, openCamera, device]);
+
+  const runProof = useCallback(async (c: Card, photo: Blob) => {
+    if (!active) return;
+    setProof(p => ({ card: c, phase: "checking", previewUrl: p?.previewUrl ?? null }));
+    // A queued ack (Mark as Done on an unaccepted job) must land first.
+    try { await outboxRef.current?.flush(); } catch { /* the upload reports the network */ }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), PROOF_TIMEOUT_MS);
+    try {
+      const res = await uploadProof(c.id, photo, active.staff.id, { clientEventId: proofEventId.current ?? undefined, signal: ctrl.signal });
+      if (res.request) {
+        const req = res.request;
+        setServerCards(cs => cs.map(x => (x.id === req.id ? req : x)).filter(x => OPEN_STATES.includes(x.state)));
+      }
+      const outcome = proofOutcome(res);
+      if (outcome === "verified") {
+        if (!res.request) setServerCards(cs => cs.filter(x => x.id !== c.id));
+        setProof(p => (p ? { ...p, phase: "verified", reason: res.reason } : p));
+        noteCompleted();
+      } else {
+        const reason = res.reason;
+        if (outcome === "rejected" && reason) setProofNotes(n => ({ ...n, [c.id]: reason }));
+        setProof(p => (p ? { ...p, phase: outcome, reason } : p));
+      }
+      refreshQueueRef.current();
+    } catch (err) {
+      const timedOut = (err as Error)?.name === "AbortError";
+      const offline = err instanceof ApiError && err.status === 0;
+      // 409: someone (or a replay) closed the job first; nothing to retry.
+      const closedAlready = err instanceof ApiError && err.status === 409;
+      const msg = timedOut ? "timeout" : err instanceof Error ? err.message : String(err);
+      setProof(p => (p ? {
+        ...p, phase: "error", canRetry: !closedAlready,
+        error: closedAlready ? t("proof.alreadyClosed") : offline ? t("proof.offline") : t("proof.failed", { error: msg }),
+      } : p));
+      if (closedAlready) refreshQueueRef.current();
+    } finally {
+      clearTimeout(timer);
+    }
+  }, [active, noteCompleted, t]);
+
+  const onPhoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    const c = proofCard.current;
+    e.target.value = "";
+    if (!file || !c) return;
+    proofEventId.current = newEventId();
+    setPreview(null);
+    setProof({ card: c, phase: "preparing", previewUrl: null });
+    let photo: Blob;
+    try {
+      photo = await downsizeImage(file);
+    } catch {
+      if (!canSendAsIs(file)) {
+        setProof({ card: c, phase: "error", previewUrl: null, error: t("proof.unreadable"), canRetry: false });
+        return;
+      }
+      photo = file; // the phone cannot redraw it, but the route takes it as it is
+    }
+    proofBlob.current = photo;
+    const url = URL.createObjectURL(photo);
+    setPreview(url);
+    setProof({ card: c, phase: "checking", previewUrl: url });
+    void runProof(c, photo);
+  }, [runProof, setPreview, t]);
+
+  const retryProof = useCallback(() => {
+    const c = proofCard.current, photo = proofBlob.current;
+    if (c && photo) void runProof(c, photo);
+  }, [runProof]);
+
+  const closeProof = useCallback(() => {
+    setProof(null);
+    setPreview(null);
+    proofCard.current = null;
+    proofBlob.current = null;
+  }, [setPreview]);
+
+  useEffect(() => () => { if (previewUrl.current) URL.revokeObjectURL(previewUrl.current); }, []);
+
+  // ─── Reply to guest ───
+
+  const sendReply = useCallback((c: Card, input: ReplyInput) => {
+    if (!active) return Promise.reject(new Error("Nobody is signed in"));
+    return sendGuestReply(c.id, input, active.staff.id);
+  }, [active]);
+
+  const openReply = useCallback((c: Card) => { setOpenId(null); setReplyFor(c); }, []);
+  const closeReply = useCallback(() => setReplyFor(null), []);
+
+  // ─── SOS ───
 
   const fireSos = useCallback(async () => {
     const who = active ?? Object.values(sessions)[0] ?? null;
@@ -498,12 +817,14 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
   // ─── Render ───
 
   const openCard = openId != null ? cards.find(c => c.id === openId) ?? serverCards.find(c => c.id === openId) ?? null : null;
+  const replyCard = replyFor ? cards.find(c => c.id === replyFor.id) ?? replyFor : null;
   const shiftEnd = active ? plannedEnd(active) : null;
   const shiftOver = shiftEnd != null && now > shiftEnd;
   const supervisors = roster.filter(s => s.has_pin && isSupervisor(s));
   const unsent = pending.length;
-  const shell = (body: React.ReactNode) => (
-    <div className="svc-dv">
+  const rosterMe = active ? roster.find(s => s.id === active.staff.id) ?? null : null;
+  const shell = (body: React.ReactNode, attrs: { dir?: "rtl" | "ltr"; lang?: string } = {}) => (
+    <div className="svc-dv" dir={attrs.dir} lang={attrs.lang}>
       <UiStyles />
       <style dangerouslySetInnerHTML={{ __html: deviceStyles }} />
       {body}
@@ -542,51 +863,72 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
     );
   }
 
+  const footKey = feedStatus === "live" ? "foot.live" : feedStatus === "polling" ? "foot.polling" : "foot.offline";
+
   return shell(
-    <>
-      <header className="svc-dv-bar">
-        <span className={`svc-dv-dot svc-dv-dot--${feedStatus}`} title={`Feed: ${feedStatus}`} aria-label={`Connection ${feedStatus}`} />
-        <div className="svc-dv-bar__title">
-          <div className="svc-dv-bar__who">{active.staff.name}</div>
-          <div className="svc-dv-bar__sub">
-            {[device?.name, ctx?.hotel.name, shiftEnd ? `until ${formatTime(shiftEnd, tz, locale)}` : null].filter(Boolean).join(" · ")}
-          </div>
-        </div>
-        <button type="button" className="svc-dv-iconbtn" onClick={lock}>Lock</button>
-        <button type="button" className="svc-dv-iconbtn" onClick={() => setLogoutOpen(true)}>Log out</button>
-      </header>
+    <StaffI18nProvider lang={lang}>
+      <StaffHeader
+        hotelName={ctx?.hotel.name ?? null}
+        until={shiftEnd ? formatTime(shiftEnd, tz, locale) : null}
+        name={myProfile?.staff.first_name || active.staff.name}
+        role={myProfile?.staff.role ?? rosterMe?.role ?? null}
+        department={myProfile?.staff.department ?? rosterMe?.department ?? active.staff.department}
+        departmentKey={myProfile?.staff.department_key ?? null}
+        onDuty={onDuty}
+        dutyBusy={dutyBusy}
+        onToggleDuty={() => { void toggleDuty(); }}
+        onLang={pickLang}
+        onLock={lock}
+        onLogout={() => setLogoutOpen(true)}
+      />
 
       {!soundOn && (
         <div className="svc-dv-banner svc-dv-banner--warn">
-          <span>Sound is off.</span>
-          <Button size="sm" onClick={onGesture}>Turn on sound</Button>
+          <span>{t("banner.soundOff")}</span>
+          <Button size="sm" onClick={onGesture}>{t("banner.soundOn")}</Button>
         </div>
       )}
-      {feedStatus === "offline" && <div className="svc-dv-banner svc-dv-banner--bad"><span>Offline. Your taps are saved and will send when the signal is back.</span></div>}
-      {unsent > 0 && feedStatus !== "offline" && <div className="svc-dv-banner"><span>Sending {unsent} action(s)...</span></div>}
+      {feedStatus === "offline" && <div className="svc-dv-banner svc-dv-banner--bad"><span>{t("banner.offline")}</span></div>}
+      {unsent > 0 && feedStatus !== "offline" && <div className="svc-dv-banner"><span>{t("banner.sending", { n: unsent })}</span></div>}
       {shiftOver && (
         <div className="svc-dv-banner svc-dv-banner--warn">
-          <span>Your shift has ended. Leave a handover note and log out.</span>
-          <Button size="sm" onClick={() => setLogoutOpen(true)}>Hand over</Button>
+          <span>{t("banner.shiftOver")}</span>
+          <Button size="sm" onClick={() => setLogoutOpen(true)}>{t("banner.handOver")}</Button>
         </div>
       )}
       {sos?.hidden && (
         <div className="svc-dv-banner svc-dv-banner--bad">
-          <span>SOS {sosSent ? "is open" : "waiting for signal"}.</span>
-          <Button size="sm" onClick={() => setSos({ ...sos, hidden: false })}>Show</Button>
+          <span>{sosSent ? t("banner.sosOpen") : t("banner.sosWaiting")}</span>
+          <Button size="sm" onClick={() => setSos({ ...sos, hidden: false })}>{t("banner.show")}</Button>
         </div>
       )}
 
       <main className="svc-dv-main">
-        <Queue cards={cards} staffIds={staffIds} meId={active.staff.id} deviceId={device?.id ?? null} pendingIds={pendingIds}
-          now={now} onOpen={c => { alertsRef.current?.snooze(5_000); setOpenId(c.id); }} loading={queueLoading} />
+        <StaffStats active={mine.length} doneToday={doneToday} />
+        <Queue cards={cards} mine={mine} staffIds={staffIds} meId={active.staff.id} pendingIds={pendingIds}
+          now={now} loading={queueLoading}
+          onOpen={c => { alertsRef.current?.snooze(5_000); setOpenId(c.id); }}
+          onAction={act} onMarkDone={markDone} onReply={openReply} />
+        <footer className="svc-dv-foot" role="status">
+          <span className={`svc-dv-dot svc-dv-dot--${feedStatus}`} aria-hidden="true" />
+          <span>{t(footKey)}</span>
+        </footer>
       </main>
+
+      {/* The camera for Mark as Done (opened from the tap; see openCamera). */}
+      <input ref={photoInput} type="file" accept="image/*" capture="environment" hidden
+        onChange={e => { void onPhoto(e); }} />
 
       {openCard && (
         <TaskSheet hotelSlug={hotelSlug} card={openCard} meId={active.staff.id} deviceId={device?.id ?? null}
           pending={pendingIds.has(openCard.id)} now={now} timezone={tz} locale={locale}
-          onAction={act} onNote={addNote} onLearn={saveLearn} onClose={closeTask} staffName={staffName} />
+          onAction={act} onMarkDone={markDone} onReply={openReply} onNote={addNote} onLearn={saveLearn}
+          onClose={closeTask} staffName={staffName} />
       )}
+
+      {proof && <ProofSheet view={proof} onRetake={openCamera} onRetry={retryProof} onClose={closeProof} />}
+
+      {replyCard && <ReplySheet card={replyCard} send={sendReply} onClose={closeReply} />}
 
       {phase === "handover" && (
         <HandoverSheet staffName={active.staff.name} handover={handover} loading={handoverState.loading} error={handoverState.error}
@@ -596,26 +938,23 @@ export function DeviceApp({ hotelSlug, pairCode }: { hotelSlug: string; pairCode
       {logoutOpen && (
         <div className="svc-dv-scrim" role="presentation" onClick={e => { if (e.target === e.currentTarget) setLogoutOpen(false); }}>
           <div className="svc-dv-sheet" role="dialog" aria-modal="true" aria-labelledby="svc-dv-lo-title">
-            <h2 id="svc-dv-lo-title" className="svc-dv-sheet__title">End your shift</h2>
-            <p style={{ margin: 0, color: "var(--clefs-ink-muted)" }}>
-              Anything the next person should know? It shows in their handover.
-            </p>
-            <Textarea rows={4} value={logoutNote} onChange={e => setLogoutNote(e.target.value)} placeholder="e.g. 512 asked for a late check-out; iron in 318 is faulty" />
+            <h2 id="svc-dv-lo-title" className="svc-dv-sheet__title">{t("logout.title")}</h2>
+            <p style={{ margin: 0, color: "var(--clefs-ink-muted)" }}>{t("logout.lead")}</p>
+            <Textarea rows={4} value={logoutNote} dir="auto" onChange={e => setLogoutNote(e.target.value)} placeholder={t("logout.placeholder")} />
             {cards.some(c => c.assigned_staff_id === active.staff.id) && (
-              <p style={{ margin: 0, color: "var(--cx-warn)", fontSize: "0.85rem" }}>
-                You still hold open jobs. They stay assigned to you until a supervisor moves them.
-              </p>
+              <p style={{ margin: 0, color: "var(--cx-warn)", fontSize: "0.85rem" }}>{t("logout.holding")}</p>
             )}
             <div className="svc-dv-actions">
-              <Button onClick={() => setLogoutOpen(false)}>Back</Button>
-              <Button variant="primary" onClick={() => { void logout(); }}>Log out</Button>
+              <Button onClick={() => setLogoutOpen(false)}>{t("action.back")}</Button>
+              <Button variant="primary" onClick={() => { void logout(); }}>{t("logout.confirm")}</Button>
             </div>
           </div>
         </div>
       )}
 
       {sosLayer}
-    </>,
+    </StaffI18nProvider>,
+    { dir: staffDir(lang), lang },
   );
 }
 
