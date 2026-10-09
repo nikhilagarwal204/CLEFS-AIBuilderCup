@@ -36,7 +36,8 @@ export default function ConfigConsole({ initialTab }: { initialTab?: string }) {
   const tabs: TabItem<Tab>[] = [
     { key: "departments", label: "Departments", count: departments.rows.length },
     { key: "types", label: "Request types", count: types.rows.length },
-    { key: "sla", label: "Response times" },
+    // "Response times" is the owner view; these are the targets it is measured against.
+    { key: "sla", label: "Response targets" },
     { key: "recovery", label: "Recovery authority" },
     { key: "rooms", label: "Rooms" },
     { key: "amenities", label: "Amenities" },

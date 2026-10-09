@@ -10,7 +10,7 @@
    (add a range, or drop the PMS room list as CSV). */
 
 import { useMemo, useState } from "react";
-import { LuPlus } from "react-icons/lu";
+import { LuPlus, LuQrCode } from "react-icons/lu";
 import { api, hotelPath, useApi } from "../../../../../lib/api";
 import { useSession } from "../../../../../lib/session";
 import { useHotel } from "../../../../../lib/hotel";
@@ -175,7 +175,14 @@ export default function RoomsSettingsPage() {
           </Card>
 
           <Card title="Rooms"
-                actions={canWrite ? <Button size="sm" icon={<LuPlus aria-hidden="true" />} onClick={() => setEditing("new")}>Add rooms</Button> : undefined}>
+                actions={canWrite ? (
+                  <>
+                    {/* One printable QR card per room: guests scan it to reach the assistant (05 spec 1). */}
+                    <Button size="sm" variant="ghost" icon={<LuQrCode aria-hidden="true" />}
+                            href={`/app/${encodeURIComponent(slug)}/settings/rooms/qr`}>Print QR cards</Button>
+                    <Button size="sm" icon={<LuPlus aria-hidden="true" />} onClick={() => setEditing("new")}>Add rooms</Button>
+                  </>
+                ) : undefined}>
             <div className="rms-filters">
               <Input placeholder="Find a room or wing" value={q} onChange={e => setQ(e.target.value)} aria-label="Find a room" />
               <Select aria-label="Which rooms" value={show} onChange={e => setShow(e.target.value as "active" | "all")}

@@ -85,6 +85,17 @@ export async function loadRoster(slug: string, week: string): Promise<RosterWeek
   };
 }
 
+/** The hotel's shift templates (names and hours for the owner view's shift
+    labels). An empty list when the route is closed or absent. */
+export async function loadShiftTemplates(slug: string): Promise<ShiftTemplate[]> {
+  try {
+    const r = await api.get<unknown>(hotelPath(slug, "/service/shift-templates"), undefined, { silent401: true });
+    return Array.isArray(r) ? (r as ShiftTemplate[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function validateRoster(slug: string, week: string, assignments: Assignment[]) {
   return api.post<{ flags?: LabourFlag[] }>(hotelPath(slug, "/service/roster/validate"), { week, assignments });
 }

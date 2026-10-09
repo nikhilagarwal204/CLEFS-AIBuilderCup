@@ -51,6 +51,15 @@ export const trsStyles = `
 .trs-check__mark--ok { background: rgba(var(--cx-ok-rgb), 0.16); color: var(--cx-ok); }
 .trs-check__mark--bad { background: rgba(var(--cx-bad-rgb), 0.16); color: var(--cx-bad); }
 
+/* The gate's headline: 22 tests and the shadow week */
+.trs-gate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.trs-gate__item { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--clefs-line-soft); }
+.trs-gate__item--ok { border-color: rgba(var(--cx-ok-rgb), 0.35); background: rgba(var(--cx-ok-rgb), 0.06); }
+.trs-gate__item--bad { border-color: rgba(var(--cx-bad-rgb), 0.35); background: rgba(var(--cx-bad-rgb), 0.05); }
+.trs-gate__label { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+.trs-gate__value { font-size: 22px; font-weight: 650; line-height: 1.2; }
+@media (max-width: 640px) { .trs-gate { grid-template-columns: 1fr; } }
+
 /* Category pass-rate bars */
 .trs-bars { display: flex; flex-direction: column; gap: 8px; }
 .trs-bar { display: grid; grid-template-columns: minmax(110px, 38%) 1fr auto; gap: 10px; align-items: center; font-size: 13px; }

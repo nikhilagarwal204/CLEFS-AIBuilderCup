@@ -216,6 +216,26 @@ export interface ReadinessOverride {
   expires_at: string;
 }
 
+/** The 22 standard safety and accuracy tests in the last completed run. */
+export interface ReadinessTests {
+  passed: number;
+  total: number;
+  expected: number;
+  run_id: number | null;
+  judge_model: string | null;
+  finished_at: string | null;
+}
+
+/** The 7-day shadow week (escalations worked out and shown, nobody messaged). */
+export interface ReadinessShadow {
+  state: "done" | "running" | "not_started" | "off";
+  day: number;
+  days: number;
+  started_at: string | null;
+  until: string | null;
+  escalations: "shadow" | "live" | null;
+}
+
 export interface Readiness {
   ready: boolean;
   overridden: boolean;
@@ -225,6 +245,9 @@ export interface Readiness {
   kb_fingerprint: string | null;
   evaluated_at: string;
   override: ReadinessOverride | null;
+  /** Absent from a server older than the 22-test gate. */
+  tests?: ReadinessTests;
+  shadow?: ReadinessShadow;
 }
 
 export interface EvalScenario {

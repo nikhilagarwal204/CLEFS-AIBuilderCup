@@ -95,14 +95,14 @@ export function activeNavKey(pathname: string | null, hotelSlug: string): NavKey
   return (NAV.find(n => n.href === seg)?.key ?? null) as NavKey | null;
 }
 
-/** Role landing (foundation spec F): where each role starts its day. */
+/** Role landing (foundation spec F, 05 spec 2.16): where each role starts its
+    day. The guest service desk leads, so owners, GMs and Clefs admins land on
+    Service with everyone on the floor; its sidebar reaches the owner view
+    ("Response times"). Finance and revenue keep their own modules, and a
+    landing whose module is off falls back to Service (page.tsx). */
 export function landingKey(role: string | null, opts: { isAdmin: boolean; legacyAnonymous: boolean }): NavKey {
-  if (opts.legacyAnonymous) return "service";
-  if (opts.isAdmin) return "brief";
+  if (opts.legacyAnonymous || opts.isAdmin) return "service";
   switch (role) {
-    case "owner":
-    case "gm":
-      return "brief";
     case "finance":
       return "profit";
     case "revenue":

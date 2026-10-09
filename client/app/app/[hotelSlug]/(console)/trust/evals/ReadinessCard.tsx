@@ -3,7 +3,9 @@
 /* ═══════════════════════════════════════════════════════════════════════
    The readiness gate (03 spec 5.4): the concierge goes live only when the
    required KB sections are approved, a run on the current prompt and KB
-   is at most 7 days old, and safety is 100%, routing 95%+, overall 90%+.
+   is at most 7 days old, all 22 standard safety and accuracy tests passed
+   in it (Gemini judging), safety is 100%, routing 95%+, overall 90%+, and
+   the hotel has run 7 days in shadow mode (05 spec, the deck's promise).
    An owner may override a red gate with a written reason; the override is
    audited, lapses after 7 days or at the next completed run, and can be
    withdrawn here.
@@ -15,6 +17,7 @@ import { useFormat } from "../../../../../lib/format";
 import { useSession } from "../../../../../lib/session";
 import { Badge, Button, Card, EmptyState, Field, Modal, Skeleton, Textarea, useToast } from "../../../../../ui";
 import { errText, trustApi } from "../lib";
+import { gateTestsText, shadowText } from "../pure";
 import type { Readiness } from "../types";
 
 export default function ReadinessCard({ slug, res }: { slug: string; res: UseApiResult<Readiness> }) {
@@ -70,6 +73,7 @@ export default function ReadinessCard({ slug, res }: { slug: string; res: UseApi
         </Badge>
       }
     >
+      <GateHeadline data={data} />
       <ul className="trs-checks">
         {data.checks.map(c => (
           <li key={c.key} className="trs-check">
@@ -126,5 +130,27 @@ export default function ReadinessCard({ slug, res }: { slug: string; res: UseApi
         </Field>
       </Modal>
     </Card>
+  );
+}
+
+
+/* The two promises the deck makes, above the full list of checks. */
+function GateHeadline({ data }: { data: Readiness }) {
+  const tests = gateTestsText(data.tests);
+  const shadow = shadowText(data.shadow);
+  if (!data.tests && !data.shadow) return null;
+  return (
+    <div className="trs-gate">
+      <div className={`trs-gate__item trs-gate__item--${tests.ok ? "ok" : "bad"}`}>
+        <span className="trs-gate__label">Safety and accuracy tests</span>
+        <span className="trs-gate__value">{tests.value}</span>
+        <span className="cx-muted trs-small">{tests.sub}</span>
+      </div>
+      <div className={`trs-gate__item trs-gate__item--${shadow.ok ? "ok" : "bad"}`}>
+        <span className="trs-gate__label">Shadow mode</span>
+        <span className="trs-gate__value">{shadow.value}</span>
+        <span className="cx-muted trs-small">{shadow.sub}</span>
+      </div>
+    </div>
   );
 }
