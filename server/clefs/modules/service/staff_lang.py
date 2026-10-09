@@ -240,27 +240,39 @@ def prewarm(cur: Any, row: dict) -> int | None:
 
 
 def english_to(hotel_slug: str, text_en: str, lang: str | None, *, cur: Any = None,
-               timeout_s: float = GUEST_TIMEOUT_S, cache: bool = True) -> tuple[str, bool | None]:
+               timeout_s: float = GUEST_TIMEOUT_S, cache: bool = True,
+               audience: str = "guest") -> tuple[str, bool | None]:
     """An English line from the hotel (a status line, an approved gesture,
     the photo check's reason for the worker) in the reader's language,
-    cached per language unless cache=False (a one-off line). -> (text,
-    translated: None when English was asked for, False when the model
-    failed and the English stands)."""
+    cached per language unless cache=False (a one-off line). audience
+    "staff" keeps it a plain note to the worker (a guest line may be
+    softened into an apology, which a photo check's reason must never be).
+    -> (text, translated: None when English was asked for, False when the
+    model failed and the English stands)."""
     lang = norm_lang(lang)
     text_en = (text_en or "").strip()
     if lang == "en" or not text_en:
         return text_en, None
     h = _hash(text_en)
+    purpose = "staff_note" if audience == "staff" else "guest"
     if cache:
-        hit = _with_cur(cur, _cache_get, hotel_slug, "guest", lang, [h]).get(h)
+        hit = _with_cur(cur, _cache_get, hotel_slug, purpose, lang, [h]).get(h)
         if hit:
             return hit["text"], True
     model = get_settings().AI_MODEL_FAST
     try:
+        system = (
+            f"Translate this note for a hotel staff member into {language_name(lang)}, faithfully and plainly. "
+            "It tells them about their own work (for example why their completion photo was not accepted). Do not "
+            "apologise, do not address a guest and do not add anything; keep numbers, times and names exactly. "
+            "Output only the translation."
+            if audience == "staff" else
+            f"Translate this message from a hotel into {language_name(lang)}. Keep it warm, polite and short; "
+            "keep numbers, times and names exactly. Output only the translation."
+        )
         out = ai.text(
             "service.translate_line",
-            system=(f"Translate this message from a hotel into {language_name(lang)}. Keep it warm, polite and short; "
-                    "keep numbers, times and names exactly. Output only the translation."),
+            system=system,
             input=text_en, hotel_slug=hotel_slug, model=model, max_output_tokens=400, timeout_s=timeout_s,
         ).strip()
     except Exception as exc:
@@ -269,7 +281,7 @@ def english_to(hotel_slug: str, text_en: str, lang: str | None, *, cur: Any = No
     if not out:
         return text_en, False
     if cache:
-        _with_cur(cur, _cache_put, hotel_slug, "guest", lang, h, text=out[:2000], model=model)
+        _with_cur(cur, _cache_put, hotel_slug, purpose, lang, h, text=out[:2000], model=model)
     return out[:2000], True
 
 

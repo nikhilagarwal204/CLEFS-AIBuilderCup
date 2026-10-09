@@ -330,7 +330,7 @@ def submit(ctx: Any, request_id: int, *, staff_id: int, data: bytes, content_typ
     reason_worker = verdict["reason"]
     if worker_lang != "en" and verdict["reason"]:
         # the staff app says why in the worker's language (English if the model cannot)
-        reason_worker = staff_lang.english_to(slug, verdict["reason"], worker_lang, cache=False)[0]
+        reason_worker = staff_lang.english_to(slug, verdict["reason"], worker_lang, cache=False, audience="staff")[0]
     actor = state.Actor.from_ctx(ctx, staff_id=staff_id)
     with db.db() as cur:
         cur.execute(
