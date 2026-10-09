@@ -1,0 +1,9 @@
+# What gcloud builds submit never uploads (the image build also has .dockerignore).
+.gcloudignore
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
