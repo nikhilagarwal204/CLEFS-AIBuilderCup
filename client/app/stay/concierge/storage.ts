@@ -15,7 +15,7 @@
    room on every call, and a wiped storage just means asking again.
    ═══════════════════════════════════════════════════════════════════════ */
 
-import type { ConsentGrants } from "./api";
+import type { ConsentGrants, JobCard } from "./api";
 
 const PREFIX = "clefs.stay.";
 const TRACK_MAX = 12;
@@ -89,7 +89,20 @@ export const setStayToken = (slug: string, target: string, token: string | null)
 
 // ─── Tracker tokens ──────────────────────────────────────────────────────
 
-export interface TrackedItem { token: string; kind: "request" | "order"; at: number; done?: boolean }
+export interface TrackedItem {
+  token: string;
+  kind: "request" | "order";
+  at: number;
+  done?: boolean;
+  /** The job card the tool returned (05 spec 3), kept so a reload still shows it. */
+  card?: JobCard | null;
+  /** When the guest asked (client clock): where "Time taken" starts. */
+  askedAt?: number | null;
+  /** True once the guest answered "Not fixed" (the card says "Reopened"). */
+  reopened?: boolean;
+  /** The guest's answer to "Is everything OK?", so it is not asked twice. */
+  answer?: "yes" | "no" | null;
+}
 
 const trackKey = (slug: string, target: string) => `track.${slug}.${target}`;
 

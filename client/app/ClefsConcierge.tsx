@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   fetchStayContext, startSession, endSession, withdrawByGuestRef, runToolCall, postTurnCall, chatCall, placeOrderViaSession, placeOrderViaMenu,
   type StayContext, type SessionInfo, type ConsentGrants, type ToolUi, type ToolResult, type EmergencyNumber, type SessionMode, type Transport,
-  type PlacedOrder,
+  type PlacedOrder, type JobCard,
 } from "./stay/concierge/api";
 import FoodMenu, { type MenuOrderLine } from "./stay/FoodMenu";
 import { resolveAssistantName } from "./lib/assistant";
@@ -18,7 +18,16 @@ function isHardStartError(err: unknown): boolean {
   return err.status === 429 || ["consent_required", "client_outdated", "ai_disabled", "concierge_not_live"].includes(err.code ?? "");
 }
 import { GUEST_LANGUAGES, makeT, resolveGuestLanguage, storeLang, langDir, ensureLangFont, langFontStack, type GuestLanguage } from "./stay/concierge/i18n";
-import { LivePeer, LiveChannel, LiveSender, armConnectProbe, isNetworkBlock } from "./stay/concierge/transport";
+import {
+  LivePeer, LiveChannel, LiveSender, armConnectProbe, isNetworkBlock, USER_TEXT_COMPLETES_TURN,
+} from "./stay/concierge/transport";
+import { sentMessage } from "./stay/concierge/jobs";
+
+// A typed message sent over Live that gets no sign of life from the model in
+// this long goes over HTTP chat instead: the page never waits on a dead socket.
+const LIVE_REPLY_WATCHDOG_MS = 12_000;
+// A job card's "Time taken" starts at the guest's ask when the ask is this recent.
+const ASK_FRESH_MS = 120_000;
 import * as stayStore from "./stay/concierge/storage";
 import ConsentSheet from "./stay/concierge/ConsentSheet";
 import LanguagePicker from "./stay/concierge/LanguagePicker";
@@ -59,6 +68,12 @@ const DIRECT_CHIP_REQUESTS: Record<string, { request_type: string; description_e
   water: { request_type: "water", description_en: "Bottled water requested from the guest page.", quantity: 2 },
   housekeeping: { request_type: "make_up_room", description_en: "Room cleaning requested from the guest page." },
   room_service_person: { request_type: "ird", description_en: "Guest asked for a room service staff member to come to the room." },
+};
+
+// "Talk to the front desk" hands the guest to a person with no model in
+// between: it has to work even when the AI cannot answer at all.
+const DIRECT_CHIP_HANDOFFS: Record<string, { reason: string; summary_en: string }> = {
+  front_desk: { reason: "asked_for_human", summary_en: "The guest tapped 'Talk to the front desk' on the guest page." },
 };
 
 /** The server's greeting, spoken verbatim (hotel timezone, guest language). */
@@ -390,6 +405,24 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
   // from looping the same logical request (same room+type) within 10 seconds.
   const handledCallIdsRef = useRef<Set<string>>(new Set());
   const recentNotifyKeyRef = useRef<{ key: string; at: number } | null>(null);
+  // The function calls of one Live tool-call message, run together (one job
+  // per ask: "towels and water" is two) and answered together.
+  const toolBatchRef = useRef<{ name: string; args: string; callId: string }[]>([]);
+  // When the guest last asked for something (typed, tapped or said): the job
+  // card that comes back for it starts its "Time taken" clock there.
+  const askedAtRef = useRef<number | null>(null);
+  // A message typed over Live that the model has not answered yet: if the
+  // socket dies first, it goes again over HTTP chat.
+  const pendingTypedRef = useRef<string | null>(null);
+  const replyWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // sendHttp is a plain function (it reads state); the fallback reaches it here.
+  const sendHttpRef = useRef<((text: string) => Promise<void>) | null>(null);
+  // Whether the guest has tapped START: a silent prewarm that the server
+  // closes before then is retried at START rather than switching to text.
+  const guestStartedRef = useRef(false);
+  // Why the page is on text: a blocking network, or voice down right now.
+  const fallbackNoticeRef = useRef("errors.voiceFallback");
 
   // Silence detection refs (BUG 1 fix)
   const remoteAudioContextRef = useRef<AudioContext | null>(null);
@@ -861,6 +894,11 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
       clearTimeout(micPausedHintTimerRef.current);
       micPausedHintTimerRef.current = null;
     }
+    if (replyWatchdogRef.current) {
+      clearTimeout(replyWatchdogRef.current);
+      replyWatchdogRef.current = null;
+    }
+    toolBatchRef.current = [];
     setMicPausedHint(false);
     dcOpenPromiseRef.current = null;
     iceProbeCancelRef.current?.();
@@ -880,15 +918,15 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
       streamRef.current = null;
     }
 
-    if (dcRef.current) {
-      dcRef.current.close();
-      dcRef.current = null;
-    }
+    // Refs are cleared before closing, so the channel's onclose can tell
+    // this teardown from the socket dropping on its own.
+    const dc = dcRef.current;
+    dcRef.current = null;
+    dc?.close();
 
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
+    const pc = pcRef.current;
+    pcRef.current = null;
+    pc?.close();
 
     setIsRecording(false);
     setAvatarState(STATES.IDLE);
@@ -897,11 +935,18 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
 
   // ─── Tracker, ui and follow-ups ───
 
-  const addTracked = useCallback((token: string, kind: "request" | "order") => {
+  /** Track a job or order; a job card (05 spec 3) rides along, its clock
+      starting at the guest's ask when that was just now. */
+  const addTracked = useCallback((token: string, kind: "request" | "order", card?: JobCard | null) => {
     if (!hotelSlug) return;
+    const asked = askedAtRef.current;
+    const askedAt = asked !== null && Date.now() - asked < ASK_FRESH_MS ? asked : null;
     setTracked((prev) => {
-      if (prev.some((i) => i.token === token)) return prev;
-      const next = [...prev, { token, kind, at: Date.now() }];
+      const existing = prev.find((i) => i.token === token);
+      if (existing && (existing.card || !card)) return prev;
+      const next = existing
+        ? prev.map((i) => (i.token === token ? { ...i, card, askedAt: i.askedAt ?? askedAt } : i))
+        : [...prev, { token, kind, at: Date.now(), card: card ?? null, askedAt }];
       stayStore.saveTracked(hotelSlug, target, next);
       return next;
     });
@@ -921,7 +966,15 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
 
   const { statuses: trackerStatuses, setStatuses: setTrackerStatuses } = useTrackerStatuses(tracked, patchTracked);
 
-  /** Acts on a server `ui` hint: emergency card, tracker entry, tracker open. */
+  /** A notice that clears itself (unless something else replaced it). */
+  const flashNotice = useCallback((text: string, ms = 8000) => {
+    setNotice(text);
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => setNotice((cur) => (cur === text ? null : cur)), ms);
+  }, []);
+
+  /** Acts on a server `ui` hint: emergency card, tracker entry and job
+      card, tracker open, a manager told about a job that went wrong. */
   const handleUi = useCallback((ui: ToolUi | null | undefined) => {
     if (!ui) return;
     if (ui.kind === "emergency") {
@@ -932,8 +985,16 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
       setTrackerOpen(true);
       return;
     }
-    if (ui.token) addTracked(ui.token, ui.kind === "order" ? "order" : "request");
-  }, [addTracked]);
+    if (ui.kind === "recovery") {
+      // flag_service_recovery: the job reopens (its card polls again) and a
+      // manager is on it; the page says so as well as the assistant.
+      if (ui.token) patchTracked(ui.token, { done: false, reopened: true });
+      flashNotice(t("job.managerTold"));
+      setTrackerOpen(true);
+      return;
+    }
+    if (ui.token) addTracked(ui.token, ui.kind === "order" ? "order" : "request", ui.card);
+  }, [addTracked, patchTracked, flashNotice, t]);
 
   /** Speak (or write) the server's follow-up over the live data channel. */
   const speakFollowup = useCallback((instructions: string, interrupt: boolean) => {
@@ -960,38 +1021,62 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
   }, [handleUi, speakFollowup]);
 
   // Generic tool dispatch: every tool runs on the server, bound to the
-  // session's room. The client relays arguments and output, handles `ui`,
-  // and sends the server's follow-up with response.create.
-  const runTool = useCallback(async (name: string, rawArgs: string, callId: string) => {
+  // session's room. A failure becomes a result the model can speak.
+  const callTool = useCallback(async (name: string, rawArgs: string, callId: string): Promise<ToolResult> => {
     const s = sessionRef.current;
-    let result: ToolResult;
     try {
       if (!s) throw new Error("no_session");
-      result = await runToolCall(s.session_id, s.session_token, name, rawArgs, callId);
+      return await runToolCall(s.session_id, s.session_token, name, rawArgs, callId);
     } catch (err) {
-      result = {
+      return {
         status: "error",
         code: err instanceof ApiError ? err.code || `http_${err.status}` : "network_error",
         followup_instructions:
           "The request could not be sent. In one short sentence, apologise and suggest calling the front desk. Do not call any tools.",
       };
     }
-    handleUi(result.ui);
+  }, []);
+
+  // Every function call of one Live tool-call message runs at once (a guest's
+  // "towels and water" is two jobs), and the answers go back together. Each
+  // answer keeps its followup_instructions, which the prompt tells the model
+  // to follow: the model resumes on its own once it has them all and
+  // confirms once. (A response.create after each answer used to add a user
+  // turn per job, and with it a second spoken reply.)
+  const flushToolBatch = useCallback(async () => {
+    const batch = toolBatchRef.current;
+    toolBatchRef.current = [];
+    if (!batch.length) return;
+    const results = await Promise.all(batch.map((c) => callTool(c.name, c.args, c.callId)));
+    results.forEach((r) => handleUi(r.ui));
     const dc = dcRef.current;
     if (dc?.readyState !== "open") return;
-    // The model sees the result, not the client-only ui hint or the follow-up
-    // (which becomes this turn's response instructions instead).
-    const followup = result.followup_instructions;
-    const output: Record<string, unknown> = { ...result };
-    delete output.followup_instructions;
-    delete output.ui;
-    dc.send(JSON.stringify({
-      type: "conversation.item.create",
-      item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) },
-    }));
+    batch.forEach((c, i) => {
+      const output: Record<string, unknown> = { ...results[i] };
+      delete output.ui; // the page's, not the model's
+      dc.send(JSON.stringify({
+        type: "conversation.item.create",
+        item: { type: "function_call_output", call_id: c.callId, output: JSON.stringify(output) },
+      }));
+    });
     isFunctionCallActiveRef.current = false;
-    dc.send(JSON.stringify(followup ? { type: "response.create", response: { instructions: followup } } : { type: "response.create" }));
-  }, [handleUi]);
+  }, [callTool, handleUi]);
+
+  const queueToolCall = useCallback((name: string, args: string, callId: string) => {
+    toolBatchRef.current.push({ name, args, callId });
+    // The transport hands over every call of one message in the same task:
+    // the batch closes once that task is done.
+    if (toolBatchRef.current.length === 1) setTimeout(() => void flushToolBatch(), 0);
+  }, [flushToolBatch]);
+
+  /** The model said something on Live: a typed message is answered. */
+  const markLiveAnswered = useCallback(() => {
+    pendingTypedRef.current = null;
+    if (replyWatchdogRef.current) {
+      clearTimeout(replyWatchdogRef.current);
+      replyWatchdogRef.current = null;
+    }
+  }, []);
 
   // ─── Minting and transport ───
 
@@ -1035,10 +1120,12 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
     }
   }, [hotelSlug, target]);
 
-  // Live is not getting through (ICE timeout or failure, or the Live
-  // endpoint is blocked): tear it down and continue as HTTP text chat. The
-  // server session stays valid, so /chat reuses its bearer token.
-  const fallbackToHttp = useCallback(() => {
+  // Live is not getting through (ICE timeout or failure, the Live endpoint
+  // blocked, the voice service refusing or silent): tear it down and
+  // continue as HTTP text chat. The server session stays valid, so /chat
+  // reuses its bearer token. A message typed over Live that the dead socket
+  // never answered is sent again that way, so the guest never waits on it.
+  const fallbackToHttp = useCallback((noticeKey: string = "errors.voiceFallback") => {
     if (transportRef.current === "http") return;
     transportRef.current = "http";
     setTransport("http");
@@ -1048,8 +1135,22 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
     currentModeRef.current = "text";
     setInputMode("text");
     setShowTextInput(true);
-    setNotice(t("errors.voiceFallback"));
+    fallbackNoticeRef.current = noticeKey;
+    setNotice(t(noticeKey));
+    const unanswered = pendingTypedRef.current;
+    pendingTypedRef.current = null;
+    if (unanswered) void sendHttpRef.current?.(unanswered);
   }, [stopLive, t]);
+
+  /** After a typed message goes over Live: no word from the model in time
+      means the socket is dead, and the message goes over HTTP instead. */
+  const armReplyWatchdog = useCallback(() => {
+    if (replyWatchdogRef.current) clearTimeout(replyWatchdogRef.current);
+    replyWatchdogRef.current = setTimeout(() => {
+      replyWatchdogRef.current = null;
+      if (pendingTypedRef.current && transportRef.current === "live") fallbackToHttp("errors.voiceUnavailable");
+    }, LIVE_REPLY_WATCHDOG_MS);
+  }, [fallbackToHttp]);
 
   const startLive = useCallback(
     async (retryCount = 0, mode: "voice" | "text" | "chip" | "prewarm" = "voice", shouldGreet = false) => {
@@ -1403,8 +1504,40 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
               reject(err);
             };
 
+            // Whether the model has said anything on this socket yet. The
+            // transport's echo of our own session.update and its error
+            // events do not count.
+            let serverSpoke = false;
+            dc.onclose = () => {
+              if (dcRef.current !== dc) return; // our own teardown, or a newer connection
+              if (!serverSpoke && isPrewarm && !guestStartedRef.current) {
+                // An idle prewarm the server let go: START mints afresh.
+                stopLive();
+                return;
+              }
+              if (!serverSpoke) {
+                // Closed before the model said a word: the voice service
+                // refused us (quota, a bad key) or the network cut it. The
+                // page carries on as text; a typed message goes again over HTTP.
+                fallbackToHttp("errors.voiceUnavailable");
+                resolve();
+                return;
+              }
+              // A conversation that worked has dropped (the network, the
+              // session's time limit): close it cleanly, and the next tap or
+              // message starts a new one.
+              stopLive();
+              setError(t("errors.dropped"));
+            };
+
             dc.onmessage = async (event) => {
               const msg = JSON.parse(event.data);
+              if (msg.type !== "session.updated" && msg.type !== "error") {
+                serverSpoke = true;
+                markLiveAnswered();
+              }
+              // A relay that runs tools on the server sends their ui here.
+              if (msg.type === "clefs.ui") handleUi(msg.ui);
 
               // Live-only lifecycle events for the model's audio track. These are
               // the authoritative bounds of audible output - the transcript stream
@@ -1488,8 +1621,11 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
                 }
               }
 
-              //  Text mode: handle text responses (uses ref for dynamic keyboard toggle)
-              if (currentModeRef.current === "text" && (msg.type === "response.text.delta" || msg.type === "response.output_text.delta") && !isFunctionCallActiveRef.current) {
+              //  Text mode: handle text responses (uses ref for dynamic keyboard toggle).
+              //  Gemini Live only speaks, so in text mode its transcript is the written answer.
+              const textDelta = msg.type === "response.text.delta" || msg.type === "response.output_text.delta"
+                || msg.type === "response.output_audio_transcript.delta";
+              if (currentModeRef.current === "text" && textDelta && !isFunctionCallActiveRef.current) {
                 // Transition from THINKING once text starts arriving
                 setAvatarState((prev) => prev === STATES.THINKING ? STATES.IDLE : prev);
                 setResponseText((prev) => prev + msg.delta);
@@ -1526,6 +1662,9 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
                   if (responseInFlightRef.current) interruptResponse();
                   setAvatarState(isRecordingRef.current ? STATES.LISTENING : STATES.IDLE);
                 } else {
+                  // The guest's own words, in the bubble above the reply.
+                  setTranscript(heard);
+                  askedAtRef.current = Date.now();
                   postTurn("user", heard, msg.item_id);
                 }
               }
@@ -1536,13 +1675,14 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
                 postTurn("assistant", msg.text.trim(), msg.item_id);
               }
 
-              // Tool calls: generic dispatch to the server (runTool). A repeated
-              // call_id is skipped here; the server also dedupes by call_id.
+              // Tool calls: generic dispatch to the server, batched per tool-call
+              // message (queueToolCall). A repeated call_id is skipped here;
+              // the server also dedupes by call_id.
               if (msg.type === "response.function_call_arguments.done") {
                 const { name, arguments: args, call_id } = msg;
                 if (call_id && handledCallIdsRef.current.has(call_id)) return;
                 if (call_id) handledCallIdsRef.current.add(call_id);
-                await runTool(String(name), typeof args === "string" ? args : JSON.stringify(args ?? {}), String(call_id || ""));
+                queueToolCall(String(name), typeof args === "string" ? args : JSON.stringify(args ?? {}), String(call_id || ""));
               }
 
               // Clear response when user starts speaking again
@@ -1570,16 +1710,22 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
             Promise.resolve()
               // Mint via /api/live-session, which proxies to the server's
               // session route (prompt, tools, consent, limits): a single-use
-              // Gemini Live token in client_secret.value.
+              // Gemini Live token in client_secret.value, or the server's
+              // relay socket (transport "relay") when Live runs through it.
               .then(() => mintSession(mode, "live"))
               .then((data) => {
+                // The server can only offer HTTP chat right now.
+                if (data.transport === "http") throw "Live unavailable";
+                const model = data.client_secret?.model || data.model;
+                // The network refused the Live endpoint itself: a blocking
+                // guest Wi-Fi. Text chat over HTTP still works.
+                const blocked = (netErr: unknown) => { throw isNetworkBlock(netErr) ? "Live blocked" : netErr; };
+                if (data.transport === "relay" && data.relay_url) {
+                  // Voice through the server's Vertex AI Live relay (the relay token, single use).
+                  return pc.connect(data.relay_token || "", model, { relayUrl: data.relay_url }).catch(blocked);
+                }
                 if (!data?.client_secret?.value) throw new Error("No token");
-                const model = (data.client_secret as { model?: string }).model || data.model;
-                return pc.connect(data.client_secret.value, model).catch((netErr: unknown) => {
-                  // The network refused the Live endpoint itself: a blocking
-                  // guest Wi-Fi. Text chat over HTTP still works.
-                  throw isNetworkBlock(netErr) ? "Live blocked" : netErr;
-                });
+                return pc.connect(data.client_secret.value, model).catch(blocked);
               })
               .then(() => {
                 setIsLoading(false);
@@ -1588,16 +1734,19 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
               })
               .catch((err) => {
                 if (err === "Retry initiated") return;
-                // Typed messages and chips never need Live: when it cannot
-                // start for a reason a retry would not fix on the guest's side
-                // (the voice service is down, out of quota or blocked), they
-                // carry on over HTTP chat, which mints its own session.
-                if (err === "Live blocked" || ((mode === "text" || mode === "chip") && !isHardStartError(err))) {
-                  fallbackToHttp();
+                // The page never dead-ends on voice: when Live cannot start
+                // for a reason a retry would not fix on the guest's side (the
+                // voice service down, out of quota, refused or blocked), the
+                // conversation carries on over HTTP chat. Only a refusal of
+                // the session itself (consent, an outdated page, AI off, not
+                // live yet, rate limited) is an error, and a silent prewarm
+                // never switches the page (the START tap tries again).
+                const unreachable = err === "Live blocked" || err === "Live unavailable";
+                if (unreachable || (!isPrewarm && !isHardStartError(err))) {
+                  fallbackToHttp(err === "Live blocked" ? "errors.voiceFallback" : "errors.voiceUnavailable");
                   resolve();
                   return;
                 }
-                // A silent prewarm never shows an error; the START tap retries.
                 if (!isPrewarm) setError(describeStartError(err));
                 stopLive();
                 reject(err);
@@ -1611,7 +1760,8 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
           });
       });
     },
-    [isLoading, hasGreeted, stopLive, interruptResponse, postTurn, runTool, mintSession, fallbackToHttp, describeStartError, t]
+    [isLoading, hasGreeted, stopLive, interruptResponse, postTurn, queueToolCall, markLiveAnswered, handleUi, mintSession,
+      fallbackToHttp, describeStartError, t]
   );
 
   // Pre-warm Live connection while splash screen is visible.
@@ -1696,7 +1846,7 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
     } else if (transportRef.current === "http") {
       // Voice cannot run on this network: stay in text and say why.
       setShowTextInput(true);
-      setNotice(t("errors.voiceFallback"));
+      setNotice(t(fallbackNoticeRef.current));
     } else {
       // ── Switch back to voice mode ──
       currentModeRef.current = "voice";
@@ -1752,9 +1902,11 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
       setAvatarState(STATES.IDLE);
     }
   };
+  sendHttpRef.current = sendHttp;
 
   /** A typed question or a chip: over the live data channel, or over HTTP. */
   const sendUserText = async (text: string, mode: "text" | "chip"): Promise<void> => {
+    askedAtRef.current = Date.now();
     try {
       if (transportRef.current === "live" && !pcRef.current) await startLive(0, mode);
       if (transportRef.current === "live" && dcOpenPromiseRef.current) await dcOpenPromiseRef.current;
@@ -1766,18 +1918,23 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
     if (transportRef.current === "http") return sendHttp(text);
     const dc = dcRef.current;
     if (dc?.readyState !== "open") {
-      setAvatarState(STATES.IDLE);
-      setError(t("errors.notReady"));
-      return;
+      // The socket went away between the start and now: say it over HTTP
+      // rather than not at all.
+      fallbackToHttp("errors.voiceUnavailable");
+      return sendHttp(text);
     }
+    // One complete guest turn (the transport sends a user message that way:
+    // USER_TEXT_COMPLETES_TURN). No per-response instructions: the server's
+    // prompt (knowledge, menu, policy) is the only one.
     dc.send(JSON.stringify({
       type: "conversation.item.create",
       item: { type: "message", role: "user", content: [{ type: "input_text", text }] },
     }));
-    // No per-response instructions: they would replace the server prompt
-    // (knowledge, menu, policy) for this turn.
-    dc.send(JSON.stringify({ type: "response.create" }));
-    // Typed text has no transcription event, so it is logged here.
+    if (!USER_TEXT_COMPLETES_TURN) dc.send(JSON.stringify({ type: "response.create" }));
+    pendingTypedRef.current = text;
+    armReplyWatchdog();
+    // Typed text has no transcription event, so it is logged here (and its
+    // mood scored with it).
     postTurn("user", text);
   };
 
@@ -1831,6 +1988,7 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
   // iOS unlocks audio and video playback only inside a user gesture, so the
   // unlock runs before anything is awaited.
   const beginSession = async (mode: "voice" | "text") => {
+    guestStartedRef.current = true;
     setSessionStarted(true);
     setViewMode("concierge");
 
@@ -1936,26 +2094,31 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
   // ─── Chips ───
 
   /** A request chip files notify_staff directly and confirms from the server. */
-  const fileDirectRequest = async (req: (typeof DIRECT_CHIP_REQUESTS)[string], label: string) => {
+  /** A chip that goes straight to staff with no model in between: a job
+      (notify_staff) or the front desk (escalate_to_human). Its card shows at
+      once; the confirmation names the person and the minutes when the
+      server knows them, spoken on a voice session, written otherwise. */
+  const fileDirect = async (tool: "notify_staff" | "escalate_to_human", args: Record<string, unknown>, label: string) => {
+    askedAtRef.current = Date.now();
     try {
       // A tool call needs only a session token: mint a cheap HTTP session
       // (no Live key) when none is live yet.
       const s = sessionRef.current ?? (await mintSession("chip", "http"));
-      const result = await runToolCall(s.session_id, s.session_token, "notify_staff", {
-        ...req, label, original_text: label, language: langRef.current,
+      const result = await runToolCall(s.session_id, s.session_token, tool, {
+        ...args, original_text: label, language: langRef.current,
       });
       handleUi(result.ui);
       const dc = dcRef.current;
       const ok = ["created", "merged", "escalated"].includes(result.status);
-      if (dc?.readyState === "open" && result.followup_instructions) {
+      if (ok && dc?.readyState === "open" && currentModeRef.current === "voice" && result.followup_instructions) {
+        // One complete turn that carries the follow-up, said in the guest's language.
         dc.send(JSON.stringify({
-          type: "conversation.item.create",
-          item: { type: "message", role: "user", content: [{ type: "input_text", text: label }] },
+          type: "response.create",
+          response: { instructions: `The guest tapped "${label}" and it has gone to staff. ${result.followup_instructions}` },
         }));
-        dc.send(JSON.stringify({ type: "response.create", response: { instructions: result.followup_instructions } }));
         return;
       }
-      const msg = ok ? t("chat.requestSent") : t("chat.failed");
+      const msg = ok ? sentMessage(t, result.ui?.card ?? null, tool === "escalate_to_human") : t("chat.failed");
       setResponseText(msg);
       setDisplayedText(msg);
       setAvatarState(STATES.IDLE);
@@ -1978,10 +2141,15 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
     setResponseText("");
     setDisplayedText("");
     const direct = ctxRef.current?.room ? DIRECT_CHIP_REQUESTS[chip.key] : undefined;
+    const handoff = DIRECT_CHIP_HANDOFFS[chip.key];
     withConsent("text", () => {
       setAvatarState(STATES.THINKING);
       if (direct) {
-        void fileDirectRequest(direct, label);
+        void fileDirect("notify_staff", { ...direct, label }, label);
+        return;
+      }
+      if (handoff) {
+        void fileDirect("escalate_to_human", { ...handoff }, label);
         return;
       }
       // A tapped question is answered aloud when voice is allowed (as before);
@@ -2035,14 +2203,9 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
     if (placed.tracking_token) addTracked(placed.tracking_token, "order");
     const dc = dcRef.current;
     if (placed.followup_instructions && dc?.readyState === "open") {
-      dc.send(JSON.stringify({
-        type: "conversation.item.create",
-        item: {
-          type: "message", role: "user",
-          content: [{ type: "input_text", text: `[Menu order placed: ${lines.map((l) => `${l.qty}x ${l.name}`).join(", ")}]` }],
-        },
-      }));
-      speakFollowup(placed.followup_instructions, false);
+      // One turn that names the order and carries the follow-up.
+      const order = lines.map((l) => `${l.qty}x ${l.name}`).join(", ");
+      speakFollowup(`The guest just placed a menu order: ${order}. ${placed.followup_instructions}`, false);
     } else {
       setResponseText(t("chat.orderPlaced"));
       setDisplayedText(t("chat.orderPlaced"));
@@ -2137,6 +2300,7 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
       return;
     }
     if (privacyState === "done" || privacyState === "forgotten") {
+      guestStartedRef.current = false;
       setPrivacyState("idle");
       setSessionStarted(false);
       setShowTextInput(false);
@@ -2844,18 +3008,13 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
               animation: "fadeUp 0.3s ease",
             }}
           >
+            {/* The guest's own words (typed, tapped or said), as a bubble above the reply. */}
             {transcript && (
-              <div
-                style={{
-                  textAlign: "center",
-                  marginBottom: 8,
-                  fontSize: 12,
-                  color: "rgba(232,228,220,0.4)",
-                  fontStyle: "italic",
-                  animation: "fadeIn 0.3s ease",
-                }}
-              >
-                &quot;{transcript}&quot;
+              <div className="cc-said">
+                <p>
+                  <span className="cc-sr">{t("chat.youSaid")}: </span>
+                  {transcript}
+                </p>
               </div>
             )}
 
@@ -3097,7 +3256,7 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
               // Voice cannot get through on this network: stay in text.
               if (onHttp()) {
                 setShowTextInput(true);
-                setNotice(t("errors.voiceFallback"));
+                setNotice(t(fallbackNoticeRef.current));
                 return;
               }
 

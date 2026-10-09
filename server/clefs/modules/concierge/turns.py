@@ -13,7 +13,13 @@ in-process. Each turn:
     emergency with no emergency escalation in this session in the last 30 s
     makes the server file one itself (tools.raise_emergency, the same L1
     path the model uses) and answer ui:{kind:'emergency'} with the numbers,
-    so a model that missed it cannot leave the guest alone.
+    so a model that missed it cannot leave the guest alone. The HTTP text
+    chat runs only the lexicons here and the safety model beside its reply
+    model (start_safety_check / finish_safety_check), since its guest waits
+    for the whole turn;
+  - scores the guest's mood and frustration beside the safety check
+    (mood.py): stored on the session, and an upset guest opens a recovery
+    case for the duty manager.
 
 Routes (public, bearer session token from POST /public/concierge/sessions):
   POST /public/concierge/sessions/{sid}/tools/{name}   run one tool call
@@ -26,6 +32,7 @@ from __future__ import annotations
 
 import json
 import logging
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
 from fastapi import APIRouter, Header, Request
@@ -53,12 +60,14 @@ WINDOW_S = 600
 TURN_SAFETY_USE_LLM = True
 ROLES = {"user": "user", "guest": "user", "assistant": "assistant", "agent": "assistant"}
 SAFETY_RANK = {"emergency": 0, "sensitive": 1, "handoff": 2, "none": 3}
+# The HTTP chat's safety model runs here, beside the reply model.
+_side_checks = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cc-safety")
 
 
 # ─── Turn log ───
 
 
-def classify(cur: Any, session: dict, text: str, language: str | None) -> dict:
+def classify(cur: Any, session: dict, text: str, language: str | None, *, use_llm: bool = True) -> dict:
     """service.api.classify_safety in a savepoint: the classifier failing
     must never lose the turn (the prompt's own rules still apply)."""
     from clefs.modules.service import api as service_api
@@ -67,7 +76,7 @@ def classify(cur: Any, session: dict, text: str, language: str | None) -> dict:
     cur.execute("SAVEPOINT cc_safety")
     try:
         verdict = service_api.classify_safety(
-            text, language=language, hotel_slug=session["hotel_slug"], use_llm=TURN_SAFETY_USE_LLM, cur=cur,
+            text, language=language, hotel_slug=session["hotel_slug"], use_llm=TURN_SAFETY_USE_LLM and use_llm, cur=cur,
         ) or none
     except Exception as exc:
         cur.execute("ROLLBACK TO SAVEPOINT cc_safety")
@@ -106,8 +115,10 @@ def store_turn(cur: Any, session: dict, *, role: str, text: str, item_id: str | 
 
 
 def record_turn(cur: Any, session: dict, *, role: str, text: str, item_id: str | None = None,
-                language: str | None = None) -> dict:
+                language: str | None = None, safety_llm: bool = True) -> dict:
     """Log one turn and, for the guest's words, run the safety double check.
+    safety_llm=False runs only the lexicons here (the HTTP chat runs the
+    safety model beside its reply: start_safety_check).
     -> {ok, stored, safety:{level, kind}, escalated, ui?, followup_instructions?}"""
     role = ROLES.get((role or "").lower(), "")
     if not role:
@@ -117,7 +128,7 @@ def record_turn(cur: Any, session: dict, *, role: str, text: str, item_id: str |
     out: dict[str, Any] = {"ok": True, "stored": False, "safety": {"level": "none", "kind": None}, "escalated": False}
     if not text:
         return out
-    verdict = classify(cur, session, text, lang) if role == "user" else None
+    verdict = classify(cur, session, text, lang, use_llm=safety_llm) if role == "user" else None
     level = (verdict or {}).get("level") or None
     out["stored"] = store_turn(cur, session, role=role, text=text, item_id=(item_id or "")[:128] or None,
                                language=lang, safety_level=level)
@@ -131,16 +142,70 @@ def record_turn(cur: Any, session: dict, *, role: str, text: str, item_id: str |
         return out
     out["safety"] = {"level": verdict.get("level"), "kind": verdict.get("kind")}
     if verdict.get("level") == "emergency":
-        esc = tools.raise_emergency(
-            cur, session, summary=f"Safety check flagged a possible {verdict.get('kind') or 'emergency'} in the guest's words.",
-            original=text, kind=verdict.get("kind"), auto=True, dry_run=session.get("surface") == "eval",
+        out.update(escalate_emergency(cur, session, text, verdict))
+    return out
+
+
+def escalate_emergency(cur: Any, session: dict, text: str, verdict: dict) -> dict:
+    """The server's own L1 escalation for guest words the safety check called
+    an emergency. -> {escalated, ui, followup_instructions, request_ref}"""
+    esc = tools.raise_emergency(
+        cur, session, summary=f"Safety check flagged a possible {verdict.get('kind') or 'emergency'} in the guest's words.",
+        original=text, kind=verdict.get("kind"), auto=True, dry_run=session.get("surface") == "eval",
+    )
+    # deduped: the model (or an earlier turn) escalated within 30 s, so
+    # nothing new was filed, but the card is still the right thing to show.
+    return {"escalated": not esc.get("deduped"), "ui": esc.get("ui"),
+            "followup_instructions": esc.get("followup_instructions"), "request_ref": esc.get("request_ref")}
+
+
+def start_safety_check(session: dict, text: str, language: str | None) -> Future | None:
+    """The safety model's second opinion on a guest message, on a worker
+    thread beside the HTTP chat's reply model (record_turn ran the lexicons
+    with safety_llm=False). None when the AI is off or there are no words."""
+    from clefs import ai
+    from clefs.modules.service import api as service_api
+
+    if not TURN_SAFETY_USE_LLM or not (text or "").strip() or not ai.enabled():
+        return None
+    try:
+        return _side_checks.submit(service_api.classify_safety, text, language=language,
+                                   hotel_slug=session["hotel_slug"], use_llm=True)
+    except RuntimeError:  # shutting down: the lexicon verdict stands
+        return None
+
+
+def collect_safety_check(job: Future | None, *, wait: float) -> dict | None:
+    """The verdict of start_safety_check(), waiting at most `wait` seconds
+    (outside any transaction: no connection is held while the model thinks).
+    None when it adds nothing to the lexicons, is slow, or failed."""
+    if job is None:
+        return None
+    try:
+        verdict = job.result(timeout=wait) or {}
+    except Exception:  # slow or failed: the lexicon verdict stands
+        return None
+    return verdict if verdict.get("level") in SAFETY_RANK and verdict.get("level") != "none" else None
+
+
+def finish_safety_check(cur: Any, session: dict, text: str, verdict: dict | None) -> dict | None:
+    """Act on collect_safety_check(): a level the lexicons missed is stored on
+    the session and on the guest's turn, and an emergency is escalated like
+    record_turn's. -> {safety, escalated?, ui?, followup_instructions?}, or
+    None when there is nothing to add."""
+    if not verdict:
+        return None
+    level = verdict["level"]
+    if not session.get("synthetic"):
+        cur.execute("UPDATE cc_sessions SET last_safety_level = %s WHERE id = %s", (level, session["id"]))
+        cur.execute(
+            "UPDATE conversation_logs SET safety_level = %s WHERE id = (SELECT id FROM conversation_logs "
+            "WHERE stay_session_id = %s AND role = 'user' ORDER BY id DESC LIMIT 1)",
+            (level, session["id"]),
         )
-        # deduped: the model (or an earlier turn) escalated within 30 s, so
-        # nothing new was filed, but the card is still the right thing to show.
-        out["escalated"] = not esc.get("deduped")
-        out["ui"] = esc.get("ui")
-        out["followup_instructions"] = esc.get("followup_instructions")
-        out["request_ref"] = esc.get("request_ref")
+    out: dict[str, Any] = {"safety": {"level": level, "kind": verdict.get("kind")}}
+    if level == "emergency":
+        out.update(escalate_emergency(cur, session, text, verdict))
     return out
 
 
@@ -211,12 +276,26 @@ def run_tool(session_id: str, name: str, body: ToolIn, authorization: str | None
 
 @router.post("/public/concierge/sessions/{session_id}/turns")
 def log_turn(session_id: str, body: TurnIn, authorization: str | None = Header(default=None)) -> dict:
-    """Store one turn (with the recording consent) and run the safety double
-    check on the guest's words."""
+    """Store one turn (with the recording consent), run the safety double
+    check on the guest's words, and score their mood beside it (mood.py).
+    The voice page posts every final transcript here, and typed text sent
+    over Live too."""
+    from clefs.modules.concierge import mood
+
     with db.db() as cur:
         session = sessions.authenticate(cur, session_id, sessions.bearer(authorization))
         _limit(cur, f"cc:turn:{session['id']}", TURNS_PER_SESSION)
-        return record_turn(cur, session, role=body.role, text=body.text, item_id=body.item_id, language=body.language)
+    lang = (body.language or session.get("language") or "")[:8] or None
+    guest = ROLES.get((body.role or "").lower()) == "user"
+    job = mood.start(body.text, language=lang, hotel_slug=session["hotel_slug"]) if guest else None
+    with db.db() as cur:
+        out = record_turn(cur, session, role=body.role, text=body.text, item_id=body.item_id, language=body.language)
+    verdict = mood.collect(job)
+    if verdict:
+        with db.db() as cur:
+            mood.apply(cur, session, verdict, text=body.text, language=lang,
+                       emergency=out["safety"].get("level") == "emergency")
+    return out
 
 
 STREAM_CHUNK = 48  # characters per SSE delta

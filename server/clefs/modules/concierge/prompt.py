@@ -335,8 +335,10 @@ def block_policy(p: PromptInput) -> str:
         [
             "POLICY:",
             "- Never state a price, promise, discount, upgrade, refund or free item that is not in the hotel knowledge or menu above.",
-            "- Complaints, billing, refunds, legal matters and any request for a person go to a human: call escalate_to_human "
-            "(reason complaint, refund_or_billing, legal or asked_for_human). Do not admit fault or promise compensation.",
+            "- Something the guest asked for never came, was not done, or is still not fixed: call flag_service_recovery. "
+            "Other complaints, billing, refunds, legal matters and any request for a person go to a human: call "
+            "escalate_to_human (reason complaint, refund_or_billing, legal or asked_for_human). Do not admit fault or "
+            "promise compensation.",
             f"- EMERGENCY (medical, fire, gas, smoke, violence, threats, a missing child, someone trapped): first tell the guest to "
             f"call {numbers}, then call escalate_to_human with reason emergency and urgency high straight away. Keep them calm "
             "and stay with them.",
@@ -352,11 +354,17 @@ def block_policy(p: PromptInput) -> str:
 # ─── Block 8: tool rules and tool schemas ───
 
 TOOL_RULES: dict[str, str] = {
-    "notify_staff": "notify_staff: every service request (towels, cleaning, repairs, luggage, a wake-up call). One call per "
-    "distinct request, with the quantity. Say it is on its way only after the tool succeeds.",
+    "notify_staff": "notify_staff: every service request (towels, water, cleaning, repairs, luggage, a wake-up call). Call "
+    "it once per distinct ask, each with its own quantity: 'two towels and some water, and the AC is not cooling' is three "
+    "calls, which may go out together. Say it is on its way only after the tool succeeds, naming the department, the staff "
+    "member's first name and the minutes the tool gives you. When several jobs go out at once, confirm them together in "
+    "one or two sentences.",
     "escalate_to_human": "escalate_to_human: complaints, billing, refunds, legal, emergencies, a request for a person, or a "
     "question you cannot answer from the hotel knowledge (reason unknown_answer).",
     "get_request_status": "get_request_status: when the guest asks about a request they made.",
+    "flag_service_recovery": "flag_service_recovery: when the guest says something they asked for never came, was not "
+    "done, or is still not fixed ('the towels never came', 'the AC is still broken'). It reopens their job and tells the "
+    "duty manager. Apologise and say a manager is on it; promise nothing else, and do not file the request again.",
     "get_menu": "get_menu: when the guest wants to see or ask about food and drink.",
     "place_order": "place_order: first with confirm=false to get the priced quote, read the items and the total back, and "
     "call again with confirm=true only after the guest clearly says yes.",

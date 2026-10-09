@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 
+from clefs.modules.service import api as _service_api
 from tests.modules.concierge.test_tools import call, fake_service, mint  # noqa: F401 (fixture)
+
+REAL_CLASSIFY = _service_api.classify_safety
 
 
 def turn(client, s, role, text, **kw):
@@ -100,8 +103,9 @@ def test_chat_runs_tools_server_side_with_the_session_room(client, cur, hotel_ua
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["text"] == "Two towels are on their way." and body["handoff"] is False
-    assert body["tool_calls"] == [{"name": "notify_staff", "status": "created",
-                                   "ui": {"kind": "request", "token": "tok-1001"}}]
+    [summary] = body["tool_calls"]
+    assert summary["name"] == "notify_staff" and summary["status"] == "created"
+    assert summary["ui"]["token"] == "tok-1001" and summary["ui"]["card"]["staff_first_name"] == "Maria"
     assert body["ui"]["kind"] == "request" and body["prompt_version"]
     assert fake_service.requests[0]["room"] == "101"
     first, second = fake_ai.calls
@@ -145,6 +149,135 @@ def test_chat_emergency_is_escalated_before_the_model_answers(client, hotel_uae,
     assert body["ui"]["kind"] == "emergency" and fake_service.requests[0]["type"] == "emergency"
     notes = [m["content"] for m in fake_ai.calls[0].input if m.get("role") == "system"][1:]
     assert notes and "emergency team has already been alerted" in notes[0]
+
+
+# ─── Side checks beside the reply (the HTTP guest waits for the whole turn) ───
+
+NONE = {"level": "none", "kind": None, "source": None, "confidence": 0.0}
+
+
+def _model_layer_catches(monkeypatch, verdict):
+    """classify_safety whose lexicons miss and whose model layer catches
+    `verdict`: the case the side check exists for. Returns the use_llm log."""
+    from clefs.modules.service import api as service_api
+
+    seen: list[bool] = []
+
+    def classify(text, *, use_llm=True, **kw):
+        seen.append(use_llm)
+        return verdict if use_llm else NONE
+
+    monkeypatch.setattr(service_api, "classify_safety", classify)
+    return seen
+
+
+def test_chat_runs_the_safety_model_beside_the_reply(client, cur, hotel_uae, fake_service, fake_ai, monkeypatch):
+    seen = _model_layer_catches(monkeypatch, {"level": "emergency", "kind": "medical", "source": "llm", "confidence": 0.9})
+    s = mint(client, hotel_uae.slug)
+    fake_ai.push(said("Of course, let me help with that."), said("Help is on the way. Please call 998 now."))
+    body = chat(client, s, "my husband is turning blue").json()
+    assert seen == [False, True], "the lexicons in front of the reply, the safety model beside it"
+    assert body["ui"]["kind"] == "emergency" and body["safety"] == {"level": "emergency", "kind": "medical"}
+    assert body["text"] == "Help is on the way. Please call 998 now.", "the reply is written again around the alert"
+    [req] = fake_service.requests
+    assert req["type"] == "emergency" and req["priority_hint"] == "L1" and req["room"] == "101"
+    rewrite = fake_ai.calls[1]
+    assert rewrite.tools == [] and "emergency team has already been alerted" in str(rewrite.input)
+    cur.execute("SELECT last_safety_level FROM cc_sessions WHERE id = %s", (s["session_id"],))
+    assert cur.fetchone()["last_safety_level"] == "emergency"
+    cur.execute("SELECT role, safety_level, message FROM conversation_logs WHERE stay_session_id = %s ORDER BY id",
+                (s["session_id"],))
+    rows = cur.fetchall()
+    assert [(r["role"], r["safety_level"]) for r in rows] == [("user", "emergency"), ("assistant", None)]
+    assert rows[1]["message"] == body["text"]
+
+
+def test_the_real_classifier_runs_beside_the_reply(client, cur, hotel_uae, fake_service, fake_ai, monkeypatch):
+    """Service's own classify_safety (lexicons, then its model layer reading
+    the hotel's settings in a transaction of its own) on the worker thread,
+    while the reply model runs: no lock held across the two."""
+    from clefs.modules.service import api as service_api
+
+    monkeypatch.setattr(service_api, "classify_safety", REAL_CLASSIFY)
+    answers = {"service.safety": [{"level": "emergency", "kind": "medical", "confidence": 0.9}],
+               "concierge.text": [said("Let me check on that for you."), said("Help is on the way. Please call 998 now.")]}
+
+    def by_task(req):
+        return answers[req.task].pop(0)
+
+    fake_ai.push(by_task, by_task, by_task)
+    s = mint(client, hotel_uae.slug)
+    body = chat(client, s, "please come quickly, something is very wrong with my father").json()
+    assert body["safety"] == {"level": "emergency", "kind": "medical"} and body["ui"]["kind"] == "emergency"
+    assert body["text"] == "Help is on the way. Please call 998 now."
+    assert fake_service.requests[0]["type"] == "emergency"
+    assert sorted(c.task for c in fake_ai.calls) == ["concierge.text", "concierge.text", "service.safety"]
+
+
+def test_no_second_reply_when_the_model_escalated_itself(client, hotel_uae, fake_service, fake_ai, monkeypatch):
+    _model_layer_catches(monkeypatch, {"level": "emergency", "kind": "medical", "source": "llm", "confidence": 0.9})
+    s = mint(client, hotel_uae.slug)
+    fake_ai.push(fn_call("escalate_to_human", {"reason": "emergency", "summary_en": "Guest's husband turning blue"}),
+                 said("Please call 998 now. Help is on the way."))
+    body = chat(client, s, "my husband is turning blue").json()
+    assert body["text"] == "Please call 998 now. Help is on the way." and body["ui"]["kind"] == "emergency"
+    assert len(fake_service.requests) == 1 and len(fake_ai.calls) == 2
+
+
+def test_a_late_sensitive_verdict_is_stored_without_an_escalation(client, cur, hotel_uae, fake_service, fake_ai,
+                                                                 monkeypatch):
+    _model_layer_catches(monkeypatch, {"level": "sensitive", "kind": "theft", "source": "llm", "confidence": 0.8})
+    s = mint(client, hotel_uae.slug)
+    fake_ai.push(said("I am sorry to hear that. A manager will contact you."))
+    body = chat(client, s, "someone took cash from my bag").json()
+    assert body["safety"] == {"level": "sensitive", "kind": "theft"} and body["ui"] is None
+    assert fake_service.requests == []
+    cur.execute("SELECT last_safety_level FROM cc_sessions WHERE id = %s", (s["session_id"],))
+    assert cur.fetchone()["last_safety_level"] == "sensitive"
+
+
+def test_in_a_callers_transaction_the_checks_run_in_order(client, cur, hotel_uae, fake_service, fake_ai, monkeypatch):
+    """WhatsApp's worker passes its cursor: one transaction, everything in
+    front of the reply as before."""
+    from clefs.modules.concierge import sessions, text_chat
+
+    seen = _model_layer_catches(monkeypatch, {"level": "emergency", "kind": "medical", "source": "llm", "confidence": 0.9})
+    s = mint(client, hotel_uae.slug)
+    session = sessions.get_session(cur, s["session_id"])
+    session.pop("token_hash", None)
+    fake_ai.push(said("Help is on the way. Please call 998 now."))
+    out = text_chat.chat_turn(session, "my husband is turning blue", cur=cur)
+    assert seen == [True] and out["ui"]["kind"] == "emergency" and len(fake_ai.calls) == 1
+    notes = [m["content"] for m in fake_ai.calls[0].input if m.get("role") == "system"][1:]
+    assert notes and "emergency team has already been alerted" in notes[0]
+
+
+def test_the_side_checks_add_no_wait_to_the_reply(client, hotel_uae, fake_service, fake_ai, monkeypatch, mood_scoring):
+    """Safety model, mood score and reply model each take 0.6 s: in front of
+    the reply that was 1.8 s, beside it about 0.6 s."""
+    import time
+
+    from clefs.modules.service import api as service_api
+
+    def slow_classify(text, *, use_llm=True, **kw):
+        if use_llm:
+            time.sleep(0.6)
+        return NONE
+
+    def slow_model(req):
+        time.sleep(0.6)
+        if req.task == "concierge.mood":
+            return {"mood": "calm", "frustration": 0.0, "urgency": "normal", "reason": ""}
+        return said("Breakfast is from 7 to 10:30.")
+
+    monkeypatch.setattr(service_api, "classify_safety", slow_classify)
+    s = mint(client, hotel_uae.slug)
+    fake_ai.push(slow_model, slow_model)
+    t0 = time.monotonic()
+    body = chat(client, s, "When is breakfast?").json()
+    took = time.monotonic() - t0
+    assert body["text"] == "Breakfast is from 7 to 10:30." and took < 1.4, took
+    assert sorted(c.task for c in fake_ai.calls) == ["concierge.mood", "concierge.text"]
 
 
 def test_chat_hands_off_when_ai_is_off(client, hotel_uae, fake_service, monkeypatch):

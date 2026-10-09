@@ -108,6 +108,25 @@ def test_context_carries_uae_numbers_consent_texts_and_hotel_card(client, hotel_
     assert "\u2014" not in json.dumps(body, ensure_ascii=False)
 
 
+def test_default_chips_are_the_six_of_the_guest_page(client, cur, hotel_uae, monkeypatch):
+    """Towels, water, cleaning, Wi-Fi, check-out and the front desk, in that
+    order (05 spec); "Order food" only when the hotel switches it on."""
+    from clefs.core.hotels import set_module_settings
+    from clefs.modules.upsell import api as upsell_api
+
+    monkeypatch.setattr(upsell_api, "get_menu", lambda *a, **kw: [{"item_id": 1, "name": "Club sandwich"}])
+    body = _ctx(client, hotel_uae.slug, "101").json()
+    assert body["features"]["menu"] is True
+    assert [c["label"] for c in body["chips"]] == [
+        "Extra towels", "Bottled water", "Clean my room", "Wi-Fi details", "Check-out time", "Talk to the front desk",
+    ]
+    assert [c["key"] for c in _ctx(client, hotel_uae.slug, "101", lang="ar").json()["chips"]] == [
+        "towels", "water", "housekeeping", "wifi", "checkout", "front_desk",
+    ]
+    set_module_settings(cur, hotel_uae.slug, "concierge", {"menu_chip": True}, actor=None)
+    assert "room_service" in [c["key"] for c in _ctx(client, hotel_uae.slug, "101").json()["chips"]]
+
+
 def test_context_rate_limited(client, hotel_uae, monkeypatch):
     from clefs.modules.concierge import constants
 
