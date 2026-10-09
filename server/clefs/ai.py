@@ -261,7 +261,9 @@ def genai_client(*, api_version: str | None = None) -> Any:
                     vertexai=True, project=s.GOOGLE_CLOUD_PROJECT, location=s.GOOGLE_CLOUD_LOCATION, http_options=http_options
                 )
             else:
-                client = genai.Client(api_key=s.GEMINI_API_KEY, http_options=http_options)
+                # vertexai=False: the SDK reads GOOGLE_GENAI_USE_VERTEXAI from the
+                # environment on its own and would otherwise switch modes.
+                client = genai.Client(vertexai=False, api_key=s.GEMINI_API_KEY, http_options=http_options)
             _client_cache[key] = client
     return client
 
@@ -315,8 +317,11 @@ def _is_gemini_3(model: str | None) -> bool:
 
 def _thinking_config(model: str | None) -> dict | None:
     """Thinking tokens count against max_output_tokens, so Gemini 2.5 Flash and
-    Flash-Lite run without them and Gemini 3 at its low level; AI_THINKING_BUDGET
-    (an int, -1 = dynamic) overrides for every model."""
+    Flash-Lite run without them, Gemini 3 Flash-Lite at its minimal level (on
+    "low" it can spend a small output budget on thoughts and cut the JSON
+    short) and other Gemini 3 models at their low level (they reject
+    "minimal"); AI_THINKING_BUDGET (an int, -1 = dynamic) overrides for every
+    model."""
     override = env("AI_THINKING_BUDGET")
     if override:
         try:
@@ -327,7 +332,7 @@ def _thinking_config(model: str | None) -> dict | None:
     if "2.5-flash" in m:
         return {"thinking_budget": 0}
     if _is_gemini_3(m):
-        return {"thinking_level": "low"}
+        return {"thinking_level": "minimal" if "flash-lite" in m else "low"}
     return None
 
 

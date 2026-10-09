@@ -87,7 +87,8 @@ export default function RootLayout({
       <body style={{ margin: 0, padding: 0 }} suppressHydrationWarning>
         <ClarityTracker />
         {children}
-        <SpeedInsights />
+        {/* Vercel serves the Speed Insights script; elsewhere (Cloud Run) it would 404 on every page. */}
+        {process.env.VERCEL ? <SpeedInsights /> : null}
       </body>
     </html>
   );

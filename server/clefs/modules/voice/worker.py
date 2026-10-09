@@ -343,7 +343,7 @@ def _live_connect(call: dict):
     config = calls.live_config(instructions=str(cfg.get("instructions") or ""), voice=cfg.get("voice"),
                                tools=list(cfg.get("tools") or []))
     model = cfg.get("model") or call.get("model") or get_settings().REALTIME_MODEL
-    client = genai.Client(api_key=get_settings().GEMINI_API_KEY)
+    client = genai.Client(vertexai=False, api_key=get_settings().GEMINI_API_KEY)  # not the env's Vertex switch
     return client.aio.live.connect(model=model, config=config)
 
 

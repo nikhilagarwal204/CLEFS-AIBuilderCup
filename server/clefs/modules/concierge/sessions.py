@@ -308,7 +308,10 @@ def live_token_config(spec: Any, *, mode: str) -> dict:
 def _gemini_mint(config: dict) -> dict:
     from google import genai
 
-    client = genai.Client(api_key=get_settings().GEMINI_API_KEY, http_options={"api_version": "v1alpha"})
+    # Ephemeral Live tokens exist only on the Gemini Developer API. vertexai=False
+    # keeps this client there when GOOGLE_GENAI_USE_VERTEXAI (read by the SDK
+    # from the environment) sends the rest of the AI through Vertex AI.
+    client = genai.Client(vertexai=False, api_key=get_settings().GEMINI_API_KEY, http_options={"api_version": "v1alpha"})
     token = client.auth_tokens.create(config=config)
     return {"value": token.name, "expires_at": config["expire_time"].isoformat()}
 
