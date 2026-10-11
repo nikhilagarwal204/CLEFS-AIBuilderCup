@@ -14,11 +14,19 @@ records the tool calls the model makes. There is no executor on this path,
 so room-binding and result checks are skipped rather than guessed.
 
 Flaky scenarios run up to 3 times and are decided by majority.
+
+An attempt the model never answered because it was overloaded (a 429, a
+5xx or a timeout on both the concierge's model and its fallback) is played
+again after TRANSIENT_WAITS_S before it counts: an overload is not the
+concierge's behaviour. Any other runner error (AI switched off, a request
+the API refuses) fails at once, as repeating it changes nothing.
 """
 
 from __future__ import annotations
 
 import json
+import re
+import time
 from decimal import Decimal
 from typing import Any
 
@@ -34,6 +42,11 @@ from clefs.modules.trust.evals.graders import GradeContext, Transcript, grade, e
 FALLBACK_TASK = "trust.eval_turn"
 MAX_TOOL_ROUNDS = 2
 MAJORITY_OF = 3
+TRANSIENT_WAITS_S: tuple[float, ...] = (5.0, 20.0)
+# An overloaded model, as clefs.ai words it (the API's status and reason are
+# kept in the error detail): "ClientError: 429 RESOURCE_EXHAUSTED. ...".
+_OVERLOAD_RE = re.compile(
+    r"\b(?:429|50[0234]) [A-Z_]+|RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|(?i:timeout|timed out)")
 
 # ─── Session ───
 
@@ -154,6 +167,7 @@ def converse(cur: Any, hotel_slug: str, scenario: dict) -> Transcript:
                 t.model = ai_model_for(FALLBACK_TASK)
         except (ai.AIDisabled, ai.AIError) as exc:
             t.error = f"runner_unavailable: {exc.code}"
+            t.overloaded = isinstance(exc, ai.AIError) and bool(_OVERLOAD_RE.search(exc.detail or ""))
             break
         t.tool_calls += [normalize_call(c) for c in calls]
         history.append({"role": "assistant", "text": reply})
@@ -161,7 +175,13 @@ def converse(cur: Any, hotel_slug: str, scenario: dict) -> Transcript:
     return t
 
 
-# ─── Price set ───
+# ─── Price set and knowledge ───
+
+
+def hotel_knowledge(cur: Any, hotel_slug: str) -> list[str]:
+    """The approved knowledge the concierge's prompt carries, one line per
+    entry (legacy paragraphs first in legacy_text mode), for the judge."""
+    return [f["text"] for f in concierge_api.kb_facts(cur, hotel_slug, language="en") if (f.get("text") or "").strip()]
 
 
 def price_set(cur: Any, hotel_slug: str) -> set[Decimal]:
@@ -193,14 +213,25 @@ def _numbers_in_results(t: Transcript) -> set[Decimal]:
 # ─── One scenario ───
 
 
-def evaluate_once(cur: Any, hotel_slug: str, scenario: dict, *, prices: set[Decimal]) -> dict:
+def evaluate_once(cur: Any, hotel_slug: str, scenario: dict, *, prices: set[Decimal],
+                  knowledge: list[str] | None = None) -> dict:
     """Run and grade one attempt: {passed, score, transcript, grader_outputs,
-    failure_reasons, runner, prompt_version, model}."""
+    failure_reasons, runner, prompt_version, model}. knowledge: the hotel's
+    approved knowledge for the judge (hotel_knowledge)."""
+    from clefs.core.hotels import get_hotel
+
     scenario = localize(cur, hotel_slug, scenario)
     exp = dsl.parse(scenario.get("expectations"))
     ctx = scenario.get("context") or {}
+    hotel = get_hotel(cur, hotel_slug)
     t = converse(cur, hotel_slug, scenario)
-    gctx = GradeContext(room=ctx.get("room"), price_set=prices | _numbers_in_results(t))
+    for wait in TRANSIENT_WAITS_S:
+        if not t.overloaded:
+            break
+        time.sleep(wait)
+        t = converse(cur, hotel_slug, scenario)
+    gctx = GradeContext(room=ctx.get("room"), price_set=prices | _numbers_in_results(t), currency=hotel.currency,
+                        country=hotel.country)
     outputs = grade(exp, t, gctx)
     if not t.error and exp.needs_judge():
         if exp.unknown_or_escalate and escalated_as_unknown(t) and not exp.rubric and exp.grounded_in_kb is None:
@@ -211,7 +242,7 @@ def evaluate_once(cur: Any, hotel_slug: str, scenario: dict, *, prices: set[Deci
                 exp = exp.model_copy(update={"unknown_or_escalate": False})
             crit = judge.criteria_for(exp, kb_answer=kb_answer)
             outputs.append(judge.judge(hotel_slug=hotel_slug, scenario=scenario, transcript=t, criteria=crit,
-                                       kb_answer=kb_answer))
+                                       kb_answer=kb_answer, knowledge=knowledge))
     decisive = [o for o in outputs if not o.get("skipped")]
     passed = all(o["passed"] for o in outputs)
     score = (sum(1 for o in decisive if o["passed"]) / len(decisive)) if decisive else (1.0 if passed else 0.0)
@@ -223,18 +254,19 @@ def evaluate_once(cur: Any, hotel_slug: str, scenario: dict, *, prices: set[Deci
     }
 
 
-def evaluate(cur: Any, hotel_slug: str, scenario: dict, *, prices: set[Decimal]) -> dict:
+def evaluate(cur: Any, hotel_slug: str, scenario: dict, *, prices: set[Decimal],
+             knowledge: list[str] | None = None) -> dict:
     """evaluate_once, or a best-of-3 majority for a flaky scenario (stops as
     soon as two attempts agree). The stored transcript is the last attempt
     that agreed with the verdict."""
     if not scenario.get("flaky"):
-        out = evaluate_once(cur, hotel_slug, scenario, prices=prices)
+        out = evaluate_once(cur, hotel_slug, scenario, prices=prices, knowledge=knowledge)
         out["attempts"] = 1
         return out
     attempts: list[dict] = []
     need = MAJORITY_OF // 2 + 1
     while len(attempts) < MAJORITY_OF:
-        attempts.append(evaluate_once(cur, hotel_slug, scenario, prices=prices))
+        attempts.append(evaluate_once(cur, hotel_slug, scenario, prices=prices, knowledge=knowledge))
         wins = sum(1 for a in attempts if a["passed"])
         if wins >= need or len(attempts) - wins >= need:
             break

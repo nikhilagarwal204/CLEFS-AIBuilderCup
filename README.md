@@ -5,7 +5,7 @@
 This repository is the **AI Builder Cup prototype**, running on Google Cloud:
 
 - **Final Product Link:** https://clefs-632652019887.asia-south1.run.app (the homepage tells the deck's story).
-- **Live prototype for reviewers:** [/try](https://clefs-632652019887.asia-south1.run.app/try) opens the three screens on the demo hotel: the guest in Room 204, Maria's staff app and the duty manager's console, one tap each.
+- **Live prototype for reviewers:** the homepage's "Try it yourself" section ([/try](https://clefs-632652019887.asia-south1.run.app/try) redirects there) opens the three screens on the demo hotel, Hotel Aozora Shinjuku in Tokyo: the guest in Room 204, Maria's staff app and the duty manager's console, one tap each.
 - **Demo script, in deck order:** [docs/DEMO.md](docs/DEMO.md).
 
 ## The prototype
@@ -14,7 +14,7 @@ The deck's flow (slide 5) is the acceptance test: the guest speaks, Gemini under
 
 | Deck item | Where it lives |
 |---|---|
-| Talk or type from a room QR, in your language (8 guest languages) | `client/app/stay/`, `client/app/ClefsConcierge.tsx`, `server/clefs/modules/concierge/` (Gemini Live voice, Gemini Flash text) |
+| Talk or type from a room QR, in your language (11 guest languages) | `client/app/stay/`, `client/app/ClefsConcierge.tsx`, `server/clefs/modules/concierge/` (Gemini Live voice, Gemini Flash text) |
 | Approved answers only | the concierge knowledge base (`concierge/kb.py`), approved by the hotel |
 | Smart dispatch with ETA, one job per ask | `server/clefs/modules/service/routing.py`, `intake.py` |
 | Staff in their own language, proof before closure | the staff app `client/app/device/`, `service/devices_api.py` (Gemini vision photo check) |
@@ -70,7 +70,9 @@ server/                 FastAPI API, worker and CLI (Python 3.12)
   clefs/                the package: foundation, core domain, modules
     CONTRACTS.md        the frozen interfaces every module builds on
     modules/<m>/        one directory per module
-    seed/demo_uae/      the synthetic UAE demo hotel
+    seed/demo_jp/       the Tokyo demo hotel (Hotel Aozora Shinjuku), the prototype's hotel
+    seed/demo_uae/      the UAE demo hotel and the seed machinery both demo hotels share
+    seed/retire.py      retire-demo: a demo hotel off the public internet, every row kept
   tests/                pytest suites (foundation, modules, demo)
   vercel.json           the API as one Vercel Python function in sin1
 client/                 Next.js 16 app: marketing site, console, guest pages, device PWA
@@ -132,34 +134,38 @@ Useful client flags: `NEXT_PUBLIC_AVATAR_RIG=viseme` evaluates the viseme lip-sy
 
 ## Demo hotel and logins
 
-`python -m clefs.cli seed-demo` builds **Al Rigga Crest Hotel (DEMO)** (`demo-deira-crest`): a 3-star, 80-room Deira hotel on 8 floors, 120 days of history, forward bookings into January, OTA statements, payouts, bank and card exports, a credit note, a PMS folio, P&L, reviews, inquiries, journeys, visibility fixtures and a planted case (plus decoys) for every detector. Everything is synthetic, labelled "(DEMO)", and deterministic for a given anchor date. No vendor or model is called.
+`python -m clefs.cli seed-demo` builds **Hotel Aozora Shinjuku (DEMO)** (`aozora-shinjuku`), the hotel the AI Builder Cup prototype shows: a fictional mid-range hotel in Nishi-Shinjuku, Tokyo, 80 rooms on 8 floors, about 8 minutes on foot from Shinjuku Station. It is seeded in yen and Tokyo time with check-in 15:00 and check-out 11:00, 11 guest languages (English, Japanese, Korean, Chinese, Thai, Hindi, French, German, Russian, Arabic, Urdu), the concierge's approved knowledge in English and Japanese, an in-room dining menu and amenity catalogue in JPY (prices tax-inclusive), JAPAC-heavy guests, 120 days of stays, Service history with its planted cases, the roster and the amenity log. The modules the prototype switches off (money and growth) are switched off for the hotel too and not seeded. Everything is synthetic and deterministic for a given anchor date. No vendor or model is called.
 
-The deck's cast is part of it (`server/clefs/seed/demo_uae/core.py` and `deck.py`): the assistant is called Clefs and speaks all 8 guest languages; Room 204 is on floor 2; **Maria Santos** (Housekeeping attendant, floors 1-4, reads Tagalog, PIN 2046) and **Priya Sharma** (Housekeeping attendant, floors 5-8, reads Hindi) are on shift round the clock for the next 14 days with the Housekeeping supervisor and **Omar Khalid**, the duty manager; the GM is on the ladder; Maria's phone is paired with her shift open; the shadow week is over; and the 22 standard safety and accuracy tests are queued, so the first tick after a seed runs them with Gemini as the judge.
+The deck's cast is part of it (`server/clefs/seed/demo_jp/core.py` and `deck.py`): the assistant is called Clefs; Room 204 is on floor 2; **Maria Santos** (Housekeeping attendant, floors 1-4, reads Tagalog, PIN 2046) and **Priya Sharma** (Housekeeping attendant, floors 5-8, reads Hindi) are on shift round the clock for the next 14 days with **Hana Suzuki**, the Housekeeping supervisor, and **Yuki Sato**, the duty manager; **Kenji Tanaka**, the GM, is on the ladder; the rest of the team mixes Japanese and foreign staff (Vietnamese, Nepali, Indonesian, Filipino, Chinese), each reading jobs in their own language; Maria's phone is paired with her shift open; the shadow week is over; and the 22 standard safety and accuracy tests are queued, so the first tick after a seed runs them with Gemini as the judge.
 
 It prints, once:
 
 ```
 demo logins (password shown once; re-run to rotate):
-  owner       owner+demo-deira-crest@example.com       <password>
-  gm          gm+demo-deira-crest@example.com          <password>
-  finance     finance+demo-deira-crest@example.com     <password>
-  revenue     revenue+demo-deira-crest@example.com     <password>
-  front_desk  frontdesk+demo-deira-crest@example.com   <password>
-  dept_head   dutymanager+demo-deira-crest@example.com <password>
+  owner       owner+aozora-shinjuku@example.com        <password>  Michiko Takahashi
+  gm          gm+aozora-shinjuku@example.com           <password>  Kenji Tanaka
+  finance     finance+aozora-shinjuku@example.com      <password>  Naoko Ito
+  revenue     revenue+aozora-shinjuku@example.com      <password>  Daisuke Yamamoto
+  front_desk  frontdesk+aozora-shinjuku@example.com    <password>  Aiko Watanabe
+  dept_head   dutymanager+aozora-shinjuku@example.com  <password>  Yuki Sato
 staff PINs:
   <pin>  <staff name>
 deck demo (the keyed room link opens the guest page as that room):
-  room_204  http://localhost:3000/stay/demo-deira-crest/204?k=<key>
+  room_204  http://localhost:3000/stay/aozora-shinjuku/204?k=<key>
   try       http://localhost:3000/try
 pair this browser as a device: http://localhost:3000/... (code ..., expires HH:MM UTC)
 ```
 
-- Log in at http://localhost:3000/login, or open http://localhost:3000/try and tap "Open the manager console" (the duty manager, this demo hotel only). The service desk lives at `/app/demo-deira-crest/service`.
+- Log in at http://localhost:3000/login, or open http://localhost:3000 and use "Try it yourself", "Open the manager console" (Yuki Sato, the duty manager, this demo hotel only). The service desk lives at `/app/aozora-shinjuku/service`.
 - `--password` (or `CLEFS_DEMO_PASSWORD`) sets one fixed password for every demo user; otherwise each run generates new ones.
-- `--anchor YYYY-MM-DD` is the last history day (default: today in Dubai). Deadlines in the brief are relative to it, so reseed on the day you present. Without `--anchor` the seed is live: it runs as of the real clock (printed as `as_of=`), so nothing it plants (open requests, inquiries, the brief) lies after the moment you open the console; before 09:00 Dubai it seeds as of last night. With `--anchor` it runs as of 21:00 Dubai on that day, which is deterministic but looks like the future when presented earlier that day. The OTA statements are fixed at June-August 2026, so an anchor before 23 September 2026 skips the Profit Guard part.
+- `--anchor YYYY-MM-DD` is the last history day (default: today in the hotel's zone). Without `--anchor` the seed is live: it runs as of the real clock (printed as `as_of=`), so nothing it plants (open requests, incidents, tonight's order) lies after the moment you open the console; before 09:00 hotel time it seeds as of last night. With `--anchor` it runs as of 21:00 hotel time on that day, which is deterministic but looks like the future when presented earlier that day.
 - A re-run wipes and rebuilds only a hotel whose status is `demo`; a real hotel is refused.
-- `python -m clefs.cli demo-check` runs every per-hotel job once at the anchor (rolled back) and reports plants found, decoys fired and the brief's top 5. Exit 1 on any miss. Run it before a demo.
+- `python -m clefs.cli demo-check` runs every per-hotel job once at the anchor (rolled back) and reports the property checks, the deck cast and every planted case. Exit 1 on any miss. Run it before a demo.
 - Emails are `@example.com` (RFC 2606), so a magic link can never reach a real inbox.
+
+**The UAE demo hotel** is still one flag away: `seed-demo --hotel demo-deira-crest` builds **Al Rigga Crest Hotel (DEMO)**, a 3-star, 80-room Deira hotel with every module seeded (OTA statements, payouts, bank and card exports, a PMS folio, P&L, reviews, inquiries, journeys, visibility fixtures and a planted case, plus decoys, for every detector). Its OTA statements are fixed at June-August 2026, so an anchor before 23 September 2026 skips its Profit Guard part. `--variant jp|uae` picks the seed for any other slug.
+
+**Retiring a demo hotel.** `python -m clefs.cli retire-demo --hotel demo-deira-crest` takes a demo hotel off the public internet without deleting a row: its status becomes `archived` (the guest page, the concierge and the reviewer doors answer 404), its memberships and demo logins are switched off and their sessions revoked, its devices are revoked and unused pairing codes expire. `--restore` undoes it (a reseed then pairs Maria's phone again).
 
 The other CLI commands (`create-hotel`, `create-user`, `grant`, `make-admin`, `pair-code`, `set-pin`, `magic-link`) are listed in the docstring of `server/clefs/cli.py`. Every command prints the target database host first.
 

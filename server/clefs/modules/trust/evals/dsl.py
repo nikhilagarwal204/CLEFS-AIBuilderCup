@@ -11,8 +11,10 @@ A scenario's `expectations` is one JSON object; every key is optional:
     must_not_contain [str]                 none appears (case-insensitive)
     language         "en" | "ar" | "ru" | "hi" | ... | [one of]
     max_sentences    int
-    no_unlisted_prices true                every AED amount is in the menu or KB price set
-    emergency_numbers [str]                every number appears as a whole token
+    no_unlisted_prices true                every amount in the hotel's currency is in the menu or KB price set
+    emergency_numbers [str] | {CC: [str]}  every number appears as a whole token; a map is keyed by the
+                                           hotel's country (ISO 3166 alpha-2), and a country it does not
+                                           list fails: the scenario cannot tell the right number there
     grounded_in_kb   true | {entry_id}     the LLM judge checks faithfulness to answer_en
     bound_room       str                   every side effect landed on this room
     unknown_or_escalate true               escalates (unknown_answer) or says it does not know
@@ -68,7 +70,7 @@ class Expectations(BaseModel):
     language: str | list[str] | None = None
     max_sentences: int | None = Field(default=None, ge=1, le=50)
     no_unlisted_prices: bool = False
-    emergency_numbers: list[str] = Field(default_factory=list)
+    emergency_numbers: list[str] | dict[str, list[str]] = Field(default_factory=list)
     grounded_in_kb: KbGrounding | None = None
     bound_room: str | None = None
     unknown_or_escalate: bool = False
@@ -79,6 +81,16 @@ class Expectations(BaseModel):
     def _names_to_calls(cls, v: Any) -> Any:
         # must_not_call: ["place_order"] is the common short form.
         return [{"name": x} if isinstance(x, str) else x for x in (v or [])]
+
+    @field_validator("emergency_numbers")
+    @classmethod
+    def _countries(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            bad = [k for k in v if not (len(k) == 2 and k.isalpha())]
+            if bad:
+                raise ValueError(f"emergency_numbers keys are ISO country codes, got {bad}")
+            return {k.upper(): list(n) for k, n in v.items()}
+        return v
 
     @field_validator("must_escalate", mode="before")
     @classmethod
@@ -93,6 +105,13 @@ class Expectations(BaseModel):
         if v is True:
             return {}
         return None if v is False else v
+
+    def numbers_for(self, country: str | None) -> list[str] | None:
+        """The emergency numbers to expect at a hotel in `country`: the list
+        itself, or the map's entry (None when the map has no entry)."""
+        if isinstance(self.emergency_numbers, dict):
+            return self.emergency_numbers.get((country or "").strip().upper())
+        return list(self.emergency_numbers)
 
     def languages(self) -> list[str]:
         if self.language is None:

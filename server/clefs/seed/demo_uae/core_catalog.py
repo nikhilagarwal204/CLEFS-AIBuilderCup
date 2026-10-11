@@ -22,6 +22,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from clefs.core.money import to_minor
 from clefs.db import Json
 from clefs.seed.demo_uae.core import ACTOR, demo_name
 
@@ -98,36 +99,34 @@ KB_POLICIES = (
 )
 
 
-def seed_kb(ctx: Any) -> dict:
-    """Proposed through concierge.api (the entry, its section and revision),
-    then approved by the demo owner. Approval has no api door, so it sets
-    the same columns kb.approve_entry does."""
-    api = ctx.module_api("concierge")
-    if api is None:
-        return {"kb_entries": 0}
-    owner = ctx.ids.get("users", {}).get("owner")
-    ids: list[int] = []
-    for key, value, q_en, q_ar, a_ar in KB_FACTS:
-        eid = api.propose_kb_entry(ctx.cur, ctx.slug, question_en=q_en, answer_en=value, question_ar=q_ar,
-                                   answer_ar=a_ar, fact_key=key, source="demo", actor=ACTOR)
-        # The value went in answer_en for the normaliser (fact_value keeps
-        # it); guests hear the sentence.
-        ctx.cur.execute("UPDATE cc_kb_entries SET answer_en = %s WHERE id = %s", (FACT_SENTENCES[key], eid))
-        ids.append(eid)
-    for q_en, a_en, q_ar, a_ar in KB_FAQS:
-        ids.append(api.propose_kb_entry(ctx.cur, ctx.slug, question_en=q_en, answer_en=a_en, question_ar=q_ar,
-                                        answer_ar=a_ar, source="demo", actor=ACTOR))
-    for section, q_en, a_en, q_ar, a_ar in KB_POLICIES:
-        eid = api.propose_kb_entry(ctx.cur, ctx.slug, question_en=q_en, answer_en=a_en, question_ar=q_ar,
-                                   answer_ar=a_ar, source="demo", actor=ACTOR)
-        # propose_kb_entry files an FAQ under General; the console's section
-        # picker writes section_id, and so does this.
+def kb_entry(ctx: Any, api: Any, *, question_en: str, answer_en: str, question_ar: str | None = None,
+             answer_ar: str | None = None, fact_key: str | None = None, sentence: str | None = None,
+             section: str | None = None, tags: list[str] | None = None) -> int:
+    """One entry proposed through concierge.api (the entry, its section and
+    revision). A fact's value goes in answer_en for the normaliser
+    (fact_value keeps it) and guests hear `sentence`. propose_kb_entry files
+    an FAQ under General; `section` refiles it the way the console's section
+    picker does (section_id), and `tags` are the console's tags."""
+    eid = api.propose_kb_entry(ctx.cur, ctx.slug, question_en=question_en, answer_en=answer_en,
+                               question_ar=question_ar, answer_ar=answer_ar, fact_key=fact_key, source="demo",
+                               actor=ACTOR)
+    if sentence is not None:
+        ctx.cur.execute("UPDATE cc_kb_entries SET answer_en = %s WHERE id = %s", (sentence, eid))
+    if section is not None:
         ctx.cur.execute(
             "UPDATE cc_kb_entries SET section_id = (SELECT id FROM cc_kb_sections WHERE hotel_slug = %s AND key = %s) "
             "WHERE id = %s AND EXISTS (SELECT 1 FROM cc_kb_sections WHERE hotel_slug = %s AND key = %s)",
             (ctx.slug, section, eid, ctx.slug, section),
         )
-        ids.append(eid)
+    if tags:
+        ctx.cur.execute("UPDATE cc_kb_entries SET tags = %s WHERE id = %s", (tags, eid))
+    return eid
+
+
+def approve_kb(ctx: Any, ids: list[int]) -> None:
+    """Approved by the demo owner. Approval has no api door, so this sets
+    the same columns kb.approve_entry does."""
+    owner = ctx.ids.get("users", {}).get("owner")
     ctx.cur.execute(
         """
         UPDATE cc_kb_entries SET status = 'approved', approved_by = %s, approved_at = %s, updated_at = NOW()
@@ -135,6 +134,24 @@ def seed_kb(ctx: Any) -> dict:
         """,
         (owner, ctx.now, ctx.slug, ids),
     )
+
+
+def seed_kb(ctx: Any) -> dict:
+    """Proposed through concierge.api (the entry, its section and revision),
+    then approved by the demo owner (approve_kb)."""
+    api = ctx.module_api("concierge")
+    if api is None:
+        return {"kb_entries": 0}
+    ids: list[int] = []
+    for key, value, q_en, q_ar, a_ar in KB_FACTS:
+        ids.append(kb_entry(ctx, api, question_en=q_en, answer_en=value, question_ar=q_ar, answer_ar=a_ar,
+                            fact_key=key, sentence=FACT_SENTENCES[key]))
+    for q_en, a_en, q_ar, a_ar in KB_FAQS:
+        ids.append(kb_entry(ctx, api, question_en=q_en, answer_en=a_en, question_ar=q_ar, answer_ar=a_ar))
+    for section, q_en, a_en, q_ar, a_ar in KB_POLICIES:
+        ids.append(kb_entry(ctx, api, question_en=q_en, answer_en=a_en, question_ar=q_ar, answer_ar=a_ar,
+                            section=section))
+    approve_kb(ctx, ids)
     ctx.ids["kb_entries"] = ids
     return {"kb_entries": len(ids)}
 
@@ -152,6 +169,7 @@ OUTLETS = (
      [{"from": "07:00", "to": "22:00", "days_mask": ALL_DAYS}], False),
 )
 
+MENU_CURRENCY = "AED"
 # outlet, sku, category, category_ar, name_en, name_ar, desc_en, price AED, dietary, prep_min, from, to
 MENU = (
     ("ird", "IRD-BRK-01", "Breakfast", "الإفطار", "Arabic breakfast tray", "صينية فطور عربي",
@@ -214,11 +232,15 @@ PAIRINGS = (
 def seed_menu(ctx: Any) -> dict:
     """Upsell's tables have no api writer (its console and MENU import are
     HTTP-only), so the rows go in directly with the columns the importer
-    writes. Prices are AED in fils (Canon 2)."""
+    writes. Prices are major units of MENU_CURRENCY, stored in its minor
+    units (Canon 2: AED in fils; the yen has none). The outlets, menu and
+    pairings come from ctx.data("core_catalog")."""
     if not ctx.table_exists("ups_outlets"):
         return {"outlets": 0, "menu_items": 0}
+    p = ctx.data("core_catalog")
+    ccy = p.MENU_CURRENCY
     cur, outlet_ids, item_ids = ctx.cur, {}, {}
-    for sort, (key, name, name_ar, kind, hours, delivers) in enumerate(OUTLETS):
+    for sort, (key, name, name_ar, kind, hours, delivers) in enumerate(p.OUTLETS):
         cur.execute(
             """
             INSERT INTO ups_outlets (hotel_slug, key, name_en, name_ar, kind, hours, delivers_to_room, active, sort)
@@ -227,18 +249,18 @@ def seed_menu(ctx: Any) -> dict:
             (ctx.slug, key, name, name_ar, kind, Json(hours), delivers, sort * 10),
         )
         outlet_ids[key] = cur.fetchone()["id"]
-    for sort, (outlet, sku, cat, cat_ar, name, name_ar, desc, aed, diet, prep, frm, to) in enumerate(MENU):
+    for sort, (outlet, sku, cat, cat_ar, name, name_ar, desc, price, diet, prep, frm, to) in enumerate(p.MENU):
         cur.execute(
             """
             INSERT INTO ups_menu_items (hotel_slug, outlet_id, sku, category, category_ar, name_en, name_ar, desc_en,
                 price_minor, currency, available_from, available_to, dietary, prep_min, active, sort)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'AED', %s, %s, %s, %s, TRUE, %s) RETURNING id
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s) RETURNING id
             """,
-            (ctx.slug, outlet_ids[outlet], sku, cat, cat_ar, name, name_ar, desc, aed * 100, frm, to, diet, prep,
-             sort * 10),
+            (ctx.slug, outlet_ids[outlet], sku, cat, cat_ar, name, name_ar, desc, to_minor(price, ccy), ccy, frm, to,
+             diet, prep, sort * 10),
         )
         item_ids[sku] = cur.fetchone()["id"]
-    for sort, (item, suggest, kind, reason, reason_ar) in enumerate(PAIRINGS):
+    for sort, (item, suggest, kind, reason, reason_ar) in enumerate(p.PAIRINGS):
         cur.execute(
             """
             INSERT INTO ups_upsell_pairs (hotel_slug, item_id, suggest_item_id, kind, reason_en, reason_ar, active,
@@ -248,7 +270,7 @@ def seed_menu(ctx: Any) -> dict:
             (ctx.slug, item_ids[item], item_ids[suggest], kind, reason, reason_ar, sort),
         )
     ctx.ids["outlets"], ctx.ids["menu_items"] = outlet_ids, item_ids
-    return {"outlets": len(outlet_ids), "menu_items": len(item_ids), "pairings": len(PAIRINGS)}
+    return {"outlets": len(outlet_ids), "menu_items": len(item_ids), "pairings": len(p.PAIRINGS)}
 
 
 # ─── Amenity catalog ───

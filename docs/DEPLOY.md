@@ -511,4 +511,5 @@ gcloud run deploy clefs-api --source . --region asia-southeast1 --allow-unauthen
 | AI | Vertex AI (`GOOGLE_GENAI_USE_VERTEXAI=true`, location `global`), `AI_MODEL_DEFAULT=gemini-3.5-flash`, `AI_MODEL_FAST=gemini-3.1-flash-lite`; voice through the Live relay (`gemini-3.8-live`, `us-central1`) |
 | Photos | `PROOF_BUCKET=disco-axis-442314-k2-clefs-proof` (asia-south1, deleted after 7 days) |
 | Job tick | Cloud Scheduler `clefs-tick`, every minute, `POST /internal/cron/tick?budget_s=25` with the cron bearer |
-| Demo data | Cloud Run job `clefs-seed` (`python -m clefs.cli seed-demo`), about 15 minutes; `/try` gives reviewers one-tap access to the guest, staff and manager screens of the demo hotel |
+| Demo data | Cloud Run job `clefs-seed` (`python -m clefs.cli seed-demo`) builds the Tokyo demo hotel `aozora-shinjuku` (Hotel Aozora Shinjuku) in about a minute; the site root gives reviewers one-tap access to its guest, staff and manager screens. The earlier Dubai demo `demo-deira-crest` is archived with `python -m clefs.cli retire-demo --hotel demo-deira-crest` (`--restore` reopens it) |
+| Job tick timezone | The scheduler job runs every minute; its timezone is Asia/Tokyo, and hotel-local jobs follow each hotel's own timezone |

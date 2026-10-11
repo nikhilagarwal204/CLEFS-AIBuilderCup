@@ -22,6 +22,8 @@ Module doors: trust.queue_eval_run (api.py). The rest are core services
 (devices, rooms) and the Service table the sweep keeps (svc_sweep_state).
 
 CHECKS / deck_checks: the cast is complete, on shift and paired (demo-check).
+The cast is ctx.data("core")'s (this hotel's core module, or a variant's:
+clefs.seed.demo_jp.core); deck_checks takes it as an argument.
 """
 
 from __future__ import annotations
@@ -31,10 +33,7 @@ from typing import Any
 
 from clefs.auth import devices
 from clefs.core import rooms
-from clefs.seed.demo_uae.core import (
-    ACTOR, DECK_ATTENDANT, DECK_ATTENDANT_PIN, DECK_DUTY_MANAGER, DECK_GM, DECK_ROOM, DECK_SECOND_ATTENDANT,
-    DECK_SUPERVISOR, DUTY_MANAGER_ROLE,
-)
+from clefs.seed.demo_uae.core import ACTOR
 from clefs.seed.demo_uae.ops import DEMO_DAYS
 
 PART_ORDER = 85
@@ -48,7 +47,7 @@ SHADOW_DAYS = 7
 # ask from Room 204 at once, so the demo hotel runs at the maximum.
 GUEST_ROOM_LIMIT = 100
 # The 8 guest UI languages the hotel must offer (05 spec 2.14).
-LANGUAGES = {"en", "ar", "ru", "hi", "ur", "zh", "de", "fr"}
+LANGUAGES = frozenset({"en", "ar", "ru", "hi", "ur", "zh", "de", "fr"})
 
 
 # ─── Seeding ───
@@ -64,13 +63,14 @@ def pair_maria(ctx: Any) -> dict:
     The pairing goes through core devices like any phone; the token is
     dropped (nobody holds this phone), /try pairs each reviewer's browser
     as another of her devices."""
-    sid = (ctx.ids.get("staff") or {}).get(DECK_ATTENDANT)
+    cast = ctx.data("core")
+    sid = (ctx.ids.get("staff") or {}).get(cast.DECK_ATTENDANT)
     if sid is None:
         return {"deck_phones": 0}
     code = devices.create_pairing_code(ctx.cur, ctx.slug, name=PHONE_NAME, kind="personal", floors=PHONE_FLOORS,
                                        departments=PHONE_DEPARTMENTS, actor=ACTOR)["code"]
     _token, info = devices.pair(ctx.cur, code)
-    outcome = devices.start_shift(ctx.cur, info, sid, DECK_ATTENDANT_PIN)
+    outcome = devices.start_shift(ctx.cur, info, sid, cast.DECK_ATTENDANT_PIN)
     if not outcome.ok:
         raise outcome.error  # type: ignore[misc]  (the seed set this PIN a moment ago)
     ctx.cur.execute("UPDATE device_sessions SET planned_end_at = %s WHERE id = %s",
@@ -123,12 +123,13 @@ def demo_links(ctx: Any) -> dict:
     reviewer page, for the CLI to print."""
     from clefs.settings import get_settings
 
-    room = rooms.get_room(ctx.cur, ctx.slug, DECK_ROOM)
+    deck_room = ctx.data("core").DECK_ROOM
+    room = rooms.get_room(ctx.cur, ctx.slug, deck_room)
     if room is None:
         return {}
     base = get_settings().web_base_url.rstrip("/")
     links = {
-        f"room_{DECK_ROOM}": base + rooms.stay_path(ctx.slug, DECK_ROOM, int(room.get("qr_key_version") or 1)),
+        f"room_{deck_room}": base + rooms.stay_path(ctx.slug, deck_room, int(room.get("qr_key_version") or 1)),
         "try": f"{base}/try",
     }
     ctx.credentials["demo_links"] = links
@@ -183,23 +184,29 @@ def _covered_days(cur: Any, slug: str, staff_id: int | None) -> float:
     return (end - start).total_seconds() / 86400
 
 
-def deck_checks(cur: Any, slug: str) -> list[tuple[str, bool, str]]:
-    """The deck cast as 05 spec section 4 lists it. Read-only; independent
-    of the clock, so it reads the same at the anchor and a week later."""
+def deck_checks(cur: Any, slug: str, *, cast: Any = None, languages: frozenset[str] | set[str] = LANGUAGES
+                ) -> list[tuple[str, bool, str]]:
+    """The deck cast as 05 spec section 4 lists it, for `cast` (a core
+    module: this hotel's by default) and the guest `languages` the hotel
+    must offer. Read-only; independent of the clock, so it reads the same at
+    the anchor and a week later."""
+    if cast is None:
+        from clefs.seed.demo_uae import core as cast
     out: list[tuple[str, bool, str]] = []
     h = _one(cur, "SELECT assistant_name, guest_languages, status FROM hotels WHERE slug = %s", (slug,))
     langs = set(h.get("guest_languages") or [])
-    out.append(("assistant Clefs in all 8 guest languages",
-                h.get("assistant_name") == "Clefs" and LANGUAGES <= langs,
+    out.append((f"assistant Clefs in all {len(languages)} guest languages",
+                h.get("assistant_name") == "Clefs" and set(languages) <= langs,
                 f"assistant={h.get('assistant_name')} languages={len(langs)}"))
-    room = _one(cur, "SELECT floor FROM hotel_rooms WHERE hotel_slug = %s AND room_number = %s", (slug, DECK_ROOM))
-    out.append((f"room {DECK_ROOM} on floor 2", room.get("floor") == "2", f"floor={room.get('floor')}"))
+    room = _one(cur, "SELECT floor FROM hotel_rooms WHERE hotel_slug = %s AND room_number = %s",
+                (slug, cast.DECK_ROOM))
+    out.append((f"room {cast.DECK_ROOM} on floor 2", room.get("floor") == "2", f"floor={room.get('floor')}"))
     svc = _one(cur, "SELECT settings FROM hotel_module_settings WHERE hotel_slug = %s AND module = 'service'", (slug,))
     limit = (svc.get("settings") or {}).get("guest_room_limit")
-    out.append((f"room {DECK_ROOM} open to many guests at once", limit == GUEST_ROOM_LIMIT,
+    out.append((f"room {cast.DECK_ROOM} open to many guests at once", limit == GUEST_ROOM_LIMIT,
                 f"guest_room_limit={limit} per 10 minutes"))
 
-    maria = _staff(cur, slug, DECK_ATTENDANT)
+    maria = _staff(cur, slug, cast.DECK_ATTENDANT)
     out.append(("Maria: Housekeeping attendant, floors 1-4, reads Tagalog",
                 maria.get("department_key") == "housekeeping" and maria.get("role_key") == "staff"
                 and list(maria.get("floors") or []) == PHONE_FLOORS and (maria.get("languages") or [None])[0] == "fil",
@@ -211,21 +218,23 @@ def deck_checks(cur: Any, slug: str) -> list[tuple[str, bool, str]]:
                            AND d.kind = 'personal' AND d.revoked_at IS NULL""", (slug, maria.get("id")))
     out.append(("Maria's phone paired, her shift open on it", (phone.get("n") or 0) >= 1, f"open={phone.get('n')}"))
 
-    priya = _staff(cur, slug, DECK_SECOND_ATTENDANT)
+    priya = _staff(cur, slug, cast.DECK_SECOND_ATTENDANT)
     out.append(("Priya: Housekeeping attendant, floors 5-8, reads Hindi",
                 priya.get("department_key") == "housekeeping" and priya.get("role_key") == "staff"
                 and list(priya.get("floors") or []) == ["5", "6", "7", "8"]
                 and (priya.get("languages") or [None])[0] == "hi",
                 f"{priya.get('role')} floors={priya.get('floors')} languages={priya.get('languages')}"))
 
-    ladder = {name: _staff(cur, slug, name).get("role_key") for name in (DECK_SUPERVISOR, DECK_DUTY_MANAGER, DECK_GM)}
+    ladder = {name: _staff(cur, slug, name).get("role_key")
+              for name in (cast.DECK_SUPERVISOR, cast.DECK_DUTY_MANAGER, cast.DECK_GM)}
     out.append(("supervisor, duty manager and GM on the ladder",
                 list(ladder.values()) == ["supervisor", "duty_manager", "gm"],
                 ", ".join(f"{k}={v}" for k, v in ladder.items())))
     dm = _one(cur, """SELECT count(*) AS n FROM hotel_memberships m JOIN users u ON u.id = m.user_id
                       WHERE m.hotel_slug = %s AND m.role = %s AND m.is_active AND u.name = %s""",
-              (slug, DUTY_MANAGER_ROLE, DECK_DUTY_MANAGER))
-    out.append(("duty manager console login", (dm.get("n") or 0) >= 1, f"{DUTY_MANAGER_ROLE} logins={dm.get('n')}"))
+              (slug, cast.DUTY_MANAGER_ROLE, cast.DECK_DUTY_MANAGER))
+    out.append(("duty manager console login", (dm.get("n") or 0) >= 1,
+                f"{cast.DUTY_MANAGER_ROLE} logins={dm.get('n')}"))
 
     shadow = _one(cur, "SELECT to_regclass('public.svc_sweep_state') IS NOT NULL AS ok", ())
     if shadow.get("ok"):

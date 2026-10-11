@@ -9,9 +9,16 @@ Bootstrap CLI.
     python -m clefs.cli pair-code --hotel demo-dubai --name "Floor 5" --kind floor --floors 5 --departments Housekeeping
     python -m clefs.cli set-pin --hotel demo-dubai --staff-id 12 --pin 1234
     python -m clefs.cli magic-link --email owner@example.com --hotel demo-dubai --purpose brief
-    python -m clefs.cli seed-demo --hotel demo-deira-crest [--anchor 2026-09-27] [--password ...]
-    python -m clefs.cli demo-present --name "Ramee Rose Hotel" [--city "Al Barsha"]
-    python -m clefs.cli demo-check --hotel demo-deira-crest [--manifest ...] [--scale 1.0] [--no-jobs] [--commit]
+    python -m clefs.cli seed-demo [--hotel aozora-shinjuku] [--anchor 2026-10-21] [--password ...]
+    python -m clefs.cli seed-demo --hotel demo-deira-crest          # the UAE demo hotel, every module
+    python -m clefs.cli demo-present --name "Ramee Rose Hotel" [--city "Al Barsha"] [--hotel demo-deira-crest]
+    python -m clefs.cli demo-check [--hotel aozora-shinjuku] [--manifest ...] [--scale 1.0] [--no-jobs] [--commit]
+    python -m clefs.cli retire-demo --hotel demo-deira-crest [--restore]
+
+The demo hotels (clefs.seed.variants): Hotel Aozora Shinjuku, Tokyo
+(aozora-shinjuku, the default: the AI Builder Cup prototype's hotel) and Al
+Rigga Crest Hotel, Dubai (demo-deira-crest). --variant jp|uae picks the seed
+for any other slug.
 
 Every command prints the target database (host and name, no password) first:
 server/.env may point at production, so export DATABASE_URL for local work.
@@ -33,9 +40,13 @@ from clefs.core import hotels
 from clefs.core.errors import ClefsError
 from clefs.core.phone import normalize_phone
 from clefs.migrate import _redact
+from clefs.seed import variants
 from clefs.settings import get_settings
 
 CLI_ACTOR = SimpleNamespace(kind="system", user_id=None, device_id=None, label="cli")
+# seed-demo, demo-check and demo-present work on the Tokyo demo hotel unless
+# told otherwise.
+DEFAULT_DEMO_HOTEL = variants.DEFAULT_HOTEL
 
 
 def _csv(v: str | None) -> list[str]:
@@ -142,31 +153,33 @@ def cmd_magic_link(a: argparse.Namespace) -> None:
 
 
 def cmd_seed_demo(a: argparse.Namespace) -> None:
-    """Build or rebuild the synthetic UAE demo hotel (02 spec 9) in one
+    """Build or rebuild a synthetic demo hotel (the Tokyo one by default,
+    the UAE one for demo-deira-crest; clefs.seed.variants) in one
     transaction, write the planted-case manifest, then print the demo
     logins, staff PINs, the keyed Room 204 link and /try (the deck's demo)
-    and a fresh device pairing code. Credentials go to
-    stdout only (never the log), and only for a demo hotel."""
+    and a fresh device pairing code. Credentials go to stdout only (never
+    the log), and only for a demo hotel."""
     from datetime import date as _date
 
-    from clefs.seed import demo_uae
-
-    # No --anchor: seed as of the real clock (live_anchor), so a daytime run
-    # never plants requests, inquiries or a brief after "now" (QA OWN-08,
-    # GS-3). --anchor keeps the deterministic anchor evening (21:00 Dubai).
-    anchor, as_of = (_date.fromisoformat(a.anchor), None) if a.anchor else demo_uae.live_anchor()
+    with db.db() as cur:
+        pkg = variants.for_slug(cur, a.hotel, explicit=a.variant)
+    # No --anchor: seed as of the real clock in the hotel's zone
+    # (live_anchor), so a daytime run never plants requests, inquiries or a
+    # brief after "now" (QA OWN-08, GS-3). --anchor keeps the deterministic
+    # anchor evening (21:00 hotel time).
+    anchor, as_of = (_date.fromisoformat(a.anchor), None) if a.anchor else pkg.live_anchor()
     password = a.password or os.environ.get("CLEFS_DEMO_PASSWORD") or None
     parts = _csv(a.parts) or None
     with db.db(statement_timeout_ms=0) as cur:
-        out = demo_uae.seed(cur, a.hotel, anchor=anchor, as_of=as_of, scale=a.scale, parts=parts,
-                            password=password)
-    path = demo_uae.write_manifest(out, a.manifest) if not a.no_manifest else None
+        out = pkg.seed(cur, a.hotel, anchor=anchor, as_of=as_of, scale=a.scale, parts=parts, password=password)
+    path = pkg.write_manifest(out, a.manifest) if not a.no_manifest else None
     # The pairing code is minted after the seed, on the real clock: codes made
     # inside the frozen anchor evening could already be expired.
     with db.db() as cur:
         pairing = devices.create_pairing_code(cur, a.hotel, name="Presenter browser (DEMO)", kind="desk",
                                               floors=[], departments=[], actor=CLI_ACTOR)
-    print(f"seeded {out['hotel']} anchor={out['anchor']} as_of={out['as_of']} created={out['created']}")
+    print(f"seeded {out['hotel']} anchor={out['anchor']} as_of={out['as_of']} created={out['created']} "
+          f"variant={pkg.__name__.rsplit('.', 1)[-1]}")
     for name, counts in out["parts"].items():
         print(f"  {name}: " + ", ".join(f"{k}={v}" for k, v in counts.items() if not isinstance(v, (list, dict))))
     print(f"  plants: {len(out['plants'])}" + (f" (manifest {path})" if path else ""))
@@ -176,7 +189,7 @@ def cmd_seed_demo(a: argparse.Namespace) -> None:
     if creds.get("users"):
         print("demo logins (password shown once; re-run to rotate):")
         for role, u in creds["users"].items():
-            print(f"  {role:<11} {u['email']:<40} {u['password']}")
+            print(f"  {role:<11} {u['email']:<40} {u['password']}  {u['name']}")
     if creds.get("staff_pins"):
         print("staff PINs:")
         for name, pin in creds["staff_pins"].items():
@@ -196,6 +209,27 @@ def cmd_seed_demo(a: argparse.Namespace) -> None:
           f"(code {pairing['code']}, expires {pairing['expires_at']:%H:%M} UTC)")
 
 
+def cmd_retire_demo(a: argparse.Namespace) -> None:
+    """Make a demo hotel unreachable to the public (or bring it back with
+    --restore): a status change and switched-off logins and devices, never a
+    deleted row (clefs.seed.retire). Refuses any hotel that is not a demo."""
+    from clefs.seed import retire
+
+    with db.db() as cur:
+        out = retire.restore(cur, a.hotel, actor=CLI_ACTOR) if a.restore else retire.retire(cur, a.hotel,
+                                                                                             actor=CLI_ACTOR)
+    if out.get("already"):
+        print(f"{a.hotel} is already {'a demo' if a.restore else 'retired'}; nothing changed")
+        return
+    if a.restore:
+        print(f"restored {a.hotel}: status demo, {len(out['memberships'])} membership(s) and {len(out['users'])} "
+              f"login(s) back on. Reseed it (seed-demo --hotel {a.hotel}) to pair Maria's phone and refresh the day.")
+        return
+    print(f"retired {a.hotel}: status archived; {len(out['memberships'])} membership(s) and {len(out['users'])} "
+          f"login(s) off, {out['sessions']} session(s) and {len(out['devices'])} device(s) revoked, "
+          f"{out['pairing_codes']} pairing code(s) expired. Undo with: retire-demo --hotel {a.hotel} --restore")
+
+
 def cmd_demo_present(a: argparse.Namespace) -> None:
     """Show the demo hotel under a prospect's name for one meeting: only the
     display name (and area) change, every figure stays the labelled sample.
@@ -211,18 +245,22 @@ def cmd_demo_present(a: argparse.Namespace) -> None:
 
 
 def cmd_demo_check(a: argparse.Namespace) -> None:
-    """Does the seeded demo hotel show what 02 spec 9 promises? Runs every
-    per-hotel job once at the anchor evening (offline, rolled back unless
-    --commit), then prints a table per module: plants found, decoys fired,
-    signals by section, the brief's top 5 and the verified value. Exit 1 on
-    any miss (seed/demo_uae/check.py has the details)."""
+    """Does the seeded demo hotel show what its seed promises (02 spec 9 for
+    the UAE hotel)? Runs every per-hotel job once at the anchor evening
+    (offline, rolled back unless --commit), then prints a table per module:
+    plants found, decoys fired, signals by section, the brief's top 5 and
+    the verified value. Exit 1 on any miss (seed/demo_uae/check.py has the
+    details)."""
     from datetime import date as _date
 
+    from clefs.seed import demo_uae
     from clefs.seed.demo_uae import check
 
+    with db.db() as cur:
+        pkg = variants.for_slug(cur, a.hotel, explicit=a.variant)
     anchor = _date.fromisoformat(a.anchor) if a.anchor else None
     rep = check.check_hotel(a.hotel, commit=a.commit, manifest_path=a.manifest, anchor=anchor, scale=a.scale,
-                            jobs=not a.no_jobs)
+                            jobs=not a.no_jobs, package=None if pkg is demo_uae else pkg)
     print(check.render(rep))
     if not rep.ok:
         raise SystemExit(1)
@@ -288,9 +326,12 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(fn=cmd_magic_link)
 
     p = sub.add_parser("seed-demo")
-    p.add_argument("--hotel", default="demo-deira-crest")
-    p.add_argument("--anchor", help="last history day, YYYY-MM-DD, seeded as of 21:00 Dubai (default: live, "
-                                    "today as of now in Asia/Dubai; before 09:00, last night)")
+    p.add_argument("--hotel", default=DEFAULT_DEMO_HOTEL,
+                   help=f"demo hotel slug (default {DEFAULT_DEMO_HOTEL}, Tokyo; demo-deira-crest is the UAE hotel)")
+    p.add_argument("--variant", choices=["jp", "uae"],
+                   help="which demo seed builds the hotel (default: by slug, else the hotel's country, else uae)")
+    p.add_argument("--anchor", help="last history day, YYYY-MM-DD, seeded as of 21:00 hotel time (default: live, "
+                                    "today as of now in the hotel's zone; before 09:00, last night)")
     p.add_argument("--scale", type=float, default=1.0, help="reservation volume multiplier (tests use 0.1)")
     p.add_argument("--parts", help="comma separated part names (default: all)")
     p.add_argument("--password", help="one password for every demo user (else CLEFS_DEMO_PASSWORD, else random)")
@@ -299,13 +340,15 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(fn=cmd_seed_demo)
 
     p = sub.add_parser("demo-present")
-    p.add_argument("--hotel", default="demo-deira-crest")
-    p.add_argument("--name", required=True, help='e.g. "Ramee Rose Hotel"; "Al Rigga Crest Hotel" restores it')
+    p.add_argument("--hotel", default=DEFAULT_DEMO_HOTEL)
+    p.add_argument("--name", required=True, help='e.g. "Ramee Rose Hotel"; the demo name ("Hotel Aozora Shinjuku", '
+                                                 '"Al Rigga Crest Hotel") restores it')
     p.add_argument("--city", help='the area shown with it, e.g. "Al Barsha"')
     p.set_defaults(fn=cmd_demo_present)
 
     p = sub.add_parser("demo-check")
-    p.add_argument("--hotel", default="demo-deira-crest")
+    p.add_argument("--hotel", default=DEFAULT_DEMO_HOTEL)
+    p.add_argument("--variant", choices=["jp", "uae"], help="the seed the hotel was built with (default: as seed-demo)")
     p.add_argument("--manifest", help="expected_plants.json to check against (default: next to the seed package)")
     p.add_argument("--anchor", help="YYYY-MM-DD (default: the manifest's anchor, else the last derived day)")
     p.add_argument("--scale", type=float, default=1.0,
@@ -313,6 +356,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-jobs", action="store_true", help="check the rows as they are, without running jobs")
     p.add_argument("--commit", action="store_true", help="keep what the jobs wrote (default: roll back)")
     p.set_defaults(fn=cmd_demo_check)
+
+    p = sub.add_parser("retire-demo", help="make a demo hotel unreachable to the public (reversible)")
+    p.add_argument("--hotel", required=True)
+    p.add_argument("--restore", action="store_true", help="undo a retire: the hotel is a live demo again")
+    p.set_defaults(fn=cmd_retire_demo)
 
     args = ap.parse_args(argv)
     print(f"[clefs] database {_redact(get_settings().database_url)}", file=sys.stderr)

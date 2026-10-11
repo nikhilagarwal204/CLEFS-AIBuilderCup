@@ -259,10 +259,10 @@ def test_cost_cap_skips_and_stops_runs(cur, hotel_uae, monkeypatch, judge_ai):
     from clefs.modules.trust.evals import runner
     real = runner.evaluate
 
-    def costly(cur_, slug, sc, *, prices):
+    def costly(cur_, slug, sc, *, prices, **kw):
         cur_.execute("INSERT INTO ai_calls (hotel_slug, task, kind, model, backend, status, cost_micros) "
                      "VALUES (%s, 'trust.eval_turn', 'raw', 'm', 'fake', 'ok', 1000)", (slug,))
-        return real(cur_, slug, sc, prices=prices)
+        return real(cur_, slug, sc, prices=prices, **kw)
 
     monkeypatch.setattr(runner, "evaluate", costly)
     monkeypatch.setenv("TRUST_EVAL_DAILY_CAP_USD", "6.0025")
@@ -306,3 +306,78 @@ def test_eval_session_binds_a_real_room_of_the_hotel(cur, hotel_uae, monkeypatch
     assert rooms.get_room(cur, hotel_uae.slug, room) and room not in ("101", "502")
     _run(cur, hotel_uae.slug, suites=["standard"])
     assert set(fc.rooms) == {room}
+
+
+# ─── The judge's knowledge, outages, a hotel outside the UAE ───
+
+
+def test_the_judge_reads_the_hotel_knowledge(cur, hotel_uae, monkeypatch, judge_ai):
+    """The criteria ask about the hotel knowledge, so the judge gets it: a
+    fact the hotel approved is not an invented one."""
+    FakeConcierge(monkeypatch)
+    _run(cur, hotel_uae.slug, suites=["standard"])
+    payloads = [json.loads(c.input) for c in judge_ai.calls if c.task == "trust.eval_judge"]
+    assert payloads and all(p["hotel_knowledge"] == [t for _k, t in SECTIONS_KB] for p in payloads)
+
+
+def test_an_overloaded_model_is_tried_again_before_a_scenario_fails(cur, hotel_uae, monkeypatch, judge_ai):
+    """429 or 5xx on the concierge's model and its fallback is an outage, not
+    the concierge's behaviour: the attempt is played again. AI switched off
+    is not retried (test_runner_down_fails_without_retrying)."""
+    from clefs.modules.trust.evals import judge, runner
+
+    monkeypatch.setattr(runner, "TRANSIENT_WAITS_S", (0.0, 0.0))
+    monkeypatch.setattr(judge, "RETRY_WAITS_S", (0.0,))
+    fc = FakeConcierge(monkeypatch)
+    pets = next(s for s in scenarios.load_standard() if s["key"] == "policy.pets")
+    real, failures = fc.respond, {"n": 0}
+
+    def overloaded(spec, messages):
+        if messages[0]["content"] == pets["turns"][0]["text"] and failures["n"] < 2:
+            failures["n"] += 1
+            raise ai.AIError("Gemini call failed: ClientError: 429 RESOURCE_EXHAUSTED")
+        return real(spec, messages)
+
+    monkeypatch.setattr(concierge_api, "respond_text", overloaded)
+    real_judge = judge_ai.respond
+    judge_failures = {"n": 0}
+
+    def judge_once_down(req):
+        if req.task == "trust.eval_judge" and not judge_failures["n"]:
+            judge_failures["n"] += 1
+            raise ai.AIError("Gemini call failed: ServerError: 503 UNAVAILABLE")
+        return real_judge(req)
+
+    monkeypatch.setattr(judge_ai, "respond", judge_once_down)
+    run = _run(cur, hotel_uae.slug, suites=["standard"])
+    fails = runs.list_results(cur, hotel_uae.slug, run["id"], failed_only=True)
+    assert fails == [], [(f["scenario_key"], f["failure_reasons"]) for f in fails]
+    assert failures["n"] == 2 and judge_failures["n"] == 1
+
+
+@pytest.fixture
+def hotel_tokyo(cur):
+    from clefs.core import hotels
+
+    return hotels.create_hotel(cur, slug="test-tokyo", name="Test Hotel Tokyo", city="Tokyo", country="JP",
+                               emirate=None, timezone="Asia/Tokyo", currency="JPY", locale="en-JP",
+                               guest_languages=["en", "ja"], star_rating=3, rooms_count=80, status="pilot")
+
+
+def test_a_tokyo_hotel_is_held_to_its_own_emergency_numbers(cur, hotel_tokyo, monkeypatch, judge_ai):
+    tokyo = dict(PERFECT)
+    tokyo["emergency.chest_pain"] = ("I am alerting our team now. Please call 119 for an ambulance.",
+                                     [_call("escalate_to_human", {"reason": "emergency", "urgency": "high"})])
+    tokyo["emergency.gas_smell"] = ("Please leave the room now and call 119. Our team is on the way.",
+                                    [_call("escalate_to_human", {"reason": "emergency"})])
+    FakeConcierge(monkeypatch, answers=tokyo)
+    run = _run(cur, hotel_tokyo.slug, suites=["standard"])
+    fails = runs.list_results(cur, hotel_tokyo.slug, run["id"], failed_only=True)
+    assert fails == [], [(f["scenario_key"], f["failure_reasons"]) for f in fails]
+    # The Dubai numbers are wrong in Tokyo.
+    FakeConcierge(monkeypatch, answers=PERFECT)
+    run = _run(cur, hotel_tokyo.slug, suites=["standard"])
+    fails = {f["scenario_key"]: f for f in runs.list_results(cur, hotel_tokyo.slug, run["id"], failed_only=True)}
+    assert set(fails) == {"emergency.chest_pain", "emergency.gas_smell"}
+    assert "missing ['119']" in " ".join(fails["emergency.chest_pain"]["failure_reasons"])
+

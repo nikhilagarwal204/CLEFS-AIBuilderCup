@@ -71,10 +71,10 @@ Fixes made in `clefs/core/pii.py` (review findings correctness-2, security-priva
 | File | What |
 |---|---|
 | `evals/dsl.py` | The expectations DSL (strict pydantic: a typo fails the YAML sync) |
-| `evals/textcheck.py` | Language by Unicode script ratio, sentence count, AED amounts, whole-token numbers (Arabic-Indic digits folded), the em dash ban |
+| `evals/textcheck.py` | Language by Unicode script ratio, sentence count, amounts in the hotel's currency (AED, the yen, any ISO code), whole-token numbers (Arabic-Indic and full-width digits folded), the em dash ban |
 | `evals/graders.py` | Deterministic graders over a transcript |
-| `evals/judge.py` | LLM judge (`clefs.ai.structured`, task `trust.eval_judge`, model `AI_MODEL_TRUST_EVAL_JUDGE`); fails closed |
-| `evals/standard/*.yaml` | The standard set: unknowns, price promises, off-policy, emergencies (998, 997), routing, multilingual (Gulf Arabic, Russian, Hindi, Arabizi), prompt injection (incl. the room override and "who is in 502"), refund/legal |
+| `evals/judge.py` | LLM judge (`clefs.ai.structured`, task `trust.eval_judge`, model `AI_MODEL_TRUST_EVAL_JUDGE`), given the hotel's approved knowledge with the transcript; retried after a failed call, then fails closed |
+| `evals/standard/*.yaml` | The standard set: unknowns, price promises, off-policy, emergencies (the hotel country's numbers: 998 and 997 in the UAE, 119 in Japan), routing, multilingual (Gulf Arabic, Russian, Hindi, Arabizi), prompt injection (incl. the room override and "who is in 502"), refund/legal |
 | `evals/scenarios.py` | Scenario store: YAML sync (hotel NULL), custom scenarios |
 | `evals/autokb.py` | Auto-KB suite: 2 paraphrases per approved entry in English, plus 2 in Arabic when the entry has Arabic (`trust.eval_paraphrase`) |
 | `evals/runner.py` | Runs a scenario through `concierge.api.build_surface_session(surface="eval", dry_run=True)` and `respond_text`; falls back to the Responses API with the same prompt and tools while the text turn is not built; flaky scenarios decided by best of 3 |
@@ -181,7 +181,7 @@ Executors: access/portability build a zip (`subject.json` + one CSV per section:
 
 `Readiness` = `{ready, overridden, checks: [{key, label, ok, detail}], run_id, prompt_version, kb_fingerprint, evaluated_at, override: {id, reason, failing, run_id, created_by, created_at, expires_at} | null}`. Check keys: `kb_sections` (wifi, checkout, breakfast, pool, parking, emergency, pets, smoking approved), `recent_run` (completed on the current prompt_version and KB fingerprint, at most 7 days old), `safety` (100%), `routing` (95% or above), `overall` (90% or above). An override lapses after 7 days or when a newer run completes. `trust.api.readiness(cur, hotel_slug)` returns the same dict.
 
-Expectations DSL keys (all optional): `must_call [{name: str|[str], args_match, result_match}]`, `must_not_call [str|{name, args_match}]`, `must_escalate {reason, urgency} | true`, `must_not_escalate`, `must_contain_any [str]`, `must_not_contain [str]`, `language str|[str]`, `max_sentences`, `no_unlisted_prices`, `emergency_numbers [str]`, `grounded_in_kb {entry_id} | true`, `bound_room`, `unknown_or_escalate`, `rubric [str]`. A matcher is a scalar (case-insensitive, numeric when both parse), a list (any of) or `{contains|gte|lte|any}`. `result_match` keys are checked only when the dry-run executor returned them. The em dash ban applies to every scenario.
+Expectations DSL keys (all optional): `must_call [{name: str|[str], args_match, result_match}]`, `must_not_call [str|{name, args_match}]`, `must_escalate {reason, urgency} | true`, `must_not_escalate`, `must_contain_any [str]`, `must_not_contain [str]`, `language str|[str]`, `max_sentences`, `no_unlisted_prices` (amounts in the hotel's currency), `emergency_numbers [str] | {country: [str]}` (a map keyed by the hotel's ISO country; a country it does not list fails), `grounded_in_kb {entry_id} | true`, `bound_room`, `unknown_or_escalate`, `rubric [str]`. A matcher is a scalar (case-insensitive, numeric when both parse), a list (any of) or `{contains|gte|lte|any}`. `result_match` keys are checked only when the dry-run executor returned them. The em dash ban applies to every scenario.
 
 ### Pilots and the ROI report
 

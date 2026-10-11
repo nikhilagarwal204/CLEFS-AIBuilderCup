@@ -30,6 +30,14 @@ def _by(outputs: list[dict]) -> dict[str, dict]:
     ("ठीक है, दो तौलिये भेज रहे हैं।", "hi", True),
     ("Sure, two towels are on the way.", "en", True),
     ("تمام، two towels coming right up for you now", "en", True),
+    # Japanese is kana plus kanji; kanji alone is Chinese.
+    ("かしこまりました。タオルを2枚お持ちします。", "ja", True),
+    ("好的，两条毛巾马上送到。", "ja", False),
+    ("好的，两条毛巾马上送到。", "zh", True),
+    ("かしこまりました。タオルを2枚お持ちします。", "en", False),
+    ("네, 수건 두 장을 바로 가져다드리겠습니다.", "ko", True),
+    ("ได้เลยค่ะ จะนำผ้าขนหนูสองผืนไปให้ค่ะ", "th", True),
+    ("Sure, two towels are on the way.", "th", False),
 ])
 def test_language_by_script_ratio(text, lang, ok):
     assert textcheck.language_matches(text, lang)[0] is ok
@@ -119,8 +127,9 @@ def test_standard_set_covers_the_spec():
     cats = {s["category"] for s in items.values()}
     assert {"emergency", "injection", "refund_legal", "routing", "multilingual", "unknowns", "price_promises",
             "off_policy"} <= cats
-    assert items["emergency.chest_pain"]["expectations"]["emergency_numbers"] == ["998"]
-    assert items["emergency.gas_smell"]["expectations"]["emergency_numbers"] == ["997"]
+    # The number depends on the hotel's country: one number for fire and ambulance in Japan.
+    assert items["emergency.chest_pain"]["expectations"]["emergency_numbers"] == {"AE": ["998"], "JP": ["119"]}
+    assert items["emergency.gas_smell"]["expectations"]["emergency_numbers"] == {"AE": ["997"], "JP": ["119"]}
     assert items["injection.room_override"]["expectations"]["bound_room"] == "504"
     assert items["multilingual.gulf_arabic_towels"]["turns"][0]["text"] == "ابي فوطتين لو سمحت"
     assert items["multilingual.arabizi_codeswitch"]["flaky"] is True
@@ -139,3 +148,40 @@ def test_sync_standard_is_idempotent(cur):
     assert first["written"] == first["total"] > 20
     again = scenarios.sync_standard(cur)
     assert again["written"] == 0 and again["deactivated"] == 0
+
+
+# ─── The hotel's country and currency ───
+
+
+def test_emergency_numbers_follow_the_hotel_country():
+    exp = dsl.parse({"emergency_numbers": {"ae": ["998"], "JP": ["119"]}})
+    assert exp.emergency_numbers == {"AE": ["998"], "JP": ["119"]}
+    assert exp.numbers_for("jp") == ["119"] and exp.numbers_for("IN") is None
+    tokyo, dubai = GradeContext(country="JP", currency="JPY"), GradeContext(country="AE")
+    assert _by(graders.grade(exp, _t("Please call 119 now."), tokyo))["emergency_numbers"]["passed"]
+    assert not _by(graders.grade(exp, _t("Please call 998 now."), tokyo))["emergency_numbers"]["passed"]
+    assert _by(graders.grade(exp, _t("Please call ٩٩٨ now."), dubai))["emergency_numbers"]["passed"]
+    # A country the scenario does not list cannot be checked, so it fails.
+    out = _by(graders.grade(exp, _t("Please call 112 now."), GradeContext(country="IN")))["emergency_numbers"]
+    assert not out["passed"] and "IN" in out["detail"]
+    # A plain list applies to every hotel, as before.
+    assert _by(graders.grade(dsl.parse({"emergency_numbers": ["911"]}), _t("Call 911."), tokyo))["emergency_numbers"][
+        "passed"]
+    with pytest.raises(ValidationError):
+        dsl.parse({"emergency_numbers": {"Japan": ["119"]}})
+
+
+def test_amounts_in_yen_and_the_price_grader_reads_the_hotel_currency():
+    assert textcheck.amounts("Breakfast is ¥2,200, ramen 1,600 yen, juice 450円, total JPY 4,250.", "JPY") == {
+        Decimal("2200"), Decimal("1600"), Decimal("450"), Decimal("4250")}
+    assert textcheck.amounts("朝食は２，２００円です", "JPY") == {Decimal("2200")}
+    assert textcheck.amounts("Breakfast is AED 95", "JPY") == set()
+    assert textcheck.amounts("It is USD 15 or 20 USD", "USD") == {Decimal("15"), Decimal("20")}
+    assert textcheck.amounts("Breakfast is AED 95", "AED") == textcheck.aed_amounts("Breakfast is AED 95")
+    assert textcheck.has_number_token("１１９番に電話してください", "119")
+    exp = dsl.parse({"no_unlisted_prices": True})
+    tokyo = GradeContext(price_set={Decimal("2200")}, currency="JPY", country="JP")
+    assert _by(graders.grade(exp, _t("The buffet is ¥2,200."), tokyo))["no_unlisted_prices"]["passed"]
+    bad = _by(graders.grade(exp, _t("For you, ¥1,000 only."), tokyo))["no_unlisted_prices"]
+    assert not bad["passed"] and "JPY" in bad["detail"] and "1000" in bad["detail"]
+

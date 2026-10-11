@@ -18,6 +18,9 @@ Everything goes through core services (rooms, tax, devices, stays
 channels). The only raw writes are core tables without a writer function
 (channels' display names, users and memberships, staff_members) and the one
 Service table the console writes directly (svc_departments).
+
+The steps read their data through ctx.data("core") (this module, or a
+variant's own core module with the same names: clefs.seed.demo_jp.core).
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ from __future__ import annotations
 import secrets
 from datetime import date
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Callable
 
 from clefs.auth import devices, passwords
 from clefs.core import rooms, tax
@@ -69,22 +72,30 @@ def room_type_for(floor: int, pos: int) -> str:
     return "STD_TWIN"
 
 
-def room_plan() -> list[dict]:
+# Odd rooms face the creek side; the wing is what the housekeeping board
+# groups by. Room phones dial 3 + room number (a common Deira PABX plan).
+WINGS = ("Creek", "Rigga")
+EXTENSION_PREFIX = "3"
+TWO_BEDROOM_TYPES = frozenset({"FAM_2BR"})
+
+
+def room_plan(*, type_for: Callable[[int, int], str] = room_type_for, wings: tuple[str, str] = WINGS,
+              extension_prefix: str = EXTENSION_PREFIX, two_bedroom: frozenset[str] = TWO_BEDROOM_TYPES,
+              floors: range = FLOORS) -> list[dict]:
+    """Ten rooms a floor, x01-x10: the type from type_for(floor, position),
+    odd positions in wings[0] and even in wings[1]."""
     out = []
-    for f in FLOORS:
+    for f in floors:
         for pos in range(1, 11):
             number = f"{f}{pos:02d}"
-            code = room_type_for(f, pos)
+            code = type_for(f, pos)
             out.append({
                 "room_number": number,
                 "floor": str(f),
-                # Odd rooms face the creek side; the wing is what the
-                # housekeeping board groups by.
-                "wing": "Creek" if pos % 2 else "Rigga",
+                "wing": wings[0] if pos % 2 else wings[1],
                 "room_type_code": code,
-                "bedrooms": 2 if code == "FAM_2BR" else 1,
-                # Room phones dial 3 + room number (a common Deira PABX plan).
-                "extension": f"3{number}",
+                "bedrooms": 2 if code in two_bedroom else 1,
+                "extension": f"{extension_prefix}{number}",
                 "service_state": "in_service",
                 "is_active": True,
             })
@@ -92,11 +103,12 @@ def room_plan() -> list[dict]:
 
 
 def seed_rooms(ctx: Any) -> dict:
-    rooms.upsert_room_types(ctx.cur, ctx.slug, [dict(t) for t in ROOM_TYPES])
-    plan = room_plan()
+    p = ctx.data("core")
+    rooms.upsert_room_types(ctx.cur, ctx.slug, [dict(t) for t in p.ROOM_TYPES])
+    plan = p.room_plan()
     rooms.upsert_rooms(ctx.cur, ctx.slug, plan)
     ctx.ids["rooms"] = {r["room_number"]: r for r in plan}
-    return {"room_types": len(ROOM_TYPES), "rooms": len(plan)}
+    return {"room_types": len(p.ROOM_TYPES), "rooms": len(plan)}
 
 
 # ─── Tax ───
@@ -129,7 +141,8 @@ CHANNELS = (
 
 
 def seed_channels(ctx: Any) -> dict:
-    for code, name, kind, collect in CHANNELS:
+    channels = ctx.data("core").CHANNELS
+    for code, name, kind, collect in channels:
         ctx.cur.execute(
             """
             INSERT INTO channels (hotel_slug, code, name, kind, default_collect_model) VALUES (%s, %s, %s, %s, %s)
@@ -138,7 +151,7 @@ def seed_channels(ctx: Any) -> dict:
             """,
             (ctx.slug, code, name, kind, collect),
         )
-    return {"channels": len(CHANNELS)}
+    return {"channels": len(channels)}
 
 
 # ─── Departments ───
@@ -156,7 +169,8 @@ DEPARTMENTS = (
 def seed_departments(ctx: Any) -> dict:
     if not ctx.table_exists("svc_departments"):
         return {"departments": 0}
-    for key, name, name_ar, legacy, color, sort in DEPARTMENTS:
+    departments = ctx.data("core").DEPARTMENTS
+    for key, name, name_ar, legacy, color, sort in departments:
         ctx.cur.execute(
             """
             INSERT INTO svc_departments (hotel_slug, key, name, name_ar, legacy_category, color, active, sort)
@@ -167,7 +181,7 @@ def seed_departments(ctx: Any) -> dict:
             """,
             (ctx.slug, key, name, name_ar, legacy, color, sort),
         )
-    return {"departments": len(DEPARTMENTS)}
+    return {"departments": len(departments)}
 
 
 # ─── Staff ───
@@ -215,12 +229,13 @@ def _pin(rng: Any, used: set[str]) -> str:
 
 
 def seed_staff(ctx: Any) -> dict:
+    p = ctx.data("core")
     rng = ctx.rng("core:staff")
-    used: set[str] = {DECK_ATTENDANT_PIN}
+    used: set[str] = {p.DECK_ATTENDANT_PIN}
     v2 = ctx.table_exists("svc_departments")  # Service's v2 columns ship with its migrations
     ids: dict[str, int] = {}
     pins: dict[str, str] = {}
-    for name, role, dept, dkey, rkey, floors, langs in STAFF:
+    for name, role, dept, dkey, rkey, floors, langs in p.STAFF:
         full = demo_name(name)
         ctx.cur.execute(
             """
@@ -235,12 +250,12 @@ def seed_staff(ctx: Any) -> dict:
                 "UPDATE staff_members SET department_key = %s, role_key = %s, languages = %s WHERE id = %s",
                 (dkey, rkey, langs, sid),
             )
-        pin = DECK_ATTENDANT_PIN if name == DECK_ATTENDANT else _pin(rng, used)
+        pin = p.DECK_ATTENDANT_PIN if name == p.DECK_ATTENDANT else _pin(rng, used)
         devices.set_staff_pin(ctx.cur, ctx.slug, sid, pin, actor=ACTOR)
         ids[name] = sid
         pins[full] = pin
     ctx.ids["staff"] = ids
-    ctx.ids["staff_departments"] = {name: dkey for name, _r, _d, dkey, *_rest in STAFF}
+    ctx.ids["staff_departments"] = {name: dkey for name, _r, _d, dkey, *_rest in p.STAFF}
     ctx.credentials["staff_pins"] = pins
     return {"staff": len(ids)}
 
@@ -274,12 +289,13 @@ def seed_users(ctx: Any) -> dict:
     hotel and are re-created. Passwords are random per run unless the CLI
     passes one (--password or CLEFS_DEMO_PASSWORD): a demo database that
     ends up reachable must not carry a password printed in the repo."""
+    p = ctx.data("core")
     fixed = ctx.credentials.get("password")
     if fixed:
         passwords.validate_password(fixed)
     out: dict[str, dict] = {}
     ids: dict[str, int] = {}
-    for role, local, name, depts in USERS:
+    for role, local, name, depts in p.USERS:
         email = demo_email(local, ctx.slug)
         pw = fixed or secrets.token_urlsafe(9)
         ctx.cur.execute(
@@ -304,7 +320,7 @@ def seed_users(ctx: Any) -> dict:
         ids[role] = uid
         out[role] = {"email": email, "password": pw, "name": demo_name(name)}
     staff = ctx.ids.get("staff") or {}
-    for person, role in STAFF_USER_LINKS:
+    for person, role in p.STAFF_USER_LINKS:
         if person in staff and role in ids:
             ctx.cur.execute("UPDATE staff_members SET user_id = %s WHERE id = %s AND hotel_slug = %s",
                             (ids[role], staff[person], ctx.slug))

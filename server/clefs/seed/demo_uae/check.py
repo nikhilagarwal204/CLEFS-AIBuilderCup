@@ -46,6 +46,11 @@ minutes; a thinned history cannot land in the spec's occupancy, ADR and
 channel-mix ranges, so with --scale below 1 those volume checks are reported
 as skipped instead of failed. Every plant and decoy is still checked.
 
+Variants. check_hotel(..., package=) checks another demo hotel through the
+same machinery (clefs.seed.demo_jp: its own core checks, deck cast,
+manifest and CHECK_SECTIONS, in its own zone). This package's sections are
+SECTIONS.
+
 This module defines no PART_ORDER, seed_part or CHECKS: discover_parts and
 _check.part_checks import it and find nothing to run.
 """
@@ -128,13 +133,18 @@ class JobRun:
 # ─── Manifest ───
 
 
-def load_manifest(path: str | None, slug: str) -> tuple[dict | None, str]:
-    """The planted-case manifest for `slug` and where it came from. A
-    manifest for another hotel (a test seed, or --manifest elsewhere) does
-    not count: its plants name another hotel's subjects."""
-    from clefs.seed.demo_uae import MANIFEST_PATH
+def _pkg(package: Any = None) -> Any:
+    from clefs.seed import demo_uae
 
-    target = path or MANIFEST_PATH
+    return package or demo_uae
+
+
+def load_manifest(path: str | None, slug: str, package: Any = None) -> tuple[dict | None, str]:
+    """The planted-case manifest for `slug` and where it came from (default:
+    the variant package's MANIFEST_PATH). A manifest for another hotel (a
+    test seed, or --manifest elsewhere) does not count: its plants name
+    another hotel's subjects."""
+    target = path or _pkg(package).MANIFEST_PATH
     try:
         with open(target, encoding="utf-8") as fh:
             data = json.load(fh)
@@ -549,6 +559,7 @@ class Report:
     verified: dict | None = None
     committed: bool = False
     side_tasks: int = 0  # tasks queued on another connection, cancelled after the rollback
+    tz: str = "Asia/Dubai"  # the hotel's zone, for the header
 
     @property
     def job_errors(self) -> list[JobRun]:
@@ -565,16 +576,18 @@ class Report:
                 + len(self.job_errors))
 
 
-def anchor_evening(anchor: date) -> datetime:
-    """The instant the check's jobs run at: 21:00 Dubai on the anchor, or,
-    when the real clock is on the anchor day before that evening (a live
-    seed, DemoCtx.as_of), the real clock. WHY: a check run on the live
-    demo at 13:42 froze at 21:00 and wrote tomorrow-looking briefs and
-    alerts into the presenter's console (QA OWN-08)."""
-    from clefs.seed.demo_uae import DemoCtx, live_anchor
+def anchor_evening(anchor: date, package: Any = None) -> datetime:
+    """The instant the check's jobs run at: 21:00 hotel time (Dubai here, the
+    variant's zone otherwise) on the anchor, or, when the real clock is on
+    the anchor day before that evening (a live seed, DemoCtx.as_of), the
+    real clock. WHY: a check run on the live demo at 13:42 froze at 21:00
+    and wrote tomorrow-looking briefs and alerts into the presenter's
+    console (QA OWN-08)."""
+    from clefs.seed.demo_uae import DemoCtx, live_anchor, live_anchor_in
 
-    live_day, as_of = live_anchor()
-    return DemoCtx(cur=None, slug="", anchor=anchor, as_of=as_of if live_day == anchor else None).now
+    tz = _pkg(package).TZ
+    live_day, as_of = live_anchor() if package is None else live_anchor_in(tz)
+    return DemoCtx(cur=None, slug="", anchor=anchor, as_of=as_of if live_day == anchor else None, tz=tz).now
 
 
 def _derived_anchor(cur: Any, slug: str) -> date | None:
@@ -583,12 +596,13 @@ def _derived_anchor(cur: Any, slug: str) -> date | None:
     return row["d"] if row else None
 
 
-def core_section(cur: Any, slug: str, scale: float) -> Section:
-    """The seed-core property checks (_check.core_checks). Below scale 1 the
-    volume checks are shown as skipped: a thinned history is too small for
-    the spec's ranges by design (see the module docstring)."""
-    from clefs.seed.demo_uae import _check
+def core_section(cur: Any, slug: str, scale: float, package: Any = None) -> Section:
+    """The seed-core property checks (the variant's _check.core_checks).
+    Below scale 1 the volume checks are shown as skipped: a thinned history
+    is too small for the spec's ranges by design (see the module docstring)."""
+    import importlib
 
+    _check = importlib.import_module(f"{_pkg(package).__name__}._check")
     s = Section("core", TITLES["core"])
     try:
         with _savepoint(cur):
@@ -604,13 +618,15 @@ def core_section(cur: Any, slug: str, scale: float) -> Section:
     return s
 
 
-def deck_section(cur: Any, slug: str) -> Section:
-    """The deck cast (seed part deck.py): Room 204, Maria on shift and on
-    her phone, Priya, the ladder, the duty manager login, the shadow week
-    and the 22 standard tests. A seed run without the deck part shows it
-    failing, which is the point: the deck's demo needs every line."""
-    from clefs.seed.demo_uae import deck
+def deck_section(cur: Any, slug: str, package: Any = None) -> Section:
+    """The deck cast (seed part deck.py, the variant's own): Room 204, Maria
+    on shift and on her phone, Priya, the ladder, the duty manager login,
+    the shadow week and the 22 standard tests. A seed run without the deck
+    part shows it failing, which is the point: the deck's demo needs every
+    line."""
+    import importlib
 
+    deck = importlib.import_module(f"{_pkg(package).__name__}.deck")
     s = Section("deck", TITLES["deck"])
     try:
         with _savepoint(cur):
@@ -622,22 +638,24 @@ def deck_section(cur: Any, slug: str) -> Section:
     return s
 
 
-def module_sections(cur: Any, slug: str, plants: list[dict], anchor: date, scale: float) -> list[Section]:
-    """One Section per module in SECTIONS order. A module with no planted case
-    at all fails: every module has plants in the spec, so an empty one means
-    its seed part did not run (module off, or an old manifest)."""
+def module_sections(cur: Any, slug: str, plants: list[dict], anchor: date, scale: float,
+                    sections: tuple[str, ...] = SECTIONS) -> list[Section]:
+    """One Section per module in `sections` order (this hotel's SECTIONS, or
+    a variant's CHECK_SECTIONS). A module with no planted case at all fails:
+    every module has plants in the spec, so an empty one means its seed part
+    did not run (module off, or an old manifest)."""
     from clefs.seed.demo_uae import growth, ops
 
     by_mod: dict[str, list[dict]] = {}
     for p in plants:
         by_mod.setdefault(plant_module(p), []).append(p)
-    if not any(by_mod.get(m) for m in GROWTH):
+    if any(m in sections for m in GROWTH) and not any(by_mod.get(m) for m in GROWTH):
         # A manifest written before the growth part existed: its plants are
         # constants of the seed, so they can be rebuilt for this anchor.
         for p in growth.expected_plants(anchor, scale=scale):
             by_mod.setdefault(plant_module(p), []).append(p)
     out: list[Section] = []
-    for key in SECTIONS:
+    for key in sections:
         mine = by_mod.get(key) or []
         if key == "profit_guard":
             s = money_section(cur, slug, mine)
@@ -650,14 +668,17 @@ def module_sections(cur: Any, slug: str, plants: list[dict], anchor: date, scale
 
 
 def run(cur: Any, slug: str, *, manifest_path: str | None = None, anchor: date | None = None,
-        scale: float = 1.0, jobs: bool = True) -> Report:
+        scale: float = 1.0, jobs: bool = True, package: Any = None) -> Report:
     """The whole check in the caller's transaction (see the module docstring).
-    The caller decides whether to keep what the jobs wrote."""
+    The caller decides whether to keep what the jobs wrote. package: the
+    variant whose checks, manifest and sections apply (default: this hotel)."""
     from clefs.seed.demo_uae import HISTORY_DAYS
 
-    manifest, source = load_manifest(manifest_path, slug)
+    pkg = _pkg(package)
+    sections = getattr(pkg, "CHECK_SECTIONS", SECTIONS)
+    manifest, source = load_manifest(manifest_path, slug, package)
     anchor = anchor or (date.fromisoformat(manifest["anchor"]) if manifest else None) or _derived_anchor(cur, slug)
-    rep = Report(hotel=slug, anchor=anchor, scale=scale, manifest=source)
+    rep = Report(hotel=slug, anchor=anchor, scale=scale, manifest=source, tz=str(pkg.TZ))
     cur.execute("SELECT status FROM hotels WHERE slug = %s", (slug,))
     row = cur.fetchone()
     # Jobs run only on a demo hotel: the check is rolled back, but a real
@@ -668,7 +689,7 @@ def run(cur: Any, slug: str, *, manifest_path: str | None = None, anchor: date |
         why = refuse or "no manifest and no derived occupancy, pass --anchor"
         rep.sections.append(Section("core", TITLES["core"], rows=[Row("demo hotel and anchor", False, why)]))
         return rep
-    now = anchor_evening(anchor)
+    now = anchor_evening(anchor, package)
     prev = clock.now() if clock.is_frozen() else None
     clock.freeze(now)  # jobs read clock.now(); freeze() stores it as UTC
     try:
@@ -677,15 +698,16 @@ def run(cur: Any, slug: str, *, manifest_path: str | None = None, anchor: date |
                 rep.jobs = run_jobs(cur, slug, now)
             rep.refused = sorted(set(refused))
             rep.platform_jobs = hotel_jobs(cur, slug)[1]
-        rep.sections.append(core_section(cur, slug, scale))
-        rep.sections.append(deck_section(cur, slug))
+        rep.sections.append(core_section(cur, slug, scale, package))
+        rep.sections.append(deck_section(cur, slug, package))
         if manifest is None:
             rep.sections[0].rows.append(Row("planted-case manifest", False, source))
         else:
-            rep.sections += module_sections(cur, slug, manifest.get("plants") or [], anchor, scale)
-            rep.brief = brief_top5(cur, slug, anchor)
-            brief = next(s for s in rep.sections if s.key == "brief")
-            brief.rows += brief_rows(rep.brief)
+            rep.sections += module_sections(cur, slug, manifest.get("plants") or [], anchor, scale, sections)
+            if "brief" in sections:
+                rep.brief = brief_top5(cur, slug, anchor)
+                brief = next(s for s in rep.sections if s.key == "brief")
+                brief.rows += brief_rows(rep.brief)
         rep.signals = signals_by_section(cur, slug)
         try:
             rep.verified = verified_value(cur, slug, anchor - timedelta(days=HISTORY_DAYS - 1), anchor)
@@ -821,7 +843,7 @@ def render_extras(rep: Report) -> list[str]:
 
 
 def render(rep: Report) -> str:
-    lines = [f"demo-check {rep.hotel}  anchor {rep.anchor} 21:00 Asia/Dubai  scale {rep.scale:g}",
+    lines = [f"demo-check {rep.hotel}  anchor {rep.anchor} 21:00 {rep.tz}  scale {rep.scale:g}",
              f"manifest: {rep.manifest}", ""]
     lines += render_jobs(rep) + [""] + render_summary(rep) + [""]
     for s in rep.sections:

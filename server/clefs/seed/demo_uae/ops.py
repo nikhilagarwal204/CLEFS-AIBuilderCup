@@ -52,6 +52,11 @@ What it seeds and why each path:
 A section whose module is off (ctx.module_api returns None) or whose tables
 are missing is skipped with a zero count, so the part runs on any build.
 
+Data. The sections read what they play (request mix, guests' own words,
+emergencies, roster, amenity catalogue, gestures, baskets, currency)
+through ctx.data("ops"): this module, or a variant's ops module with the
+same names (clefs.seed.demo_jp.ops plays the Tokyo hotel through this code).
+
 Plants go to ctx.plants as {detector, key, klass, module, dedupe_key,
 subjects, note}: detector is the signal kind (or the row kind for a
 non-signal plant), klass SIGNAL | ROW | DECOY. No database id is written, so
@@ -153,6 +158,9 @@ def stays_by_day(ctx: Any) -> dict[date, list[dict]]:
 
 
 OPS_ID_BASE = 700000  # plant stays RC7xxxxx (core RC1xxxxx, money RC9xxxxx)
+PMS_PREFIX, CCY = "RC", "AED"
+DEFAULT_ROOM_TYPE = "STD_KING"
+OPS_STAY_RATE = 320  # a plant stay's night, AED
 
 
 def free_room(ctx: Any, start: date, end: date, prefer: tuple[str, ...] = ()) -> str | None:
@@ -173,32 +181,36 @@ def free_room(ctx: Any, start: date, end: date, prefer: tuple[str, ...] = ()) ->
 
 
 def ops_stay(ctx: Any, key: str, *, channel: str, check_in: date, nights: int, status: str, guest: tuple,
-             room: str | None = None, rate: int = 320, contacts: list[dict] | None = None,
+             room: str | None = None, rate: int | None = None, contacts: list[dict] | None = None,
              ota_res_id: str | None = None, booked_at: datetime | None = None) -> dict:
     """One plant stay through stays.upsert_reservation (the single write
     path: nights, fees, chains, stay events, sealed contacts). guest is
-    (name, country, language)."""
+    (name, country, language); rate is a night in major units of the
+    data's CCY (default OPS_STAY_RATE)."""
     from clefs.core import stays
+    from clefs.core.money import to_minor
 
+    p = ctx.data("ops")
     made = ctx.stats.setdefault("ops_stays", [])
-    pms = f"RC{OPS_ID_BASE + len(made) + 1}"
+    pms = f"{p.PMS_PREFIX}{OPS_ID_BASE + len(made) + 1}"
     name, country, lang = guest
     co = check_in + timedelta(days=nights)
     info = (ctx.ids.get("rooms") or {}).get(room or "") or {}
-    rtype = info.get("room_type_code") or "STD_KING"
+    rtype = info.get("room_type_code") or p.DEFAULT_ROOM_TYPE
     data: dict[str, Any] = {
         "pms_res_id": pms, "channel_code": channel, "ota_res_id": ota_res_id, "guest_name": name,
         "guest_country": country, "guest_language": lang,
         "booked_at": booked_at or ctx.at(check_in, 11) - timedelta(days=12), "check_in": check_in,
         "check_out": co, "rooms_count": 1, "room_type_code": rtype, "room_number": room, "rate_plan_code": "BAR",
         "status": status, "collect_model": "OTA_COLLECT" if channel == "EXPEDIA" else "HOTEL_COLLECT",
-        "currency": "AED", "adults": 2,
+        "currency": p.CCY, "adults": 2,
     }
     if status in ("IN_HOUSE", "CHECKED_OUT"):
         data["checked_in_at"] = ctx.at(check_in, 15, 10)
     if status == "CHECKED_OUT":
         data["checked_out_at"] = ctx.at(co, 10, 40)
-    nights_rows = [{"stay_date": check_in + timedelta(days=i), "rate_minor": rate * 100, "room_number": room,
+    night = to_minor(p.OPS_STAY_RATE if rate is None else rate, p.CCY)
+    nights_rows = [{"stay_date": check_in + timedelta(days=i), "rate_minor": night, "room_number": room,
                     "room_type_code": rtype} for i in range(nights)]
     res = stays.upsert_reservation(ctx.cur, ctx.slug, data, source_system="PMS", nights=nights_rows,
                                    contacts=contacts)
@@ -338,6 +350,10 @@ def is_friday_evening(t: datetime) -> bool:
 
 REPEAT_ROOM = "504"  # the AC that fails twice in a week (and the J5 reply)
 SWEEP_EVERY_MIN = 5
+# Rooms the anchor day's live episodes (the evening's open requests, an
+# emergency still open, tonight's order) leave alone. None here; a variant
+# keeps its deck room clear for the reviewers who play its guest.
+KEEP_CLEAR: frozenset[str] = frozenset()
 
 
 class Svc:
@@ -345,6 +361,7 @@ class Svc:
 
     def __init__(self, ctx: Any) -> None:
         self.ctx, self.cur, self.slug = ctx, ctx.cur, ctx.slug
+        self.p = ctx.data("ops")  # the data this run plays (module docstring)
         self.rng = ctx.rng("ops:service")
         self.nights = stays_by_day(ctx)
         self.rooms = ctx.ids.get("rooms") or {}
@@ -370,15 +387,15 @@ def history_row(s: Svc, t: datetime, stay: dict, type_key: str, *, breach: bool)
     """One completed request as intake and the device flow would have left
     it: acked, started and completed by a person of the right department,
     with the SLA flags the sweep would have set."""
-    rng, room = s.rng, stay["room_number"]
+    p, rng, room = s.p, s.rng, stay["room_number"]
     info = s.rooms.get(room) or {}
-    dept = DEPT_OF[type_key]
-    ack_min, res_min = SLA[type_key]
-    source = _pick(rng, SOURCES_MIX)
+    dept = p.DEPT_OF[type_key]
+    ack_min, res_min = p.SLA[type_key]
+    source = _pick(rng, p.SOURCES_MIX)
     lang = stay.get("language") or "en"
     # Amenity asks stay in English (the item names are what the alias pass
     # links); other guest-channel requests keep the guest's own words.
-    original = (ORIGINALS.get(lang, {}).get(type_key) if source in GUEST_SOURCE_KEYS and type_key != "amenities"
+    original = (p.ORIGINALS.get(lang, {}).get(type_key) if source in GUEST_SOURCE_KEYS and type_key != "amenities"
                 else None)
     ack_s = int(ack_min * 60 * rng.uniform(0.25, 0.85))
     res_s = int(res_min * 60 * rng.uniform(0.35, 0.9))
@@ -393,7 +410,7 @@ def history_row(s: Svc, t: datetime, stay: dict, type_key: str, *, breach: bool)
     sev = "L2" if dept == "engineering" or type_key == "complaint" else "L3"
     return {
         "room": room, "type": type_key, "legacy_type": type_key,
-        "description": rng.choice(AMENITY_ASKS)[0] if type_key == "amenities" else DESCRIPTIONS[type_key],
+        "description": rng.choice(p.AMENITY_ASKS)[0] if type_key == "amenities" else p.DESCRIPTIONS[type_key],
         "category": LEGACY[dept], "priority": "high" if sev == "L2" else "medium", "timestamp": t0,
         "assigned_to": f"{who[0]}" if who else None, "staff_id": who[1] if who else None,
         "acked": t0 + ack_s * 1000, "started": t0 + (ack_s + 30) * 1000, "resolved": t0 + res_s * 1000,
@@ -426,8 +443,8 @@ def plan_history(s: Svc, start: date, end: date) -> list[tuple[datetime, dict, s
             t = s.ctx.at(d, hour, rng.randrange(60))
             stay = rng.choice(stays)
             p = FRIDAY_EVENING_BREACH if is_friday_evening(t) else BASE_BREACH
-            type_key = _pick(rng, REQUEST_MIX)
-            if DEPT_OF[type_key] == "engineering" and (s.ctx.anchor - d).days < 15:
+            type_key = _pick(rng, s.p.REQUEST_MIX)
+            if s.p.DEPT_OF[type_key] == "engineering" and (s.ctx.anchor - d).days < 15:
                 # Inside the repeat-fault windows (7 days per room, 14 per room
                 # type) random faults stay below the rule, so the brief shows
                 # only the planted repeat (room 504's AC).
@@ -605,13 +622,13 @@ def friday_steps(s: Svc, fri: date) -> list[tuple[datetime, str, dict]]:
         stay = stays[(i * 7) % len(stays)]
         t0 = s.ctx.at(fri, 18, 10) + timedelta(minutes=20 * i)
         lang = stay.get("language") or "en"
-        text = ORIGINALS.get(lang, {}).get(type_key) or DESCRIPTIONS[type_key]
+        text = s.p.ORIGINALS.get(lang, {}).get(type_key) or s.p.DESCRIPTIONS[type_key]
         key = f"fri:{i}"
         steps.append((t0, "create", {"key": key, "room": stay["room_number"], "type": type_key, "text": text,
-                                     "language": lang if text != DESCRIPTIONS[type_key] else "en",
+                                     "language": lang if text != s.p.DESCRIPTIONS[type_key] else "en",
                                      "guest_ref": stay["pms_res_id"]}))
-        ack_min, res_min = SLA[type_key]
-        who = s.staff_for(DEPT_OF[type_key])
+        ack_min, res_min = s.p.SLA[type_key]
+        who = s.staff_for(s.p.DEPT_OF[type_key])
         ack = t0 + timedelta(minutes=rng.choice((6, 7, 8)) if i < 3 else 1)
         steps.append((ack, "acknowledged", {"key": key, "who": who}))
         steps.append((t0 + timedelta(minutes=res_min + rng.randint(12, 30)), "completed", {"key": key, "who": who}))
@@ -632,9 +649,10 @@ def l1_steps(s: Svc) -> list[tuple[list, date, dict]]:
     """Each L1 through intake (priority L1: the incident opens beside the
     request, the GM hears at creation). -> [(steps, day, case)]."""
     out = []
-    for i, (days, h, m, source, text, note) in enumerate(L1_CASES):
+    for i, (days, h, m, source, text, note) in enumerate(s.p.L1_CASES):
         d = s.ctx.anchor - timedelta(days=days)
-        stays = sorted(s.nights.get(d) or [], key=lambda r: r["room_number"])
+        stays = [r for r in sorted(s.nights.get(d) or [], key=lambda r: r["room_number"])
+                 if d != s.ctx.anchor or r["room_number"] not in s.p.KEEP_CLEAR]
         if not stays:
             continue
         stay = stays[(i * 5 + 3) % len(stays)]
@@ -659,8 +677,8 @@ def close_incident(s: Svc, request_id: int, closed_at: datetime, note: str) -> N
     s.cur.execute(
         """UPDATE svc_incidents SET status = 'closed', closed_at = %s, close_note = %s, closed_by = %s
            WHERE hotel_slug = %s AND request_id = %s AND status = 'open'""",
-        (closed_at, note, Json({"type": "user", "label": "Omar Khalid", "role": "duty_manager"}), s.slug,
-         request_id),
+        (closed_at, note, Json({"type": "user", "label": s.ctx.data("core").DECK_DUTY_MANAGER, "role": "duty_manager"}),
+         s.slug, request_id),
     )
 
 
@@ -701,13 +719,16 @@ def recovery_case(s: Svc, request_id: int | None, *, room: str, guest_ref: str |
         )
         cid = cur.fetchone()["id"]
     if gesture:
-        kind, aed, desc, role = gesture
+        from clefs.core.money import to_minor
+
+        kind, amount, desc, role = gesture  # amount in major units of the data's CCY
         cur.execute(
             """INSERT INTO svc_recovery_actions (hotel_slug, case_id, kind, description, value_minor, currency, status,
                    within_authority, authorized_by, requested_by, created_at, decided_at)
-               VALUES (%s, %s, %s, %s, %s, 'AED', 'given', TRUE, %s, %s, %s, %s)""",
-            (s.slug, cid, kind, desc, aed * 100, Json({"role": role, "label": f"{role}", "via": "console"}),
-             Json({"role": role}), opened_at + timedelta(minutes=25), opened_at + timedelta(minutes=25)),
+               VALUES (%s, %s, %s, %s, %s, %s, 'given', TRUE, %s, %s, %s, %s)""",
+            (s.slug, cid, kind, desc, to_minor(amount, s.p.CCY), s.p.CCY,
+             Json({"role": role, "label": f"{role}", "via": "console"}), Json({"role": role}),
+             opened_at + timedelta(minutes=25), opened_at + timedelta(minutes=25)),
         )
     s.bump("recovery_cases")
     return cid
@@ -729,21 +750,22 @@ TAIL = ((5, "towels", "whatsapp", "completed"), (18, "ird", "voice", "completed"
 def tail_steps(s: Svc) -> list[tuple[datetime, str, dict]]:
     """The anchor evening the console opens on: a normal evening, three
     requests in progress and two just in."""
-    stays = sorted(s.nights.get(s.ctx.anchor) or [], key=lambda r: r["room_number"])
+    stays = [r for r in sorted(s.nights.get(s.ctx.anchor) or [], key=lambda r: r["room_number"])
+             if r["room_number"] not in s.p.KEEP_CLEAR]
     steps: list = []
     for i, (mins, type_key, source, end) in enumerate(TAIL if stays else ()):
         stay = stays[(i * 3 + 1) % len(stays)]
         t0, key = s.ctx.at(s.ctx.anchor, 17) + timedelta(minutes=mins), f"tail:{i}"
         lang = stay.get("language") or "en"
-        text = ORIGINALS.get(lang, {}).get(type_key) if source in GUEST_SOURCE_KEYS else None
+        text = s.p.ORIGINALS.get(lang, {}).get(type_key) if source in GUEST_SOURCE_KEYS else None
         steps.append((t0, "create", {"key": key, "room": stay["room_number"], "type": type_key, "source": source,
-                                     "text": text or DESCRIPTIONS[type_key], "language": lang if text else "en",
+                                     "text": text or s.p.DESCRIPTIONS[type_key], "language": lang if text else "en",
                                      "guest_ref": stay["pms_res_id"]}))
-        who = s.staff_for(DEPT_OF[type_key])
+        who = s.staff_for(s.p.DEPT_OF[type_key])
         if end in ("acknowledged", "completed"):
             steps.append((t0 + timedelta(minutes=2), "acknowledged", {"key": key, "who": who, "on_time": True}))
         if end == "completed":
-            steps.append((t0 + timedelta(minutes=SLA[type_key][1] - 3), "completed",
+            steps.append((t0 + timedelta(minutes=s.p.SLA[type_key][1] - 3), "completed",
                           {"key": key, "who": who, "on_time": True}))
     return steps
 
@@ -774,9 +796,11 @@ def repeat_room(ctx: Any, s: Svc) -> tuple[str, dict, dict | None] | None:
     room = free_room(ctx, a - timedelta(days=5), a + timedelta(days=2), prefer=(REPEAT_ROOM, "503", "505", "506"))
     if room is None:
         return None
+    guest = s.p.REPEAT_GUEST
+    local = guest[0].lower().replace(" ", ".")
     stay = ops_stay(ctx, "repeat_ac", channel="DIRECT_WEB", check_in=a - timedelta(days=5), nights=7,
-                    status="IN_HOUSE", guest=REPEAT_GUEST, room=room,
-                    contacts=[{"kind": "email", "value": "lukas.brandt.demo@example.com"}])
+                    status="IN_HOUSE", guest=guest, room=room,
+                    contacts=[{"kind": "email", "value": f"{local}.demo@example.com"}])
     return room, stay, None
 
 
@@ -802,7 +826,7 @@ def repeat_fault(ctx: Any, s: Svc, api: Any) -> None:
     plant(ctx, "service.repeat_fault", f"room:{room}:ac", module="service",
           dedupe_key=f"service.repeat_fault:room:{room}:ac",
           subjects=[{"room": room, "pms_res_id": stay["pms_res_id"]}],
-          note="AC reported on A-4 and again by the J5 reply on the anchor.")
+          note=s.p.REPEAT_FAULT_NOTE)
 
 
 def complaint_live(ctx: Any, s: Svc, api: Any) -> None:
@@ -824,11 +848,12 @@ def complaint_live(ctx: Any, s: Svc, api: Any) -> None:
     row = got.get("complaint:1")
     if row:
         recovery_case(s, row["id"], room=stay["room_number"], guest_ref=stay["pms_res_id"], category="noise",
-                      opened_at=t0, closed_at=t0 + timedelta(minutes=45), gesture=GESTURES[3],
+                      opened_at=t0, closed_at=t0 + timedelta(minutes=45), gesture=s.p.GESTURES[3],
                       notes="Security asked the next room to lower the music; breakfast for two offered and accepted.")
         plant(ctx, "service.recovery_case", "noise:last-night", klass="ROW", module="service",
               subjects=[{"room": stay["room_number"], "pms_res_id": stay["pms_res_id"]}],
-              note="Complaint via intake opens the case; gesture AED 120 within the duty manager's authority.")
+              note=f"Complaint via intake opens the case; gesture {s.p.CCY} {s.p.GESTURES[3][1]} within the duty "
+                   "manager's authority.")
 
 
 # staff (plain name), shift, shift role, floors: the history roster. Six
@@ -887,27 +912,28 @@ def seed_roster(ctx: Any, s: Svc, live_days: set[date]) -> int:
     (DECK_ON_CALL above)."""
     from psycopg2.extras import execute_values
 
+    p = s.p
     staff, depts = ctx.ids.get("staff") or {}, ctx.ids.get("staff_departments") or {}
     rows = []
     d = ctx.history_start
     while d <= ctx.anchor + timedelta(days=DEMO_DAYS):
         fortnight = d >= ctx.anchor
-        for name, (role, floors) in (DECK_ON_CALL.items() if fortnight else ()):
+        for name, (role, floors) in (p.DECK_ON_CALL.items() if fortnight else ()):
             sid = staff.get(name)
             if sid is not None:
                 rows.append((ctx.slug, sid, d, ctx.at(d, 0), ctx.at(d + timedelta(days=1), 0), depts.get(name),
                              list(floors), role))
-        for i, (name, shift, role, floors) in enumerate(ROSTER):
+        for i, (name, shift, role, floors) in enumerate(p.ROSTER):
             sid = staff.get(name)
             if sid is None:
                 continue
             if fortnight:
-                if name in DECK_ON_CALL or name in DEMO_LEAVE:
+                if name in p.DECK_ON_CALL or name in p.DEMO_LEAVE:
                     continue
-                role = "attendant" if name in DEMO_AGENTS else role
+                role = "attendant" if name in p.DEMO_AGENTS else role
             elif (d.toordinal() + i) % 7 == 0 and d not in live_days:
                 continue
-            elif name == FRIDAY_SHORT and d.weekday() == 4:
+            elif name == p.FRIDAY_SHORT and d.weekday() == 4:
                 continue
             h, length = SHIFT_HOURS[shift]
             start = ctx.at(d, h)
@@ -929,7 +955,7 @@ def seed_service(ctx: Any) -> dict:
     s = Svc(ctx)
     fri = last_friday(ctx.anchor)
     live_days = {fri, ctx.anchor, ctx.anchor - timedelta(days=1), ctx.anchor - timedelta(days=4),
-                 *(ctx.anchor - timedelta(days=c[0]) for c in L1_CASES)}
+                 *(ctx.anchor - timedelta(days=c[0]) for c in s.p.L1_CASES)}
     s.bump("roster_shifts", seed_roster(ctx, s, live_days))
     # The last Friday evening is played live (intake + sweep), not written.
     plan = [p for p in plan_history(s, ctx.history_start, ctx.anchor - timedelta(days=1))
@@ -977,7 +1003,7 @@ def write_history(s: Svc, rows: list[dict]) -> None:
         if r["request_type_key"] == "complaint":
             t = datetime.fromtimestamp(r["timestamp"] / 1000, UTC)
             recovery_case(s, rid, room=r["room"], guest_ref=r["guest_ref"], category="noise", opened_at=t,
-                          closed_at=t + timedelta(hours=2), gesture=s.rng.choice(GESTURES + (None,)),
+                          closed_at=t + timedelta(hours=2), gesture=s.rng.choice(s.p.GESTURES + (None,)),
                           notes="Moved the neighbours' late check-in party to a quieter floor.")
 
 
@@ -990,6 +1016,10 @@ def friday_episode(ctx: Any, s: Svc, api: Any, fri: date) -> None:
 
 
 J5_TEXT = "AC is not cooling in {room}, it is very hot"
+# The second report of the repeat AC fault reaches Service as the guest's
+# J5 reply (guests journeys below file it through service.api).
+J5_SOURCE = "whatsapp_journey"
+REPEAT_FAULT_NOTE = "AC reported on A-4 and again by the J5 reply on the anchor."
 
 
 def j5_steps(ctx: Any, s: Svc) -> list[tuple[datetime, str, dict]]:
@@ -1002,8 +1032,8 @@ def j5_steps(ctx: Any, s: Svc) -> list[tuple[datetime, str, dict]]:
     if not stay:
         return []
     t0, who = ctx.at(ctx.anchor, 11, 20), s.staff_for("engineering")
-    return [(t0, "create", {"key": "j5:ac", "room": stay["room_number"], "type": "ac", "source": "whatsapp_journey",
-                            "text": J5_TEXT.format(room=stay["room_number"]), "guest_ref": stay["pms_res_id"]}),
+    return [(t0, "create", {"key": "j5:ac", "room": stay["room_number"], "type": "ac", "source": s.p.J5_SOURCE,
+                            "text": s.p.J5_TEXT.format(room=stay["room_number"]), "guest_ref": stay["pms_res_id"]}),
             (t0 + timedelta(minutes=3), "acknowledged", {"key": "j5:ac", "who": who, "on_time": True}),
             (t0 + timedelta(minutes=45), "completed", {"key": "j5:ac", "who": who, "on_time": True})]
 
@@ -1067,6 +1097,9 @@ AMENITY_ASKS = (
 )
 ASK_ITEMS = {d: lines for d, lines in AMENITY_ASKS}
 ISSUANCE_DAYS = 70          # the first rollup covers 63 days (current week + 8 history windows)
+# The catalogue flags plastic kits for the Dubai ban, so the compliance
+# signal is a plant here (amenities' detector speaks of the UAE rules).
+SUP_PLANT = True
 DENTAL_FLOOR, DENTAL_DAYS, DENTAL_NIGHT_EXTRA = "6", 10, 12
 SLIPPER_CART, SLIPPER_DAYS, SLIPPER_EXTRA = "HK Cart 3F", 9, 9
 SHAVING_GAP_DAYS, SHAVING_GAP_RATIO = 14, 2.2
@@ -1077,20 +1110,21 @@ def ensure_catalog(ctx: Any, api: Any) -> dict[str, dict]:
     """{key: item row} for AMN_ITEMS, writing the missing ones (see above)."""
     from psycopg2.extras import execute_values
 
+    p = ctx.data("ops")
     have = {i["key"]: i for i in api.list_items(ctx.cur, ctx.slug, active_only=False)}
-    missing = [r for r in AMN_ITEMS if r[0] not in have]
+    missing = [r for r in p.AMN_ITEMS if r[0] not in have]
     if missing:
         rows = execute_values(ctx.cur, """
             INSERT INTO amn_items (hotel_slug, key, name_en, name_ar, category, basis, std_qty, unit_cost_minor,
                 currency, is_single_use_plastic, aliases, request_type_key, source, sort)
             VALUES %s RETURNING id, unit_cost_minor""", [
-            (ctx.slug, k, en, ar, cat, basis, std, cost, "AED", sup, aliases, "amenities", "DEMO", 10 * n)
+            (ctx.slug, k, en, ar, cat, basis, std, cost, p.CCY, sup, aliases, "amenities", "DEMO", 10 * n)
             for n, (k, en, ar, cat, basis, std, cost, sup, aliases) in enumerate(missing)], fetch=True)
         # One cost row dated far back, as catalog seeding writes it: every
         # history day is costed at the catalog price.
         execute_values(ctx.cur, "INSERT INTO amn_item_costs (hotel_slug, item_id, effective_from, unit_cost_minor, "
                                 "currency, source) VALUES %s ON CONFLICT DO NOTHING",
-                       [(ctx.slug, r["id"], date(2000, 1, 1), r["unit_cost_minor"], "AED", "DEMO") for r in rows])
+                       [(ctx.slug, r["id"], date(2000, 1, 1), r["unit_cost_minor"], p.CCY, "DEMO") for r in rows])
         have = {i["key"]: i for i in api.list_items(ctx.cur, ctx.slug, active_only=False)}
     ctx.ids["amenity_items"] = {k: v["id"] for k, v in have.items()}
     return have
@@ -1121,9 +1155,10 @@ def link_amenity_requests(ctx: Any, api: Any, items: dict[str, dict], start: dat
         """SELECT id, "timestamp", floor, description FROM staff_requests WHERE hotel_slug = %s
            AND request_type_key = 'amenities' AND "timestamp" >= %s AND state <> 'cancelled' ORDER BY id""",
         (ctx.slug, t0))
+    asks = ctx.data("ops").ASK_ITEMS
     out = []
     for r in ctx.cur.fetchall():
-        for key, qty in ASK_ITEMS.get(r["description"], ()):
+        for key, qty in asks.get(r["description"], ()):
             if key in items:
                 api.link_request(ctx.cur, ctx.slug, request_id=int(r["id"]), amenity_item_id=int(items[key]["id"]),
                                  qty=qty)
@@ -1132,9 +1167,13 @@ def link_amenity_requests(ctx: Any, api: Any, items: dict[str, dict], start: dat
     return out
 
 
-# The morning attendants who restock the floor closets (the history roster).
+# The morning attendants who restock the floor closets (the history roster),
+# the night supervisor behind the dental-kit plant and the attendant whose
+# cart carries the slipper plant; the restock lines per occupied room-night.
 FLOOR_ATTENDANT = {"1": "Joy Dela Cruz", "2": "Joy Dela Cruz", "3": "Anita Gurung", "4": "Anita Gurung",
                    "5": "Grace Wanjiru", "6": "Grace Wanjiru", "7": "Grace Wanjiru", "8": "Grace Wanjiru"}
+NIGHT_HOUSEKEEPER, SLIPPER_CART_ATTENDANT = "Sunil Perera", "Anita Gurung"
+ROOM_NIGHT_RESTOCK = (("SHAMPOO", 1), ("SOAP_BAR", 1))
 
 
 def _line(t: datetime, key: str, qty: int, floor: str | None, *, reason: str, staff: str | None,
@@ -1148,6 +1187,7 @@ def _line(t: datetime, key: str, qty: int, floor: str | None, *, reason: str, st
 def issuance_plan(ctx: Any, links: list[dict], start: date) -> tuple[list[dict], dict]:
     """The housekeeping issuance log from `start` to yesterday, with the
     plants. -> (rows, facts for the manifest)."""
+    p = ctx.data("ops")
     rng, a = ctx.rng("ops:amenities"), ctx.anchor
     rooms = ctx.ids.get("rooms") or {}
     nights = stays_by_day(ctx)
@@ -1164,9 +1204,9 @@ def issuance_plan(ctx: Any, links: list[dict], start: date) -> tuple[list[dict],
             if r["check_in"] == d:
                 arr[f] = arr.get(f, 0) + 1
         for f in sorted(occ):
-            staff = FLOOR_ATTENDANT.get(f)
+            staff = p.FLOOR_ATTENDANT.get(f)
             t = ctx.at(d, 9, 15)
-            for key, per in (("SHAMPOO", 1), ("SOAP_BAR", 1)):
+            for key, per in p.ROOM_NIGHT_RESTOCK:
                 qty = occ[f] * per + rng.choice((0, 0, 0, 0, 1, -1))
                 if qty > 0:
                     rows.append(_line(t, key, qty, f, reason="restock", staff=staff, location=f"Floor {f} closet"))
@@ -1189,24 +1229,24 @@ def issuance_plan(ctx: Any, links: list[dict], start: date) -> tuple[list[dict],
     for ln in links:  # on-request items, handed over against the logged request
         f = str(ln["floor"] or "")
         rows.append(_line((ln["t"] + timedelta(minutes=12)).astimezone(ctx.at(a).tzinfo), ln["key"], ln["qty"], f,
-                          reason="guest", staff=FLOOR_ATTENDANT.get(f), request_ref=ln["request_id"]))
+                          reason="guest", staff=p.FLOOR_ATTENDANT.get(f), request_ref=ln["request_id"]))
     return rows, plant_issuance(ctx, rng, rows, links)
 
 
 def plant_issuance(ctx: Any, rng: Any, rows: list[dict], links: list[dict]) -> dict:
     """Append the planted lines to `rows`. -> facts for the manifest."""
-    a = ctx.anchor
+    a, p = ctx.anchor, ctx.data("ops")
     # Dental kits: floor 6's night shift hands out 12 a night for the last 10
     # nights with no request behind them (about 3x the hotel's usual daily
     # dental kits): a 7-day loss over AED 100 that occupancy does not explain.
     for k in range(DENTAL_DAYS, 0, -1):
         d = a - timedelta(days=k)
         rows.append(_line(ctx.at(d, 23, 40), "DENTAL_KIT", DENTAL_NIGHT_EXTRA, DENTAL_FLOOR, reason="guest",
-                          staff="Sunil Perera", shift="night"))
+                          staff=p.NIGHT_HOUSEKEEPER, shift="night"))
     # Slippers: 9 extra pairs a day loaded onto one cart for the last 9 days.
     for k in range(SLIPPER_DAYS, 0, -1):
         rows.append(_line(ctx.at(a - timedelta(days=k), 16, 5), "SLIPPERS", SLIPPER_EXTRA, "3", reason="restock",
-                          staff="Anita Gurung", location=SLIPPER_CART))
+                          staff=p.SLIPPER_CART_ATTENDANT, location=SLIPPER_CART))
     # Shaving kits: over the last 14 days 2.2x the logged requests go out
     # (at least 10 in all): kits handed over on a verbal ask, never logged.
     lo = ctx.at(a - timedelta(days=SHAVING_GAP_DAYS), 0)
@@ -1216,7 +1256,7 @@ def plant_issuance(ctx: Any, rng: Any, rows: list[dict], links: list[dict]) -> d
         d = a - timedelta(days=1 + (n * 13) % SHAVING_GAP_DAYS)
         f = str(1 + (n * 3) % 8)
         rows.append(_line(ctx.at(d, 10 + n % 9, 20), "SHAVING_KIT", 1, f, reason="guest",
-                          staff=FLOOR_ATTENDANT.get(f)))
+                          staff=p.FLOOR_ATTENDANT.get(f)))
     return {"dental_units": DENTAL_DAYS * DENTAL_NIGHT_EXTRA, "slipper_pairs": SLIPPER_DAYS * SLIPPER_EXTRA,
             "shaving_logged": logged, "shaving_unlogged": extra}
 
@@ -1273,9 +1313,10 @@ def seed_amenities(ctx: Any) -> dict:
           subjects=[{"item_key": "SHAVING_KIT", "logged": facts["shaving_logged"],
                      "unlogged": facts["shaving_unlogged"]}],
           note="Shaving kits handed out 2.2x the logged requests over 14 days.")
-    plant(ctx, "am.sup_compliance", "single-use-plastic", module="amenities", dedupe_key="am.sup_compliance",
-          subjects=[{"item_key": k} for k in ("DENTAL_KIT", "SHAVING_KIT", "SHOWER_CAP")],
-          note="Plastic dental, shaving and shower-cap kits issued under the Dubai single-use plastic policy.")
+    if ctx.data("ops").SUP_PLANT:
+        plant(ctx, "am.sup_compliance", "single-use-plastic", module="amenities", dedupe_key="am.sup_compliance",
+              subjects=[{"item_key": k} for k in ("DENTAL_KIT", "SHAVING_KIT", "SHOWER_CAP")],
+              note="Plastic dental, shaving and shower-cap kits issued under the Dubai single-use plastic policy.")
     plant(ctx, "am.variance.spike", "closet-fill-monday", klass="DECOY", module="amenities",
           subjects=[{"item_key": "WATER_500", "mondays": FILL_MONDAYS}],
           note="Monday two-day closet fill: a doubled Monday, an empty Tuesday, a normal week. Must not fire.")
@@ -1685,7 +1726,8 @@ def guest_review_links(ctx: Any) -> dict[str, str]:
 
 
 LANG_NAMES = {"en": "English", "ar": "Arabic", "de": "German", "fr": "French", "ru": "Russian", "hi": "Hindi",
-              "zh": "Chinese", "it": "Italian", "es": "Spanish", "ur": "Urdu", "fa": "Persian", "tr": "Turkish"}
+              "zh": "Chinese", "it": "Italian", "es": "Spanish", "ur": "Urdu", "fa": "Persian", "tr": "Turkish",
+              "ja": "Japanese", "ko": "Korean", "th": "Thai"}
 
 
 def _stay_type(r: dict) -> str:
@@ -2299,22 +2341,24 @@ def upsell_episodes(ctx: Any, s: Svc | None) -> list[tuple[datetime, Any]]:
         state["sessions"] += 1
         state[upsell_session(ctx, api, s, n, t, room, basket, rng, live=live)] += 1
 
+    baskets = ctx.data("ops").BASKETS
     n = 0
     for k in range(UPSELL_DAYS, 0, -1):
         d = ctx.anchor - timedelta(days=k)
         stays = sorted(nights.get(d) or [], key=lambda r: r["room_number"])
         for _ in range(rng.randint(*SESSIONS_PER_DAY) if stays else 0):
-            basket = rng.choice(BASKETS)
+            basket = rng.choice(baskets)
             lo, hi = MEAL_HOURS[basket[2]]
             t = ctx.at(d, rng.randint(lo, hi), rng.randrange(60))
             n += 1
             out.append((t, lambda n=n, t=t, room=rng.choice(stays)["room_number"], b=basket: run(n, t, room, b)))
     # Tonight: one order on its way when the owner opens the console.
-    stays = sorted(nights.get(ctx.anchor) or [], key=lambda r: r["room_number"])
+    stays = [r for r in sorted(nights.get(ctx.anchor) or [], key=lambda r: r["room_number"])
+             if r["room_number"] not in ctx.data("ops").KEEP_CLEAR]
     if stays:
         n += 1
         t = ctx.at(ctx.anchor, 20, 42)
-        out.append((t, lambda n=n, t=t, room=stays[0]["room_number"]: run(n, t, room, BASKETS[0], live=True)))
+        out.append((t, lambda n=n, t=t, room=stays[0]["room_number"]: run(n, t, room, baskets[0], live=True)))
     return out
 
 
@@ -2339,11 +2383,14 @@ def seed_upsell(ctx: Any) -> dict:
 SECTIONS = ("service", "amenities", "reviews", "guests", "inquiries", "upsell")
 
 
-def _replay(ctx: Any) -> ReplayAI:
+def replay_for(ctx: Any) -> ReplayAI:
+    """The replay backend for this run: each guest's own words the history
+    plays, translated to the English the data gives for them."""
+    p = ctx.data("ops")
     ai = ReplayAI()
-    for lang, texts in ORIGINALS.items():
+    for lang, texts in p.ORIGINALS.items():
         for type_key, original in texts.items():
-            ai.add("service.translate", original, DESCRIPTIONS[type_key])
+            ai.add("service.translate", original, p.DESCRIPTIONS[type_key])
     return ai
 
 
@@ -2388,7 +2435,7 @@ def seed_part(ctx: Any) -> dict:
     out: dict[str, Any] = {}
     fns = {"service": seed_service, "amenities": seed_amenities, "reviews": seed_reviews, "guests": seed_guests,
            "inquiries": seed_inquiries, "upsell": seed_upsell}
-    with replay_ai(_replay(ctx)):
+    with replay_ai(replay_for(ctx)):
         for name in SECTIONS:
             fn = fns.get(name)
             if fn is not None:
@@ -2540,23 +2587,26 @@ def _l1(cur: Any, slug: str, subj: dict) -> bool:
     cur.execute(
         """SELECT r.id FROM staff_requests r JOIN svc_incidents i ON i.request_id = r.id
            WHERE r.hotel_slug = %s AND r.room = %s AND r.severity = 'L1' AND i.status = %s
-             AND (to_timestamp(r."timestamp" / 1000.0) AT TIME ZONE 'Asia/Dubai')::date = %s""",
+             AND (to_timestamp(r."timestamp" / 1000.0)
+                  AT TIME ZONE (SELECT h.timezone FROM hotels h WHERE h.slug = r.hotel_slug))::date = %s""",
         (slug, subj["room"], "open" if subj["open"] else "closed", subj["day"]))
     ids = [r["id"] for r in cur.fetchall()]
     return any(f"service.l1_incident:{i}" in _signal_keys(cur, slug, "service.l1_incident") for i in ids)
 
 
-def ops_checks(cur: Any, slug: str) -> list[tuple[str, bool, str]]:
+def ops_checks(cur: Any, slug: str, manifest_path: str | None = None) -> list[tuple[str, bool, str]]:
     """Each planted ops case surfaces and no decoy fires (expected_plants.json
-    entries of module service, amenities, reviews, guests, inquiries, upsell)."""
+    entries of module service, amenities, reviews, guests, inquiries, upsell;
+    manifest_path: a variant's own manifest, default this hotel's)."""
     import json
     import os
 
     from clefs.seed.demo_uae import MANIFEST_PATH
 
-    if not os.path.exists(MANIFEST_PATH):
+    manifest_path = manifest_path or MANIFEST_PATH
+    if not os.path.exists(manifest_path):
         return [("ops plants", False, "no expected_plants.json (run seed-demo first)")]
-    with open(MANIFEST_PATH, encoding="utf-8") as fh:
+    with open(manifest_path, encoding="utf-8") as fh:
         plants = [p for p in json.load(fh).get("plants", []) if p.get("module") in SECTIONS]
     if not plants:
         return [("ops plants", False, "the manifest has no ops plants (re-run seed-demo)")]

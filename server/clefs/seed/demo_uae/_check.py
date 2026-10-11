@@ -98,21 +98,24 @@ def _mix_checks(cur: Any, slug: str, start: Any, anchor: Any) -> list[Check]:
     return out
 
 
-def part_checks() -> list[Callable[[Any, str], list[Check]]]:
-    """core_checks plus every sibling module's CHECKS list."""
+def part_checks(package: Any = None) -> list[Callable[[Any, str], list[Check]]]:
+    """The package's core checks (its _check.core_checks; this one's by
+    default) plus every part module's CHECKS list."""
     from clefs.seed import demo_uae
 
-    fns: list[Callable[[Any, str], list[Check]]] = [core_checks]
-    for info in pkgutil.iter_modules(demo_uae.__path__):
+    pkg = package or demo_uae
+    own = importlib.import_module(f"{pkg.__name__}._check")
+    fns: list[Callable[[Any, str], list[Check]]] = [own.core_checks]
+    for info in pkgutil.iter_modules(pkg.__path__):
         if info.name.startswith("_"):
             continue
-        mod = importlib.import_module(f"clefs.seed.demo_uae.{info.name}")
+        mod = importlib.import_module(f"{pkg.__name__}.{info.name}")
         fns.extend(getattr(mod, "CHECKS", []) or [])
     return fns
 
 
-def run_checks(cur: Any, slug: str) -> list[Check]:
+def run_checks(cur: Any, slug: str, package: Any = None) -> list[Check]:
     out: list[Check] = []
-    for fn in part_checks():
+    for fn in part_checks(package):
         out.extend(fn(cur, slug))
     return out

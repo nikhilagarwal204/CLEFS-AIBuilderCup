@@ -27,6 +27,10 @@ Clean by design: no early departures, and no-shows only on direct and
 corporate bookings. OTA anomalies are planted by the statements part with
 manifest entries; a natural Booking no-show here would be an unplanned L14
 finding and cost the detectors their precision target.
+
+The planner reads its market through ctx.data("core_stays"): the mix,
+leads, rates, guests, calendar (cal), channel terms and currency of this
+module, or of a variant's module with the same names (clefs.seed.demo_jp).
 """
 
 from __future__ import annotations
@@ -61,6 +65,11 @@ NO_SHOW_P = {"DIRECT_PHONE": 0.04, "CORPORATE": 0.03}
 # Length of stay: (nights, weight). Mean ~2.4 nights (6,200 / 2,600).
 LOS = ((1, 30), (2, 29), (3, 18), (4, 10), (5, 6), (6, 3), (7, 2), (9, 1), (12, 1))
 MEAN_LOS = sum(n * w for n, w in LOS) / sum(w for _n, w in LOS)
+# The PMS's currency and reservation numbers (RC100001...), and the hours
+# its arrivals check in (history, in house) and departures check out.
+CCY = "AED"
+PMS_PREFIX = "RC"
+CHECKIN_HOURS, IN_HOUSE_CHECKIN_HOURS, CHECKOUT_HOURS = (14, 22), (14, 20), (7, 11)
 
 # ─── Guests ───
 
@@ -143,32 +152,33 @@ def _weighted(rng: Any, pairs: tuple) -> Any:
     return pairs[-1][0]
 
 
-def _lead_days(rng: Any, channel: str, check_in: date) -> float:
+def _lead_days(rng: Any, channel: str, check_in: date, p: Any) -> float:
     """Mixture: a short exponential lead per channel, or (with the night's
     early share) a long uniform 30-180 days lead. Walk-ins arrive the day
     they book."""
     if channel == "WALKIN":
         return 0.0
-    if rng.random() < cal.early_share(check_in):
+    if rng.random() < p.cal.early_share(check_in):
         return rng.uniform(30, 180)
-    return rng.expovariate(1 / LEAD_MEAN[channel])
+    return rng.expovariate(1 / p.LEAD_MEAN[channel])
 
 
-def _guest(rng: Any) -> tuple[str, str, str]:
-    country, lang, _w, firsts, lasts = _weighted(rng, tuple((g, g[2]) for g in GUESTS))
+def _guest(rng: Any, p: Any) -> tuple[str, str, str]:
+    country, lang, _w, firsts, lasts = _weighted(rng, tuple((g, g[2]) for g in p.GUESTS))
     return f"{rng.choice(firsts)} {rng.choice(lasts)}", country, lang
 
 
-def _rates(rng: Any, check_in: date, nights: int, channel: str, room_type: str) -> list[int]:
-    base = CHANNEL_RATE[channel] * TYPE_RATE[room_type] * math.exp(rng.gauss(0, 0.05))
-    out = []
-    for i in range(nights):
-        aed = cal.target_adr(check_in + timedelta(days=i)) * base
-        out.append(int(round(aed)) * 100)  # whole dirhams, as a PMS rate table would hold
-    return out
+def night_rate_minor(major: float) -> int:
+    """A night's rate as the PMS rate table holds it: whole dirhams, in fils."""
+    return int(round(major)) * 100
 
 
-def _ota_id(rng: Any, channel: str) -> str | None:
+def _rates(rng: Any, check_in: date, nights: int, channel: str, room_type: str, p: Any) -> list[int]:
+    base = p.CHANNEL_RATE[channel] * p.TYPE_RATE[room_type] * math.exp(rng.gauss(0, 0.05))
+    return [p.night_rate_minor(p.cal.target_adr(check_in + timedelta(days=i)) * base) for i in range(nights)]
+
+
+def ota_id(rng: Any, channel: str) -> str | None:
     if channel == "BOOKING":
         return str(rng.randint(4_000_000_000, 4_999_999_999))
     if channel == "AGODA":
@@ -178,7 +188,7 @@ def _ota_id(rng: Any, channel: str) -> str | None:
     return None
 
 
-def _terms(rng: Any, s: Stay) -> None:
+def channel_terms(rng: Any, s: Stay) -> None:
     """Channel-shaped details: collect model, payment, rate plan, segment
     and party size."""
     ch = s.channel
@@ -215,65 +225,65 @@ def _terms(rng: Any, s: Stay) -> None:
         s.adults = 1 if (s.segment in ("CORPORATE", "MICE") or rng.random() < 0.35) else 2
 
 
-def _status(rng: Any, ctx: Any, s: Stay) -> None:
+def _status(rng: Any, ctx: Any, s: Stay, p: Any) -> None:
     """Where the stay stands at the anchor evening, with PMS timestamps."""
     anchor = ctx.anchor
     if s.check_out <= anchor:
-        if rng.random() < NO_SHOW_P.get(s.channel, 0.0):
+        if rng.random() < p.NO_SHOW_P.get(s.channel, 0.0):
             s.status = "NO_SHOW"
             return
         s.status = "CHECKED_OUT"
-        s.checked_in_at = ctx.at(s.check_in, rng.randint(14, 22), rng.randint(0, 59))
-        s.checked_out_at = ctx.at(s.check_out, rng.randint(7, 11), rng.randint(0, 59))
+        s.checked_in_at = ctx.at(s.check_in, rng.randint(*p.CHECKIN_HOURS), rng.randint(0, 59))
+        s.checked_out_at = ctx.at(s.check_out, rng.randint(*p.CHECKOUT_HOURS), rng.randint(0, 59))
     elif s.check_in <= anchor:
         s.status = "IN_HOUSE"
-        s.checked_in_at = ctx.at(s.check_in, rng.randint(14, 20), rng.randint(0, 59))
+        s.checked_in_at = ctx.at(s.check_in, rng.randint(*p.IN_HOUSE_CHECKIN_HOURS), rng.randint(0, 59))
     else:
         s.status = "CONFIRMED"
 
 
-def _stay(ctx: Any, rng: Any, room: dict, ci: date, co: date, channel: str, booked: datetime) -> Stay:
-    name, country, lang = _guest(rng)
+def _stay(ctx: Any, rng: Any, room: dict, ci: date, co: date, channel: str, booked: datetime, p: Any) -> Stay:
+    name, country, lang = _guest(rng, p)
     s = Stay(pms_res_id="", channel=channel, room_type=room["room_type_code"], check_in=ci, check_out=co,
-             booked_at=booked, rates=_rates(rng, ci, (co - ci).days, channel, room["room_type_code"]),
-             guest_name=name, country=country, language=lang, ota_res_id=_ota_id(rng, channel))
+             booked_at=booked, rates=_rates(rng, ci, (co - ci).days, channel, room["room_type_code"], p),
+             guest_name=name, country=country, language=lang, ota_res_id=p.ota_id(rng, channel))
     # The PMS assigns rooms at arrival: forward stays beyond tomorrow have a
     # room type only (occupancy by floor is a history figure).
     if ci <= ctx.anchor + timedelta(days=1):
         s.room_number = room["room_number"]
-    _terms(rng, s)
-    _status(rng, ctx, s)
+    p.channel_terms(rng, s)
+    _status(rng, ctx, s, p)
     return s
 
 
-def _booked_at(ctx: Any, rng: Any, channel: str, ci: date) -> datetime:
+def _booked_at(ctx: Any, rng: Any, channel: str, ci: date, p: Any) -> datetime:
     if channel == "WALKIN":
         return ctx.at(ci, rng.randint(12, 19), rng.randint(0, 59))
-    lead = _lead_days(rng, channel, ci)
+    lead = _lead_days(rng, channel, ci, p)
     return ctx.at(ci, 15) - timedelta(days=lead)
 
 
-def _cancelled_twin(ctx: Any, rng: Any, room: dict, s: Stay) -> Stay | None:
+def _cancelled_twin(ctx: Any, rng: Any, room: dict, s: Stay, p: Any) -> Stay | None:
     """A cancelled booking near a kept one (it never held a room). Kept only
     when both the booking and the cancellation happened before the anchor
     evening; a cancellation still in the future would be live inventory."""
     ci = s.check_in + timedelta(days=rng.randint(-10, 10))
-    co = ci + timedelta(days=_weighted(rng, LOS))
+    co = ci + timedelta(days=_weighted(rng, p.LOS))
     if co <= ctx.history_start:
         return None
-    booked = _booked_at(ctx, rng, s.channel, ci) - timedelta(days=rng.uniform(1, 20))
+    booked = _booked_at(ctx, rng, s.channel, ci, p) - timedelta(days=rng.uniform(1, 20))
     window = (ctx.at(ci, 14) - booked).total_seconds()
     cancelled = booked + timedelta(seconds=window * rng.uniform(0.1, 0.9))
     if booked >= ctx.now or cancelled >= ctx.now:
         return None
-    twin = _stay(ctx, rng, room, ci, co, s.channel, booked)
+    twin = _stay(ctx, rng, room, ci, co, s.channel, booked, p)
     twin.room_number, twin.status, twin.cancelled_at = None, "CANCELLED", cancelled
     twin.checked_in_at = twin.checked_out_at = None
     return twin
 
 
-def start_probability(occ: float) -> float:
-    return min(0.97, occ / (MEAN_LOS * (1 - occ) + occ))
+def start_probability(occ: float, mean_los: float = MEAN_LOS) -> float:
+    return min(0.97, occ / (mean_los * (1 - occ) + occ))
 
 
 def rooms_used(ctx: Any) -> list[dict]:
@@ -288,31 +298,32 @@ def plan_stays(ctx: Any) -> list[Stay]:
     """Every stay and cancellation, deterministic for (seed, anchor, scale).
     Ids are given in booking order (a PMS numbers reservations as they are
     made)."""
+    p = ctx.data("core_stays")
     rng = ctx.rng("core:stays")
     start, end = ctx.history_start - timedelta(days=7), ctx.forward_end
     out: list[Stay] = []
     for room in rooms_used(ctx):
         d = start
         while d <= end:
-            o = cal.target_occ(d)
-            if rng.random() >= start_probability(o):
+            o = p.cal.target_occ(d)
+            if rng.random() >= start_probability(o, p.MEAN_LOS):
                 d += timedelta(days=1)
                 continue
-            ci, co = d, d + timedelta(days=_weighted(rng, LOS))
+            ci, co = d, d + timedelta(days=_weighted(rng, p.LOS))
             d = co
-            channel = _weighted(rng, CHANNEL_MIX)
-            booked = _booked_at(ctx, rng, channel, ci)
+            channel = _weighted(rng, p.CHANNEL_MIX)
+            booked = _booked_at(ctx, rng, channel, ci, p)
             if co <= ctx.history_start or booked >= ctx.now:
                 continue  # before the window, or not booked yet (future pickup)
-            s = _stay(ctx, rng, room, ci, co, channel, booked)
+            s = _stay(ctx, rng, room, ci, co, channel, booked, p)
             out.append(s)
-            if rng.random() < CANCEL_P[channel]:
-                twin = _cancelled_twin(ctx, rng, room, s)
+            if rng.random() < p.CANCEL_P[channel]:
+                twin = _cancelled_twin(ctx, rng, room, s, p)
                 if twin is not None:
                     out.append(twin)
     out.sort(key=lambda s: (s.booked_at, s.check_in, s.room_type, s.guest_name))
     for i, s in enumerate(out, start=1):
-        s.pms_res_id = f"RC{100000 + i}"
+        s.pms_res_id = f"{p.PMS_PREFIX}{100000 + i}"
     return out
 
 
@@ -323,14 +334,14 @@ def plan_stays(ctx: Any) -> list[Stay]:
 CONTACT_WINDOW = (45, 30)  # days before / after the anchor
 
 
-def _data(s: Stay) -> dict:
+def _data(s: Stay, ccy: str = CCY) -> dict:
     data: dict[str, Any] = {
         "pms_res_id": s.pms_res_id, "channel_code": s.channel, "ota_res_id": s.ota_res_id,
         "guest_name": s.guest_name, "guest_country": s.country, "guest_language": s.language,
         "booked_at": s.booked_at, "check_in": s.check_in, "check_out": s.check_out, "rooms_count": 1,
         "room_type_code": s.room_type, "room_number": s.room_number, "rate_plan_code": s.rate_plan,
         "status": s.status, "collect_model": s.collect_model, "payment_method": s.payment_method,
-        "currency": "AED", "segment": s.segment, "adults": s.adults, "children": s.children,
+        "currency": ccy, "segment": s.segment, "adults": s.adults, "children": s.children,
     }
     for k in ("cancelled_at", "checked_in_at", "checked_out_at"):
         if getattr(s, k) is not None:
@@ -361,6 +372,7 @@ def _analyze(ctx: Any) -> None:
 def write_stays(ctx: Any, plan: list[Stay]) -> list[dict]:
     """One upsert_reservation per stay: nights, fees (core.tax per night),
     stay chains and stay events all come from the single write path."""
+    ccy = ctx.data("core_stays").CCY
     out: list[dict] = []
     # Written in arrival order (ids stay in booking order). upsert_reservation
     # re-links the back-to-back chain forward from each new stay, walking every
@@ -371,7 +383,7 @@ def write_stays(ctx: Any, plan: list[Stay]) -> list[dict]:
             _analyze(ctx)
         nights = [{"stay_date": s.check_in + timedelta(days=i), "rate_minor": r, "room_number": s.room_number,
                    "room_type_code": s.room_type} for i, r in enumerate(s.rates)]
-        res = stays.upsert_reservation(ctx.cur, ctx.slug, _data(s), source_system="PMS", nights=nights,
+        res = stays.upsert_reservation(ctx.cur, ctx.slug, _data(s, ccy), source_system="PMS", nights=nights,
                                        contacts=_contacts(ctx, s))
         out.append({
             "id": res["id"], "pms_res_id": s.pms_res_id, "channel": s.channel, "ota_res_id": s.ota_res_id,

@@ -251,6 +251,7 @@ def execute_run(cur: Any, hotel_slug: str, run_id: int) -> dict:
         savepoint(cur, "trs_autokb", lambda: autokb.sync(cur, hotel_slug))
     todo = scenarios.list_scenarios(cur, hotel_slug, suites=run["suites"])
     prices = savepoint(cur, "trs_prices", lambda: runner.price_set(cur, hotel_slug), default=set())
+    knowledge = savepoint(cur, "trs_knowledge", lambda: runner.hotel_knowledge(cur, hotel_slug), default=[])
     results: list[dict] = []
     runners: set[str] = set()
     model = None
@@ -259,7 +260,7 @@ def execute_run(cur: Any, hotel_slug: str, run_id: int) -> dict:
             return _finish(cur, run_id, status="failed", results=results, cost=_ai_cost_since(cur, hotel_slug, after_id=mark),
                            error="cost_cap_reached", runner_name=",".join(sorted(runners)) or None, model=model)
         out = savepoint(
-            cur, "trs_scenario", lambda sc=sc: runner.evaluate(cur, hotel_slug, sc, prices=prices),
+            cur, "trs_scenario", lambda sc=sc: runner.evaluate(cur, hotel_slug, sc, prices=prices, knowledge=knowledge),
             default=lambda exc: {"passed": False, "score": 0, "attempts": 1, "transcript": {}, "tool_calls": [],
                                  "grader_outputs": [], "failure_reasons": [f"error: {type(exc).__name__}: {str(exc)[:200]}"],
                                  "runner": "none", "model": None},

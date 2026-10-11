@@ -1,14 +1,17 @@
 """
-Reviewer access to the demo hotel (05 spec section 5): the three doors of
-the public /try page, for hotels whose status is 'demo' and nothing else.
+Reviewer access to the demo hotel (05 spec section 5): the three one-tap
+doors of the landing page, for hotels whose status is 'demo' and nothing
+else. The prototype's hotel is Hotel Aozora Shinjuku, Tokyo
+(aozora-shinjuku); the UAE demo hotel answers the same way while it is a demo.
 
     GET  /public/demo/{slug}             the cast, the keyed Room 204 link and the go-live gate in brief
     POST /public/demo/{slug}/staff-app   pairs this browser as Maria's phone and opens her shift on it
-    POST /public/demo/{slug}/console     signs this browser in as the demo duty manager
+    POST /public/demo/{slug}/console     signs this browser in as the demo duty manager (Yuki Sato in Tokyo)
 
 Why it is safe to leave open:
   - A hotel whose status is not 'demo' answers 404, worded like an unknown
-    slug, so the routes neither work on nor reveal a real hotel.
+    slug, so the routes neither work on nor reveal a real hotel, nor a demo
+    hotel that was retired (python -m clefs.cli retire-demo).
   - Everything they create belongs to that one hotel: a personal device
     paired to it, a shift for one of its staff, and a console session for
     the demo duty manager, whose account is never a Clefs admin and whose
@@ -23,9 +26,11 @@ Why it is safe to leave open:
   - The POSTs refuse a cross-site browser request (the app's origin check),
     so another site cannot sign a visitor's browser in.
 
-The cast comes from the demo seed (clefs.seed.demo_uae.core), which seeds
-these people, Maria's PIN and the duty manager's login; the console door
-re-creates that login and its membership if a reseed has not run yet.
+The cast comes from the hotel's demo seed (clefs.seed.variants: the Tokyo
+hotel's clefs.seed.demo_jp.core, the UAE hotel's clefs.seed.demo_uae.core),
+which seeds these people, Maria's PIN and the duty manager's login; the
+console door re-creates that login and its membership if a reseed has not
+run yet.
 """
 
 from __future__ import annotations
@@ -65,10 +70,11 @@ ANON = SimpleNamespace(kind="anonymous", user_id=None, device_id=None, label="tr
 # ─── Helpers ───
 
 
-def _cast() -> Any:
-    from clefs.seed.demo_uae import core as cast
+def _cast(hotel: Hotel) -> Any:
+    """The deck cast of this demo hotel's seed (its variant's core module)."""
+    from clefs.seed import variants
 
-    return cast
+    return variants.cast_for(hotel.slug, hotel.country)
 
 
 def _ip() -> str:
@@ -127,10 +133,10 @@ def _gate(cur: Any, slug: str) -> dict | None:
 def demo_info(slug: str) -> dict:
     """The deck cast and links for the reviewer page. The Room 204 link is
     keyed exactly like the room's printed QR card."""
-    cast = _cast()
     with db.db() as cur:
         _limit(cur, f"demo:info:ip:{_ip()}", INFO_IP_LIMIT)
         hotel = _demo_hotel(cur, slug)
+        cast = _cast(hotel)
         room = rooms.get_room(cur, slug, cast.DECK_ROOM)
         maria = _staff(cur, slug, cast.DECK_ATTENDANT)
         gate = _gate(cur, slug)
@@ -203,10 +209,9 @@ def demo_staff_app(slug: str, request: Request, response: Response) -> dict:
     open her shift on it, so the staff app opens on her queue. Sets the
     clefs_device cookie, like POST /auth/devices/pair."""
     _same_site(request)
-    cast = _cast()
     with db.db() as cur:
         _limit(cur, f"demo:staff:ip:{_ip()}", GRANT_IP_LIMIT)
-        _demo_hotel(cur, slug, fresh=True)
+        cast = _cast(_demo_hotel(cur, slug, fresh=True))
         _limit(cur, f"demo:staff:hotel:{slug}", GRANT_HOTEL_LIMIT)
     with db.db() as cur:
         staff = _staff(cur, slug, cast.DECK_ATTENDANT)
@@ -231,8 +236,9 @@ def demo_staff_app(slug: str, request: Request, response: Response) -> dict:
 
 
 def _duty_manager(cur: Any, slug: str, cast: Any) -> dict:
-    """The demo duty manager's account (dept_head at this hotel only),
-    created on first use when no reseed has made it yet."""
+    """The demo duty manager's account (dept_head at this hotel only; Yuki
+    Sato at the Tokyo hotel), created on first use when no reseed has made
+    it yet."""
     email = cast.demo_email(cast.DUTY_MANAGER_LOCAL, slug)
     cur.execute(
         """
@@ -268,14 +274,13 @@ def _duty_manager(cur: Any, slug: str, cast: Any) -> dict:
 
 @router.post("/public/demo/{slug}/console")
 def demo_console(slug: str, request: Request, response: Response) -> dict:
-    """Sign this browser in as the demo duty manager for CONSOLE_TTL (sets
-    the clefs_session cookie, like POST /auth/login) and land on the
+    """Sign this browser in as the demo hotel's duty manager for CONSOLE_TTL
+    (sets the clefs_session cookie, like POST /auth/login) and land on the
     service desk."""
     _same_site(request)
-    cast = _cast()
     with db.db() as cur:
         _limit(cur, f"demo:console:ip:{_ip()}", GRANT_IP_LIMIT)
-        _demo_hotel(cur, slug, fresh=True)
+        cast = _cast(_demo_hotel(cur, slug, fresh=True))
         _limit(cur, f"demo:console:hotel:{slug}", GRANT_HOTEL_LIMIT)
     info = request_info()
     with db.db() as cur:

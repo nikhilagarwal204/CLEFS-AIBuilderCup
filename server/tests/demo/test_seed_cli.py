@@ -51,3 +51,45 @@ def test_demo_check_reports_each_spec_check(cur, capsys):
     with pytest.raises(SystemExit):
         cli.main(["demo-check", "--hotel", SLUG])
     assert "[FAIL] history occupancy" in capsys.readouterr().out
+
+
+# ─── The Tokyo demo hotel (the default) ───
+
+
+def test_seed_demo_builds_the_tokyo_hotel_by_default(cur, capsys):
+    from clefs.seed import variants
+
+    assert variants.DEFAULT_HOTEL == "aozora-shinjuku"
+    assert cli.main(["seed-demo", "--anchor", "2026-10-21", "--parts", "core", "--password", "demo-pass-123",
+                     "--no-manifest"]) == 0
+    out = capsys.readouterr().out
+    assert "seeded aozora-shinjuku anchor=2026-10-21 as_of=2026-10-21T21:00:00+09:00" in out
+    assert "variant=demo_jp" in out
+    assert "dutymanager+aozora-shinjuku@example.com" in out and "Yuki Sato" in out
+    cur.execute("SELECT name, country, timezone FROM hotels WHERE slug = 'aozora-shinjuku'")
+    assert dict(cur.fetchone()) == {"name": "Hotel Aozora Shinjuku", "country": "JP", "timezone": "Asia/Tokyo"}
+    # The UAE demo hotel is still one flag away.
+    assert cli.main(["seed-demo", "--hotel", "demo-deira-crest", "--anchor", "2026-09-27", "--parts", "core",
+                     "--password", "demo-pass-123", "--no-manifest"]) == 0
+    assert "variant=demo_uae" in capsys.readouterr().out
+    cur.execute("SELECT name, currency FROM hotels WHERE slug = 'demo-deira-crest'")
+    assert dict(cur.fetchone()) == {"name": "Al Rigga Crest Hotel", "currency": "AED"}
+
+
+def test_variant_flag_and_a_reseed_keeps_the_hotels_variant(cur, capsys, tmp_path):
+    slug = "demo-t-jpcli"
+    manifest = tmp_path / "jp_plants.json"
+    assert cli.main(["seed-demo", "--hotel", slug, "--variant", "jp", "--anchor", "2026-10-21", "--scale", "0.05",
+                     "--password", "demo-pass-123", "--manifest", str(manifest)]) == 0
+    assert "variant=demo_jp" in capsys.readouterr().out
+    assert json.loads(manifest.read_text())["hotel"] == slug
+    # demo-check reads it as the Tokyo hotel it is (its country says so).
+    assert cli.main(["demo-check", "--hotel", slug, "--manifest", str(manifest), "--scale", "0.05"]) == 0
+    out = capsys.readouterr().out
+    assert "21:00 Asia/Tokyo" in out and f"PASS: 0 miss(es) for {slug}" in out
+    for title in ("Property and stays", "AI Builder Cup deck cast", "Service Control", "Amenities", "Upsell"):
+        assert f"== {title}" in out, title
+    assert "== Profit Guard" not in out
+    assert cli.main(["seed-demo", "--hotel", slug, "--anchor", "2026-10-21", "--parts", "core",
+                     "--password", "demo-pass-123", "--no-manifest"]) == 0
+    assert "variant=demo_jp" in capsys.readouterr().out

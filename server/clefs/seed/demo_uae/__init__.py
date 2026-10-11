@@ -45,6 +45,13 @@ ctx.ids after the core parts:
 Use ctx.rng("<part>:<purpose>") for randomness, ctx.at(day, hour) for
 hotel-local instants and ctx.now for the seed's "now" (the anchor evening,
 or as_of on a live run); never the wall clock.
+
+Variants. This package is also the machinery of the other demo hotels
+(clefs.seed.variants): run_variant() plays a variant package's parts with
+its timezone and hotel row, and ctx.variant names that package. Shared part
+code here reads its data through ctx.data("<part>"), which is the variant's
+module of the same name (clefs.seed.demo_jp.ops for the Tokyo hotel) or,
+for this hotel, the module itself. So a variant restates data, never code.
 """
 
 from __future__ import annotations
@@ -52,8 +59,10 @@ from __future__ import annotations
 import importlib
 import pkgutil
 import random
+import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
+from types import ModuleType
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
@@ -89,13 +98,13 @@ def default_anchor() -> date:
     return clock.now().astimezone(TZ).date()
 
 
-def live_anchor(wall: datetime | None = None) -> tuple[date, datetime | None]:
+def live_anchor_in(tz: ZoneInfo, wall: datetime | None = None) -> tuple[date, datetime | None]:
     """(anchor, as_of) for a seed that must look live at `wall` (default: the
-    real clock). After 21:00 the anchor evening is already past: (today,
-    None). Before WARP_MIN_HOUR: last night, (yesterday, None). Otherwise
-    (today, wall floored to the minute), so nothing lands after the moment
-    the presenter opens the console."""
-    local = (wall or clock.now()).astimezone(TZ).replace(second=0, microsecond=0)
+    real clock) in the hotel's zone `tz`. After 21:00 the anchor evening is
+    already past: (today, None). Before WARP_MIN_HOUR: last night,
+    (yesterday, None). Otherwise (today, wall floored to the minute), so
+    nothing lands after the moment the presenter opens the console."""
+    local = (wall or clock.now()).astimezone(tz).replace(second=0, microsecond=0)
     if local.hour >= ANCHOR_HOUR:
         return local.date(), None
     if local.hour < WARP_MIN_HOUR:
@@ -103,20 +112,30 @@ def live_anchor(wall: datetime | None = None) -> tuple[date, datetime | None]:
     return local.date(), local
 
 
-def check_as_of(anchor: date, as_of: datetime | None) -> datetime | None:
-    """as_of in Dubai time, refused unless it lies on the anchor day between
-    WARP_MIN_HOUR and the anchor evening (outside it the warp cannot keep
-    the business date and the recent block intact)."""
+def live_anchor(wall: datetime | None = None) -> tuple[date, datetime | None]:
+    """live_anchor_in() for this hotel (Dubai)."""
+    return live_anchor_in(TZ, wall)
+
+
+def check_as_of_in(tz: ZoneInfo, anchor: date, as_of: datetime | None) -> datetime | None:
+    """as_of in the hotel's zone `tz`, refused unless it lies on the anchor
+    day between WARP_MIN_HOUR and the anchor evening (outside it the warp
+    cannot keep the business date and the recent block intact)."""
     if as_of is None:
         return None
     if as_of.tzinfo is None:
         raise ValueError("as_of must be timezone-aware")
-    local = as_of.astimezone(TZ).replace(microsecond=0)
-    lo = datetime.combine(anchor, time(WARP_MIN_HOUR), tzinfo=TZ)
-    hi = datetime.combine(anchor, time(ANCHOR_HOUR), tzinfo=TZ)
+    local = as_of.astimezone(tz).replace(microsecond=0)
+    lo = datetime.combine(anchor, time(WARP_MIN_HOUR), tzinfo=tz)
+    hi = datetime.combine(anchor, time(ANCHOR_HOUR), tzinfo=tz)
     if not lo <= local <= hi:
         raise ValueError(f"as_of must be between {lo.isoformat()} and {hi.isoformat()}")
     return None if local == hi else local
+
+
+def check_as_of(anchor: date, as_of: datetime | None) -> datetime | None:
+    """check_as_of_in() for this hotel (Dubai)."""
+    return check_as_of_in(TZ, anchor, as_of)
 
 
 # ─── Context ───
@@ -137,6 +156,18 @@ class DemoCtx:
     # None: the deterministic anchor evening (tests, --anchor). Else the
     # live moment the anchor day is warped into (live_anchor, check_as_of).
     as_of: datetime | None = None
+    # The hotel's zone: every instant a part writes is local to it.
+    tz: ZoneInfo = TZ
+    # The variant package whose part modules hold the data the shared part
+    # code plays (clefs.seed.demo_jp); None plays this package's own.
+    variant: ModuleType | None = None
+
+    def data(self, part: str) -> ModuleType:
+        """The module whose constants part `part` plays: the variant's module
+        of that name, else this package's (`part` is a module name: "core",
+        "core_stays", "ops", "deck")."""
+        pkg = self.variant.__name__ if self.variant is not None else __name__
+        return importlib.import_module(f"{pkg}.{part}")
 
     def rng(self, stream: str) -> random.Random:
         """An independent stream per part and purpose. A str seed is hashed
@@ -152,16 +183,16 @@ class DemoCtx:
 
     def at(self, d: date, hour: int = 12, minute: int = 0) -> datetime:
         """A hotel-local instant on day d (on the anchor day, warped to as_of)."""
-        return self.warp(datetime.combine(d, time(hour, minute), tzinfo=TZ))
+        return self.warp(datetime.combine(d, time(hour, minute), tzinfo=self.tz))
 
     def warp(self, t: datetime) -> datetime:
         """The written anchor-day instant t as it happens when the seed runs
         as of self.as_of (identity without as_of or on any other day). Order
         is kept; 21:00 maps to as_of; after 21:00 shifts with the recent block."""
-        if self.as_of is None or t.astimezone(TZ).date() != self.anchor:
+        if self.as_of is None or t.astimezone(self.tz).date() != self.anchor:
             return t
-        evening = datetime.combine(self.anchor, time(ANCHOR_HOUR), tzinfo=TZ)
-        keep = datetime.combine(self.anchor, time(WARP_KEEP_H), tzinfo=TZ)
+        evening = datetime.combine(self.anchor, time(ANCHOR_HOUR), tzinfo=self.tz)
+        keep = datetime.combine(self.anchor, time(WARP_KEEP_H), tzinfo=self.tz)
         recent = evening - timedelta(hours=WARP_RECENT_H)
         if t <= keep:
             return t
@@ -205,18 +236,27 @@ class DemoCtx:
 Part = tuple[int, str, Callable[[DemoCtx], dict]]
 
 
-def discover_parts() -> list[Part]:
-    """Every sibling module with PART_ORDER and seed_part, in order. Helper
-    modules start with an underscore and are skipped."""
+def discover_parts(package: ModuleType | None = None) -> list[Part]:
+    """Every module of `package` (default: this one) with PART_ORDER and
+    seed_part, in order. Helper modules start with an underscore and are
+    skipped."""
+    pkg = package or sys.modules[__name__]
     out: list[Part] = []
-    for info in pkgutil.iter_modules(__path__):
+    for info in pkgutil.iter_modules(pkg.__path__):
         if info.name.startswith("_"):
             continue
-        mod = importlib.import_module(f"{__name__}.{info.name}")
+        mod = importlib.import_module(f"{pkg.__name__}.{info.name}")
         order, fn = getattr(mod, "PART_ORDER", None), getattr(mod, "seed_part", None)
         if isinstance(order, int) and callable(fn):
             out.append((order, info.name, fn))
     return sorted(out, key=lambda p: (p[0], p[1]))
+
+
+def hotel_fields(slug: str) -> dict[str, Any]:
+    """This hotel's hotels row (the variant hook run_variant reads)."""
+    from clefs.seed.demo_uae import _reset
+
+    return _reset.hotel_fields(slug)
 
 
 # ─── Orchestrator ───
@@ -246,13 +286,34 @@ def seed(
 
     Returns {hotel, created, anchor, parts: {name: counts}, credentials,
     plants} (credentials are for the CLI to print; never log them)."""
+    return run_variant(sys.modules[__name__], cur, slug, anchor=anchor, scale=scale, parts=parts, seed=seed,
+                       password=password, as_of=as_of)
+
+
+def run_variant(
+    package: ModuleType,
+    cur: Any,
+    slug: str,
+    *,
+    anchor: date | None = None,
+    scale: float = 1.0,
+    parts: list[str] | None = None,
+    seed: int = RNG_SEED,
+    password: str | None = None,
+    as_of: datetime | None = None,
+) -> dict:
+    """seed() for any variant package: one that defines TZ, hotel_fields(slug)
+    and part modules (PART_ORDER, seed_part). Its parts run in order on a
+    DemoCtx in the package's zone, whose ctx.data() reads the package's
+    modules (see the module docstring)."""
     from clefs.seed.demo_uae import _reset
 
+    tz = package.TZ
     if anchor is None and as_of is None:
-        anchor, as_of = live_anchor()
-    anchor = anchor or as_of.astimezone(TZ).date()
-    as_of = check_as_of(anchor, as_of)
-    known = discover_parts()
+        anchor, as_of = live_anchor_in(tz)
+    anchor = anchor or as_of.astimezone(tz).date()
+    as_of = check_as_of_in(tz, anchor, as_of)
+    known = discover_parts(package)
     unknown = sorted(set(parts or ()) - {name for _o, name, _f in known})
     if unknown:
         raise ValueError(f"unknown demo part(s): {', '.join(unknown)}")
@@ -260,12 +321,13 @@ def seed(
         # The hotel is wiped first, so every later part needs core's rooms,
         # staff and users rebuilt in the same run.
         raise ValueError("the core part always runs first: include core in --parts")
-    ctx = DemoCtx(cur=cur, slug=slug, anchor=anchor, seed=seed, scale=scale, as_of=as_of)
+    variant = None if package is sys.modules[__name__] else package
+    ctx = DemoCtx(cur=cur, slug=slug, anchor=anchor, seed=seed, scale=scale, as_of=as_of, tz=tz, variant=variant)
     ctx.credentials["password"] = password
     prev = getattr(clock, "_frozen", None)
     clock.freeze(ctx.now.astimezone(ZoneInfo("UTC")))
     try:
-        ctx.created = _reset.prepare_hotel(ctx)
+        ctx.created = _reset.prepare_hotel(ctx, fields=package.hotel_fields(slug))
         results: dict[str, dict] = {}
         for _order, name, fn in known:
             if parts is not None and name not in parts:

@@ -1,8 +1,8 @@
 """
 Deterministic graders (03 spec 5.4): tool assertions, escalation, text
-contains / not contains, language by script ratio, sentence count, AED
-amounts against the menu and KB price set, emergency numbers, room binding
-and the em dash ban. Each grader returns {grader, passed, detail}; a grader
+contains / not contains, language by script ratio, sentence count, amounts
+in the hotel's currency against the menu and KB price set, the hotel
+country's emergency numbers, room binding and the em dash ban. Each grader returns {grader, passed, detail}; a grader
 that cannot decide (no executor output to check) says skipped=True and
 passes, so a missing dry-run result never fails a scenario on its own.
 """
@@ -35,6 +35,7 @@ class Transcript:
     error: str | None = None
     prompt_version: str | None = None
     model: str | None = None
+    overloaded: bool = False  # the error was an overloaded model (429, 5xx, a timeout): the runner replays it
 
     @property
     def reply(self) -> str:
@@ -68,6 +69,9 @@ def normalize_call(c: Any) -> dict:
 class GradeContext:
     room: str | None = None
     price_set: set[Decimal] = field(default_factory=set)
+    # The hotel's: which amounts are its prices, which emergency numbers apply.
+    currency: str = "AED"
+    country: str | None = None
 
 
 # ─── Matchers ───
@@ -227,15 +231,23 @@ def grade_max_sentences(reply: str, limit: int) -> dict:
     return _out("max_sentences", n <= limit, f"{n} sentences (max {limit})")
 
 
-def grade_prices(reply: str, price_set: set[Decimal]) -> dict:
-    """Every AED amount in the reply must be a menu price or appear in the
-    approved KB. No amount at all passes."""
-    amounts = textcheck.aed_amounts(reply)
+def grade_prices(reply: str, price_set: set[Decimal], currency: str = "AED") -> dict:
+    """Every amount in the hotel's currency in the reply must be a menu price
+    or appear in the approved KB. No amount at all passes."""
+    amounts = textcheck.amounts(reply, currency)
     unlisted = sorted(str(a) for a in amounts if a not in price_set)
-    return _out("no_unlisted_prices", not unlisted, f"unlisted AED amounts {unlisted}" if unlisted else "")
+    return _out("no_unlisted_prices", not unlisted, f"unlisted {currency} amounts {unlisted}" if unlisted else "")
 
 
-def grade_emergency_numbers(reply: str, numbers: list[str]) -> dict:
+def grade_emergency_numbers(reply: str, numbers: list[str] | dict[str, list[str]], country: str | None = None) -> dict:
+    """Every expected number appears as a whole token. A per-country map
+    takes the hotel's entry; a country it does not list fails, because the
+    scenario cannot say which number is right there."""
+    if isinstance(numbers, dict):
+        wanted = numbers.get((country or "").strip().upper())
+        if wanted is None:
+            return _out("emergency_numbers", False, f"no emergency number listed for country {country or 'unknown'}")
+        numbers = wanted
     missing = [n for n in numbers if not textcheck.has_number_token(reply, n)]
     return _out("emergency_numbers", not missing, f"missing {missing}" if missing else "")
 
@@ -270,9 +282,9 @@ def grade(exp: Expectations, t: Transcript, gctx: GradeContext) -> list[dict]:
     if exp.max_sentences:
         out.append(grade_max_sentences(reply, exp.max_sentences))
     if exp.no_unlisted_prices:
-        out.append(grade_prices(reply, gctx.price_set))
+        out.append(grade_prices(reply, gctx.price_set, gctx.currency))
     if exp.emergency_numbers:
-        out.append(grade_emergency_numbers(reply, exp.emergency_numbers))
+        out.append(grade_emergency_numbers(reply, exp.emergency_numbers, gctx.country))
     if exp.bound_room:
         out.append(grade_bound_room(t, exp.bound_room))
     out.append(grade_em_dash(reply))

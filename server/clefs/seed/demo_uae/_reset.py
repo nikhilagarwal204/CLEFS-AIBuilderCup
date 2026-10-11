@@ -150,17 +150,20 @@ def hotel_fields(slug: str) -> dict[str, Any]:
     }
 
 
-def prepare_hotel(ctx: Any) -> bool:
+def prepare_hotel(ctx: Any, fields: dict[str, Any] | None = None) -> bool:
     """Refuse a non-demo hotel, wipe a demo one, then create or refresh the
-    row. Returns True when the hotels row was created."""
+    row with `fields` (default: this hotel's, hotel_fields). Returns True
+    when the hotels row was created. A retired demo (status archived, see
+    clefs.seed.retire) is refused like any other hotel that is not a demo:
+    restore it first."""
     from clefs.core import hotels
 
     cur, slug = ctx.cur, ctx.slug
     existing = hotels.find_hotel(cur, slug, fresh=True)
     if existing is not None and existing.status != "demo":
-        raise ClefsError(409, f"{slug} is a {existing.status} hotel, not a demo hotel; refusing to reseed it",
+        raise ClefsError(409, f"{slug} is {existing.status}, not a demo hotel; refusing to reseed it",
                          "not_demo")
-    fields = hotel_fields(slug)
+    fields = fields if fields is not None else hotel_fields(slug)
     if existing is None:
         hotels.create_hotel(cur, slug=slug, **fields)
         ctx.stats["wipe"] = {"tables": 0, "kept": []}

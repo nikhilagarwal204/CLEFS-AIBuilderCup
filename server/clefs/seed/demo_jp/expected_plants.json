@@ -1,0 +1,171 @@
+{
+  "anchor": "2026-10-21",
+  "hotel": "aozora-shinjuku",
+  "plants": [
+    {
+      "dedupe_key": "am.request_logging_gap",
+      "detector": "am.request_logging_gap",
+      "key": "shaving-kits",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Shaving kits handed out 2.2x the logged requests over 14 days.",
+      "subjects": [
+        {
+          "item_key": "SHAVING_KIT",
+          "logged": 16,
+          "unlogged": 20
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "am.variance.spike",
+      "key": "closet-fill-monday",
+      "klass": "DECOY",
+      "module": "amenities",
+      "note": "Monday two-day closet fill: a doubled Monday, an empty Tuesday, a normal week. Must not fire.",
+      "subjects": [
+        {
+          "item_key": "WATER_500",
+          "mondays": 2
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "am.variance.spike",
+      "key": "dental-floor6-night",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Floor 6 night shift issues dental kits at ~3x for 10 nights with no request behind them.",
+      "subjects": [
+        {
+          "days": 10,
+          "floor": "6",
+          "item_key": "DENTAL_KIT",
+          "shift": "night",
+          "units": 120
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "am.variance.spike",
+      "key": "slippers-one-cart",
+      "klass": "SIGNAL",
+      "module": "amenities",
+      "note": "Slippers over-issued to one cart (9 extra pairs a day for 9 days).",
+      "subjects": [
+        {
+          "item_key": "SLIPPERS",
+          "location": "HK Cart 3F",
+          "pairs": 81
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.l1_incident",
+      "key": "l1:2026-09-10",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "L1 via intake: incident beside the request, GM signal at creation.",
+      "subjects": [
+        {
+          "day": "2026-09-10",
+          "open": false,
+          "room": "104"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.l1_incident",
+      "key": "l1:2026-10-12",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "L1 via intake: incident beside the request, GM signal at creation.",
+      "subjects": [
+        {
+          "day": "2026-10-12",
+          "open": false,
+          "room": "110"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.l1_incident",
+      "key": "l1:2026-10-21",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "L1 via intake: incident beside the request, GM signal at creation.",
+      "subjects": [
+        {
+          "day": "2026-10-21",
+          "open": true,
+          "room": "205"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.recovery_case",
+      "key": "noise:last-night",
+      "klass": "ROW",
+      "module": "service",
+      "note": "Complaint via intake opens the case; gesture JPY 4400 within the duty manager's authority.",
+      "subjects": [
+        {
+          "pms_res_id": "AZ101235",
+          "room": "501"
+        }
+      ]
+    },
+    {
+      "dedupe_key": "service.repeat_fault:room:504:ac",
+      "detector": "service.repeat_fault",
+      "key": "room:504:ac",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "AC reported on A-4 and again from the guest page on the anchor.",
+      "subjects": [
+        {
+          "pms_res_id": "AZ102040",
+          "room": "504"
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "service.sla_breach_cluster",
+      "key": "friday-evening:2026-10-16",
+      "klass": "SIGNAL",
+      "module": "service",
+      "note": "Friday evenings carry the SLA breaches (history ~36% vs ~4%); the last Friday is live.",
+      "subjects": [
+        {
+          "business_date": "2026-10-16",
+          "requests": 8
+        }
+      ]
+    },
+    {
+      "dedupe_key": null,
+      "detector": "upsell.funnel",
+      "key": "ird-30-days",
+      "klass": "ROW",
+      "module": "upsell",
+      "note": "Quote -> pairing -> order funnel over 30 days, one live order.",
+      "subjects": [
+        {
+          "abandoned": 14,
+          "delivered": 48,
+          "ordered": 1,
+          "sessions": 63
+        }
+      ]
+    }
+  ],
+  "seed": 20261001
+}
