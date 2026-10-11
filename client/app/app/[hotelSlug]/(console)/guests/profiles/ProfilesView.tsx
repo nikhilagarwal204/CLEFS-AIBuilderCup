@@ -82,7 +82,7 @@ export default function ProfilesView({ initialId, initialFilter }: { initialId: 
         <div className="gst-grow">
           <Input
             aria-label="Exact phone or email"
-            placeholder="Exact phone (+971...) or email"
+            placeholder="Exact phone (with country code) or email"
             value={contactDraft}
             onChange={e => setContactDraft(e.target.value)}
             autoComplete="off"

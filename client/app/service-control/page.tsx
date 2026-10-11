@@ -24,7 +24,7 @@ const FAQS: Faq[] = [
   },
   {
     q: "Which languages can guests use?",
-    a: "Arabic, English and six more, tested for your hotel before go-live. Your team reads each request in their own language.",
+    a: "Eleven, including Japanese, Korean, Chinese, Thai and English, tested for your hotel before go-live. Your team reads each request in their own language.",
   },
   {
     q: "What happens if nobody picks a request up?",
@@ -32,7 +32,7 @@ const FAQS: Faq[] = [
   },
   {
     q: "What about emergencies?",
-    a: "Some requests never wait in a queue. Medical, fire, gas, security and harassment reports go straight to the people you name, and the assistant gives the guest the UAE emergency numbers at once.",
+    a: "Some requests never wait in a queue. Medical, fire, gas, security and harassment reports go straight to the people you name, and the assistant gives the guest the emergency numbers of the hotel's country at once.",
   },
   {
     q: "Do staff need their own phones?",
@@ -90,7 +90,7 @@ export default function Page() {
           {
             h2: "When something goes wrong",
             body: [
-              "Sensitive requests follow hard routes you set once: medical, fire, security and harassment reach named people immediately, with the UAE emergency numbers given to the guest.",
+              "Sensitive requests follow hard routes you set once: medical, fire, security and harassment reach named people immediately, with the hotel's local emergency numbers given to the guest.",
               "Service recovery follows your authority matrix. A supervisor can offer what a supervisor may offer, and anything larger waits for approval.",
             ],
           },

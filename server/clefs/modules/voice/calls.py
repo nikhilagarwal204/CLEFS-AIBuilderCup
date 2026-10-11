@@ -22,13 +22,15 @@ import jwt
 from clefs.core import clock
 from clefs.core.errors import unauthorized
 from clefs.settings import env, get_settings
+from clefs.modules.concierge import api as concierge_api
 from clefs.modules.voice import constants as C
 
 log = logging.getLogger("clefs.voice.calls")
 
 MCP_PATH = "/webhooks/voice/mcp"
 LANGUAGE_NAMES = {"en": "English", "ar": "Arabic", "hi": "Hindi", "ur": "Urdu", "ru": "Russian", "fr": "French",
-                  "de": "German", "zh": "Chinese", "tl": "Filipino", "ml": "Malayalam"}
+                  "de": "German", "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "th": "Thai", "tl": "Filipino",
+                  "ml": "Malayalam"}
 
 
 # ─── Per-call JWT (MCP authorization) ───
@@ -129,19 +131,49 @@ TRANSFER_TOOL = {
 }
 
 
-def _dial_sequence(prefix: str | None) -> str:
-    n = C.EMERGENCY_NUMBERS
-    if prefix:
-        return (f"dial {prefix} for an outside line, then {n['police']} for police, {n['ambulance']} for an ambulance "
-                f"or {n['fire']} for fire")
-    return (f"dial the outside line, then {n['police']} for police, {n['ambulance']} for an ambulance "
-            f"or {n['fire']} for fire")
+def emergency_numbers(country: str | None) -> list[dict]:
+    """[{number, kind}] a caller is told to dial: the hotel country's
+    life-safety numbers (concierge.api.emergency_numbers, filtered to
+    C.DIAL_KINDS), most used first. [] for a country with no list."""
+    return [n for n in concierge_api.emergency_numbers(country) if n["kind"] in C.DIAL_KINDS]
+
+
+def _or_list(parts: list[str]) -> str:
+    """"a", "a or b", "a, b, or c": a comma before the last "or" once there
+    are three, because a part may carry its own "or" ("fire or an ambulance")."""
+    if len(parts) <= 2:
+        return " or ".join(parts)
+    return ", ".join(parts[:-1]) + ", or " + parts[-1]
+
+
+def dial_sequence(prefix: str | None, country: str | None) -> str:
+    """What the caller dials in an emergency, in the hotel's country:
+    "dial 9 for an outside line, then 119 for fire or an ambulance, 110 for
+    the police, or 118 for the coast guard" (Japan); "... 999 for the police,
+    998 for an ambulance, 997 for fire or rescue, or 996 for the coast guard"
+    (UAE). An unknown country is told to call the local emergency services,
+    never a number that may not work there."""
+    first = f"dial {prefix} for an outside line" if prefix else "dial the outside line"
+    numbers = emergency_numbers(country)
+    if not numbers:
+        return f"{first}, then call {C.NO_NUMBERS}"
+    return f"{first}, then " + _or_list([f"{n['number']} for {C.DIAL_KINDS[n['kind']]}" for n in numbers])
+
+
+def line_prefix(cur: Any, call: dict) -> str | None:
+    """The outside-line prefix of the line a call came in on (vc_lines)."""
+    if not call.get("voice_line_id"):
+        return None
+    cur.execute("SELECT outside_line_prefix FROM vc_lines WHERE id = %s", (call["voice_line_id"],))
+    row = cur.fetchone()
+    return row["outside_line_prefix"] if row else None
 
 
 def phone_block(*, hotel_name: str, language: str, room: str | None, room_from_extension: bool,
-                outside_line_prefix: str | None, transport: str) -> str:
+                outside_line_prefix: str | None, transport: str, country: str | None = None) -> str:
     """The rules the web prompt does not carry. No URLs, spelled-out numbers
-    and read-backs because the caller only hears the answer."""
+    and read-backs because the caller only hears the answer. `country` (the
+    hotel's) picks the emergency numbers of the dial sequence."""
     lang_name = LANGUAGE_NAMES.get((language or "en").split("-")[0], "English")
     lines = [
         "PHONE CALL:",
@@ -166,7 +198,8 @@ def phone_block(*, hotel_name: str, language: str, room: str | None, room_from_e
     else:
         lines.append("transfer_to_front_desk connects the caller to a person at the front desk.")
     lines += [
-        f"EMERGENCY (fire, medical, violence, someone in danger): 1. tell the caller to {_dial_sequence(outside_line_prefix)}. "
+        "EMERGENCY (fire, medical, violence, someone in danger): 1. tell the caller to "
+        f"{dial_sequence(outside_line_prefix, country)}. "
         "2. Escalate at once (escalate_to_human with reason emergency). 3. Offer to transfer them to the front desk.",
     ]
     return "\n".join(lines)

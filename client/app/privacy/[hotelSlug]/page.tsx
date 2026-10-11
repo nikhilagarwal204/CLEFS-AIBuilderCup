@@ -12,7 +12,7 @@ import { privacyRequestHref } from "../links";
  * that path is an alias that redirects here (app/stay/[hotelSlug]/privacy), so
  * the notice sits outside the noindex per-room /stay tree beside the rights
  * form. Guest surfaces link to it through app/privacy/links.ts
- * (privacyNoticeHref, with the link text in all eight guest languages); the
+ * (privacyNoticeHref, with the link text in every guest language); the
  * rights form links back to it.
  *
  * Server-rendered from the public form context (GET /public/privacy/form),

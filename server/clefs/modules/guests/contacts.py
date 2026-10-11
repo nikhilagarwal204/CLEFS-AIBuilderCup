@@ -355,7 +355,11 @@ def record_own_contact(
     raw_ev = dict(evidence or {})
     profile_fields = {k: raw_ev.pop(k) for k in ("first_name", "preferences") if k in raw_ev}
     ev = evidence_mod.check(cur, hotel_slug, capture_source, raw_ev)
-    language = ev.get("language") if ev.get("language") in ("en", "ar") else "en"
+    # The language of the wording the guest read (gst.v3 is written in
+    # identity.CONSENT_LANGUAGES); a profile's language stays one the
+    # journeys write in (EN/AR templates).
+    wording = identity.consent_language(ev.get("language"))
+    language = wording if wording in ("en", "ar") else "en"
     h = identity.hmac_for(cur, hotel_slug, kind, value)
     norm = identity.normalized(cur, hotel_slug, kind, value)
     provenance = "guest_stay" if ota_j1 else "guest_direct"
@@ -393,7 +397,7 @@ def record_own_contact(
         consent.record_consent(
             cur, hotel_slug, h.hex(), purpose, g, source=capture_source, subject_type="contact",
             evidence={"point_id": point_id, **{k: v for k, v in ev.items() if k in ("kind", "file_id", "signature_file_id", "inbound_message_id")}},
-            text_version=versions.get(purpose), language=language, actor=actor,
+            text_version=versions.get(purpose), language=wording, actor=actor,
         )
     if provenance == "guest_direct" and consents.get("profile_memory"):
         _profile_from_capture(cur, hotel_slug, {**(profile_identities or {}), kind: h}, reservation_id=reservation_id,

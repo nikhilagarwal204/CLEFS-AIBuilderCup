@@ -23,7 +23,10 @@ import { BASIS_LABELS, CATEGORY_LABELS, categoryLabel, qtyText } from "./lib";
 import type { Item } from "./types";
 
 export default function CatalogConsole() {
-  const { slug } = useHotel();
+  const { slug, hotel } = useHotel();
+  // The seeded default list is the UAE market's (costs in AED, UAE excise
+  // and plastic rules): offered to UAE hotels only.
+  const uae = (hotel?.country || "").toUpperCase() === "AE";
   const { can } = useSession();
   const fmt = useFormat();
   const toast = useToast();
@@ -149,8 +152,8 @@ export default function CatalogConsole() {
           <p className="amn-note" role="alert">{items.error.message}</p>
         ) : empty && !items.loading ? (
           <AmnEmpty title="No items yet"
-                    body="Add the amenities you stock, or start from the UAE default list and adjust it."
-                    action={canManage ? <Button variant="primary" onClick={seed} loading={seeding}>Load UAE defaults</Button> : undefined} />
+                    body={uae ? "Add the amenities you stock, or start from the UAE default list and adjust it." : "Add the amenities you stock."}
+                    action={canManage && uae ? <Button variant="primary" onClick={seed} loading={seeding}>Load UAE defaults</Button> : undefined} />
         ) : (
           <Table columns={cols} rows={rows} rowKey={i => i.id} loading={items.loading && !items.data}
                  caption="Amenity catalog" empty="No item matches these filters." />

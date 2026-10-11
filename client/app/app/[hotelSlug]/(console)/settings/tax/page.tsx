@@ -2,6 +2,10 @@
 
 /* Settings > Tax: what the hotel owes on each room-night and how a guest
    price splits into room revenue and fees.
+   - UAE hotels only (country AE): the cards below, the UAE fee stack that
+     core/tax keeps. Any other country gets LocalTax: a short note and the
+     hotel's own recorded tax setup; Profit Guard's UAE routes are not even
+     asked.
    - Banner: every announced-but-unverified change that touches the next 90
      days, applied or not (02 spec 2.3), so nobody forgets it is a guess.
    - Tax profile: category (Tourism Dirham rate) and stacking convention.
@@ -22,6 +26,7 @@ import { taxPath, type TaxProfile } from "./api";
 import { ConventionPreview } from "./ConventionPreview";
 import { announcementsIn, normalizeRules, type FeeRule } from "./convention";
 import { FeeRulesTable } from "./FeeRulesTable";
+import { LocalTax } from "./LocalTax";
 import { taxStyles } from "./styles";
 import { TaxProfileCard } from "./TaxProfileCard";
 
@@ -63,8 +68,10 @@ export default function TaxSettingsPage() {
   const fmt = useFormat();
   const today = fmt.dayKey(new Date());
   const canWrite = can(WRITE_PERMS);
-  const profile = useApi<TaxProfile>(slug ? taxPath(slug, "/profile") : null, [slug]);
-  const rulesRes = useApi<unknown>(slug ? taxPath(slug, `/fee-rules?on=${today}`) : null, [slug, today]);
+  const country = (hotel?.country || "").trim().toUpperCase();
+  const uae = country === "AE";
+  const profile = useApi<TaxProfile>(slug && uae ? taxPath(slug, "/profile") : null, [slug, uae]);
+  const rulesRes = useApi<unknown>(slug && uae ? taxPath(slug, `/fee-rules?on=${today}`) : null, [slug, today, uae]);
   // The route may answer a bare list or {rules, notices}; accept both. Rates
   // are made plain here ("1E+1" -> "10", OWN-06) so every card below, and the
   // preview maths, reads the same text.
@@ -74,6 +81,8 @@ export default function TaxSettingsPage() {
 
   const missing = rulesRes.error?.status === 404 && (profile.error?.status === 404 || !profile.data);
   const content = (() => {
+    if (!hotel) return <Skeleton lines={8} />;
+    if (!uae) return <LocalTax slug={slug} country={country} currency={hotel.currency} />;
     if (missing) {
       return (
         <EmptyState title="Tax settings open with Profit Guard"
@@ -85,9 +94,6 @@ export default function TaxSettingsPage() {
     return (
       <>
         <Banner rules={rules} today={today} />
-        {hotel?.country && hotel.country !== "AE" && (
-          <p className="tax-note">UAE fee rules apply only to hotels in the UAE. This hotel is in {hotel.country}.</p>
-        )}
         <Card title="Tax profile" subtitle="Your category and how your PMS stacks fees. Every split of a stay uses these.">
           <TaxProfileCard key={JSON.stringify(profile.data ?? null)} slug={slug} profile={profile.data ?? null}
                           today={today} canWrite={canWrite} onSaved={reload} />

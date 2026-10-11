@@ -78,7 +78,7 @@ def test_profile_memory_wording_discloses_health_data(cur, hotel_uae):
     # Pinned: another lane's newer platform wording (Trust seeds one) must
     # not replace the only one that discloses health data.
     for lang in ("en", "ar"):
-        assert identity.text_version(cur, hotel_uae.slug, "profile_memory", lang) == "gst.v2"
+        assert identity.text_version(cur, hotel_uae.slug, "profile_memory", lang) == "gst.v3"
     en = identity.consent_text(cur, hotel_uae.slug, "profile_memory", "en")
     assert "allergies" in en["body"] and "health information" in en["body"]
     ar = identity.consent_text(cur, hotel_uae.slug, "profile_memory", "ar")
@@ -181,7 +181,7 @@ def test_console_capture_stores_a_sealed_guest_direct_point_with_consents(cur, h
     assert p["provenance"] == "guest_direct" and bytes(p["value_hmac"]) == h and p["country_prefix"] == "+971"
     assert privacy.unseal(p["value_enc"]) == PHONE and PHONE.encode() not in bytes(p["value_enc"])
     state = consent.consent_state(cur, s, h.hex())
-    assert state["marketing_whatsapp"]["granted"] and state["marketing_whatsapp"]["text_version"] == "gst.v1"
+    assert state["marketing_whatsapp"]["granted"] and state["marketing_whatsapp"]["text_version"] == "gst.v3"
     assert state["transfer_abroad"]["granted"]
 
 
@@ -281,6 +281,6 @@ def test_consent_text_migration_converges_when_0675_ran_first(cur):
     mod.up(cur)  # idempotent
     cur.execute(
         "SELECT version, retired_at IS NULL AS live FROM consent_texts WHERE purpose = 'profile_memory' "
-        "AND version LIKE 'gst.%%' ORDER BY version, language"
+        "AND version IN ('gst.v1', 'gst.v2') ORDER BY version, language"
     )
     assert [tuple(r.values()) for r in cur.fetchall()] == [("gst.v1", False)] * 2 + [("gst.v2", True)] * 2

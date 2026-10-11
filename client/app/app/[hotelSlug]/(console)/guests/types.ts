@@ -9,6 +9,8 @@
 
 export type ContactKind = "phone" | "email";
 export type Lang = "en" | "ar";
+/** The languages the consent wording (gst.v3) is written in: what a guest read. */
+export type ConsentLang = "en" | "ar" | "ja" | "ko" | "th";
 
 export interface Health {
   allergies: string[];

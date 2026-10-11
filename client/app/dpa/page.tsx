@@ -10,7 +10,7 @@ const PATH = "/dpa";
 const TITLE = "Data Processing Agreement";
 const DESCRIPTION =
   "The terms on which Clefs processes personal data for hotels: roles, instructions, security, sub-processors, transfers, guest rights, incidents and the end of the contract.";
-const UPDATED = "2026-09-29";
+const UPDATED = "2026-10-21";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -25,9 +25,10 @@ const schema = jsonLd([
 ]);
 
 // WHY a plain-language summary and not the full legal text: the signed DPA is
-// part of each hotel's contract and is reviewed by counsel against the UAE
-// PDPL executive regulations. This page states the commitments that document
-// makes, so a GM can check them before the lawyers are involved.
+// part of each hotel's contract and is reviewed by counsel against the
+// data-protection law of the hotel's country (the UAE PDPL and its executive
+// regulations for a UAE hotel). This page states the commitments that
+// document makes, so a GM can check them before the lawyers are involved.
 const p = (...lines: string[]) => lines.map((l) => <p key={l.slice(0, 32)}>{l}</p>);
 
 // ─── Sections ────────────────────────────────────────────────────────────────
@@ -76,10 +77,10 @@ const SECTIONS: DocSection[] = [
   },
   {
     id: "transfers",
-    h2: "Transfers outside the UAE",
+    h2: "Transfers abroad",
     body: p(
       RESIDENCY.statement,
-      "Transfers rely on the guest's explicit consent, collected before the assistant starts, and on the contractual safeguards with each provider.",
+      "Transfers rely on the guest's explicit consent to processing outside their country, collected before the assistant starts, and on the contractual safeguards with each provider.",
     ),
   },
   {

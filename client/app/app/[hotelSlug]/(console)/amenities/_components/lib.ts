@@ -198,13 +198,26 @@ const CITY_NAMES: Record<string, string> = {
   DXB: "Dubai", AUH: "Abu Dhabi", SHJ: "Sharjah", AJM: "Ajman", RAK: "Ras Al Khaimah", FUJ: "Fujairah", UAQ: "Umm Al Quwain",
 };
 
-/** "AE-DXB-HOTEL_4" -> "Dubai, 4-star hotels". Unknown shapes fall back to
- *  a readable form of the key rather than a blank. */
+/** "Japan" for JP; null when Intl has no name for the code. */
+function regionName(code: string | undefined): string | null {
+  if (!code || !/^[A-Z]{2}$/.test(code)) return null;
+  try {
+    const name = new Intl.DisplayNames(["en"], { type: "region" }).of(code);
+    return name && name !== code ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+/** "AE-DXB-HOTEL_4" -> "Dubai, 4-star hotels"; a hotel outside the UAE has
+ *  no emirate, so "JP-ALL-HOTEL_3" -> "Japan, 3-star hotels" (server
+ *  benchmarks.cohort_key). Unknown shapes fall back to a readable form of
+ *  the key rather than a blank. */
 export function cohortLabel(key: string | null | undefined): string {
   if (!key) return "hotels of the same city and class";
-  const [, city, ...rest] = key.split("-");
+  const [country, city, ...rest] = key.split("-");
   const cls = rest.join("-");
-  const where = (city && CITY_NAMES[city]) || city || "";
+  const where = (city && CITY_NAMES[city]) || (city === "ALL" ? regionName(country) : city) || "";
   const star = /^HOTEL_(\d)$/.exec(cls);
   const what = star ? `${star[1]}-star hotels` : cls ? cls.replace(/_/g, " ").toLowerCase() : "hotels";
   return where ? `${where}, ${what}` : what;

@@ -13,7 +13,7 @@ const PATH = "/security";
 const TITLE = "Security and Data Protection";
 const DESCRIPTION =
   "Where Clefs stores hotel and guest data, which providers process it, how long it is kept, who at the hotel can see what, and how every change is recorded.";
-const UPDATED = "2026-09-29";
+const UPDATED = "2026-10-21";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -37,8 +37,9 @@ const schema = jsonLd([
 
 // ─── Sections ────────────────────────────────────────────────────────────────
 
-// HONESTY RULE (03 section 5.3): state where data is today. A pen-test line is
-// deliberately absent: it is added only when a real report exists.
+// HONESTY RULE (03 section 5.3): state where data is today, in this
+// deployment (lib/subprocessors.ts). A pen-test line is deliberately absent:
+// it is added only when a real report exists.
 const RESIDENCY_SECTION: DocSection = {
   id: "residency",
   h2: "Where your data lives",
@@ -46,20 +47,26 @@ const RESIDENCY_SECTION: DocSection = {
     <>
       <p>{RESIDENCY.statement}</p>
       <ul>
+        <li><strong>Website, console, guest pages and API:</strong> {RESIDENCY.hosting}.</li>
         <li><strong>Database:</strong> {RESIDENCY.database}.</li>
+        <li><strong>Job completion photos:</strong> {RESIDENCY.photos}.</li>
         <li><strong>AI processing:</strong> {RESIDENCY.ai}.</li>
-        <li><strong>UAE hosting:</strong> {RESIDENCY.uaeOption}.</li>
+        <li><strong>Guest voice:</strong> {RESIDENCY.voice}.</li>
+        <li><strong>Keys and logs:</strong> {RESIDENCY.operations}.</li>
       </ul>
       <div className="mk-note">
         <p>
-          Moving the database to the UAE does not remove the transfer abroad: AI processing still runs in
-          the United States. That is why guests are asked to consent to it, and why the assistant does not
-          start without that consent.
+          Keeping the data in one Google Cloud region in India does not keep it in the guest&apos;s own
+          country: for a hotel outside India every flow above is a transfer abroad, and AI processing may
+          also run in the United States. That is why guests are asked to consent to processing outside
+          their country, and why the assistant does not start without that consent.
         </p>
       </div>
       <p>
-        Clefs follows the UAE Personal Data Protection Law with consent as the basis for processing guest
-        data. We review this page with counsel as the executive regulations are issued.
+        For hotels in the UAE, Clefs follows the UAE Personal Data Protection Law, with consent as the
+        basis for processing guest data. For hotels elsewhere the hotel&apos;s own data-protection law
+        applies, and consent remains the basis Clefs uses. We review this page with counsel as regulations
+        are issued.
       </p>
     </>
   ),
@@ -83,10 +90,10 @@ const CONSENT_SECTION: DocSection = {
       </p>
       <ul>
         <li><strong>AI processing</strong>: the assistant answers the guest using AI.</li>
-        <li><strong>Transfer abroad</strong>: the guest&apos;s messages are processed outside the UAE.</li>
+        <li><strong>Transfer abroad</strong>: the guest&apos;s messages and voice may be processed outside their own country (the data is stored in India, and AI may run in other countries, including the United States).</li>
         <li><strong>Recording</strong>: phone calls are recorded only if the hotel switches it on and the guest agrees.</li>
         <li><strong>Profile memory</strong>: preferences are kept for a later stay only with the guest&apos;s agreement.</li>
-        <li><strong>Marketing</strong>: offers are sent only on the channel the guest agreed to, inside UAE marketing hours.</li>
+        <li><strong>Marketing</strong>: offers are sent only on the channel the guest agreed to, and only during daytime hours in the hotel&apos;s time zone.</li>
       </ul>
     </>
   ),
@@ -98,7 +105,8 @@ const PROCESSORS_SECTION: DocSection = {
   body: (
     <>
       <p>
-        These providers process data on our behalf. The full list, with what each one receives, is also on
+        These providers process data on our behalf in this deployment. The full list, with what each one
+        receives and the providers a hotel only uses once it turns a feature on, is on
         the <Link href="/subprocessors">sub-processors page</Link>, which we update before a new provider
         starts.
       </p>

@@ -9,6 +9,7 @@ import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { ApiError, api, hotelPath, useApi } from "../../../../../lib/api";
 import { useFormat } from "../../../../../lib/format";
 import { useHotel } from "../../../../../lib/hotel";
+import { phoneFormatHint, phonePlaceholder } from "../../../../../lib/phone";
 import { useSession } from "../../../../../lib/session";
 import { ROLE_LABELS, ROLES, type Role, type TeamMember, type TeamMemberCreate, type TeamMemberPatch } from "../../../../../lib/types";
 import { Badge, Button, Card, Field, Input, Modal, Select, Table, useToast, type Column } from "../../../../../ui";
@@ -54,7 +55,7 @@ interface Draft {
 const EMPTY: Draft = { name: "", email: "", phone: "", role: "staff", departments: "", floors: "", is_active: true };
 
 export default function TeamPage() {
-  const { slug } = useHotel();
+  const { slug, hotel } = useHotel();
   const session = useSession();
   const fmt = useFormat();
   const toast = useToast();
@@ -85,7 +86,7 @@ export default function TeamPage() {
       if (!draft.name.trim()) errs.name = "Name is required.";
       if (!/^\S+@\S+\.\S+$/.test(draft.email.trim())) errs.email = "A valid email is required; the invite goes here.";
     }
-    if (draft.phone.trim() && !/^\+?[\d\s-]{7,20}$/.test(draft.phone.trim())) errs.phone = "International format, e.g. +971 50 123 4567.";
+    if (draft.phone.trim() && !/^\+?[\d\s-]{7,20}$/.test(draft.phone.trim())) errs.phone = phoneFormatHint(hotel?.country);
     if ((draft.role === "dept_head") && !splitList(draft.departments).length) errs.departments = "A department head needs at least one department.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -207,7 +208,8 @@ export default function TeamPage() {
             </>
           )}
           <Field label="WhatsApp / mobile" error={errors.phone} hint="Used for the morning brief and approvals by WhatsApp.">
-            <Input type="tel" value={draft.phone} invalid={!!errors.phone} onChange={e => setDraft(d => ({ ...d, phone: e.target.value }))} />
+            <Input type="tel" value={draft.phone} invalid={!!errors.phone} placeholder={phonePlaceholder(hotel?.country)}
+                   onChange={e => setDraft(d => ({ ...d, phone: e.target.value }))} />
           </Field>
           <Field label="Role" required hint={ROLE_HINTS[draft.role]} error={errors.role}>
             <Select value={draft.role} onChange={e => setDraft(d => ({ ...d, role: e.target.value as Role }))}

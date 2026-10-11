@@ -107,4 +107,23 @@ LEASE_S = 60
 LEASE_RENEW_S = 20
 POLL_S = 2.0
 MAX_CALLS_PER_WORKER = 20
-EMERGENCY_NUMBERS = {"police": "999", "ambulance": "998", "fire": "997"}
+
+# ─── Emergency numbers ───
+# The numbers a caller is told to dial are the hotel country's, from
+# concierge.api.emergency_numbers (the list the web assistant and the guest
+# EmergencyCard use: JP 119 fire and ambulance, 110 police; AE 999 police,
+# 998 ambulance, 997 civil defence, 996 coast guard). A call reads out the
+# life-safety services below, in the country's order (most used first);
+# utility lines (the UAE's 991) and search and rescue are left out of a
+# spoken list. A country with no list gets NO_NUMBERS instead of a number
+# that may be wrong there.
+DIAL_KINDS: dict[str, str] = {
+    "emergency": "any emergency",
+    "fire_ambulance": "fire or an ambulance",
+    "ambulance": "an ambulance",
+    "fire": "fire",
+    "civil_defence": "fire or rescue",
+    "police": "the police",
+    "coast_guard": "the coast guard",
+}
+NO_NUMBERS = "the local emergency services"

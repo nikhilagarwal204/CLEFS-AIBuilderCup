@@ -26,13 +26,13 @@ test("initials use letters only and fall back to '?'", () => {
 
 // ─── sub-processors (review compliance-subprocessors-missing-msg91) ───
 
-test("MSG91 is disclosed as an Indian SMS sub-processor with a transfer", () => {
+test("MSG91 is disclosed as an Indian SMS sub-processor, used only once SMS is on", () => {
   const msg91 = SUBPROCESSORS.find((s) => s.name === "MSG91");
   assert.ok(msg91, "MSG91 must be listed: notify routes +91 SMS to it");
   assert.equal(msg91.location, "India");
-  assert.equal(msg91.transfer_abroad, true);
+  assert.equal(msg91.status, "when_enabled");
   assert.ok(msg91.data.includes("staff"));
-  assert.ok(personalDataSubprocessors().some((s) => s.name === "MSG91"));
+  assert.ok(!personalDataSubprocessors().some((s) => s.name === "MSG91"));
 });
 
 test("every SMS vendor that receives personal data is named", () => {

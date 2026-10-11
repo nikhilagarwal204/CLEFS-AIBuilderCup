@@ -18,7 +18,8 @@ subject_ref is a hashed identity (core.privacy.contact_ref) or an internal id
 Purposes (separate by law, Canon PDPL note):
   recording        call recording / transcripts
   ai_processing    guest content processed by an AI model
-  transfer_abroad  processing outside the UAE (Neon Singapore, Google Gemini, Meta)
+  transfer_abroad  processing outside the guest's country (storage in Google Cloud's
+                   India region, Gemini models that may run in other countries)
   marketing        promotional messages on any channel
   ai_analytics     aggregate AI analytics over guest content
   profile_memory   remembering preferences across stays

@@ -41,7 +41,7 @@ export interface PhoneEntryProps {
   onDone?: () => void;
 }
 
-const CALLER_LANGUAGES = ["en", "ar", "hi", "ur", "ru", "zh", "de", "fr"] as const;
+const CALLER_LANGUAGES = ["en", "ar", "hi", "ur", "ru", "zh", "de", "fr", "ja", "ko", "th"] as const;
 
 /** Minutes since an instant, for "assigned 4 min ago". */
 function minsAgo(ts: number | null | undefined, now: number): number | null {

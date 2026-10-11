@@ -84,7 +84,7 @@ export default function DsrPanel({ slug }: { slug: string }) {
           ? `${overdue} past the 30-day deadline. Answer these first.`
           : flagged
             ? `${flagged} arrived in an unusual burst and are marked. Check each one; reject those you cannot verify.`
-            : "Guests may ask for a copy, a correction, erasure or a stop to processing. UAE PDPL gives you 30 days from receipt."}
+            : "Guests may ask for a copy, a correction, erasure or a stop to processing. Each request is due 30 days after it arrives."}
         actions={
           <div className="cx-row" style={{ gap: 8 }}>
             <Select aria-label="Status" value={status} onChange={e => setStatus(e.target.value)}

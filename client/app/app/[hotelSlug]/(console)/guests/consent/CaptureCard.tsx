@@ -15,8 +15,9 @@ import { useState } from "react";
 import { api, ApiError, uploadFile } from "../../../../../lib/api";
 import { useHotel } from "../../../../../lib/hotel";
 import { Button, Card, Field, Input, Segmented, Select, useToast } from "../../../../../ui";
-import { errText, gstApi, PURPOSE_LABEL } from "../lib";
-import type { ConsentFlags, ContactKind, Lang } from "../types";
+import { phonePlaceholder } from "../../../../../lib/phone";
+import { CONSENT_LANG_OPTIONS, errText, gstApi, PURPOSE_LABEL } from "../lib";
+import type { ConsentFlags, ConsentLang, ContactKind } from "../types";
 
 const MAX_EVIDENCE = 300 * 1024;
 const EVIDENCE_PURPOSE = "guests.contact_evidence";
@@ -36,13 +37,13 @@ const CODE_TEXT: Record<string, string> = {
 };
 
 export default function CaptureCard() {
-  const { slug } = useHotel();
+  const { slug, hotel } = useHotel();
   const toast = useToast();
   const [kind, setKind] = useState<ContactKind>("phone");
   const [value, setValue] = useState("");
   const [room, setRoom] = useState("");
   const [firstName, setFirstName] = useState("");
-  const [language, setLanguage] = useState<Lang>("en");
+  const [language, setLanguage] = useState<ConsentLang>("en");
   const [consents, setConsents] = useState<ConsentFlags>(NO_CONSENT);
   const [evKind, setEvKind] = useState<EvidenceKind>("card_crop");
   const [file, setFile] = useState<File | null>(null);
@@ -102,7 +103,7 @@ export default function CaptureCard() {
               options={[{ value: "phone", label: "Phone" }, { value: "email", label: "Email" }]} />
             <div className="gst-grow">
               <Input id="gst-cap-value" required value={value} autoComplete="off" inputMode={kind === "phone" ? "tel" : "email"}
-                placeholder={kind === "phone" ? "+971 50 123 4567" : "guest@example.com"} onChange={e => setValue(e.target.value)} />
+                placeholder={kind === "phone" ? phonePlaceholder(hotel?.country) : "guest@example.com"} onChange={e => setValue(e.target.value)} />
             </div>
           </div>
         </Field>
@@ -113,8 +114,8 @@ export default function CaptureCard() {
           <Input id="gst-cap-name" value={firstName} maxLength={80} onChange={e => setFirstName(e.target.value)} />
         </Field>
         <Field label="Card language" htmlFor="gst-cap-lang" hint="Records the wording version the guest read">
-          <Select id="gst-cap-lang" value={language} onChange={e => setLanguage(e.target.value as Lang)}
-            options={[{ value: "en", label: "English" }, { value: "ar", label: "Arabic" }]} />
+          <Select id="gst-cap-lang" value={language} onChange={e => setLanguage(e.target.value as ConsentLang)}
+            options={CONSENT_LANG_OPTIONS} />
         </Field>
 
         <fieldset className="gst-checks gst-form-grid__wide" style={{ border: 0, padding: 0, margin: 0 }}>

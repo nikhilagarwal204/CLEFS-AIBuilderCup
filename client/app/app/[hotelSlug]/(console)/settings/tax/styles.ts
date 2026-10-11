@@ -23,6 +23,14 @@ export const taxStyles = `
 .tax-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 0.86rem; cursor: pointer; }
 .tax-switch input { width: 18px; height: 18px; accent-color: var(--clefs-gold-500); }
 
+/* LocalTax: a hotel outside the UAE, its recorded tax setup as label/value rows. */
+.tax-local { margin: 0; display: grid; gap: 10px; }
+.tax-local__row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 12px; font-size: 0.88rem; }
+.tax-local__row dt { color: var(--clefs-ink-muted); }
+.tax-local__row dd { margin: 0; color: var(--clefs-ink); }
+.tax-local__row ul { margin: 0; padding-left: 18px; }
+@media (max-width: 560px) { .tax-local__row { grid-template-columns: 1fr; gap: 2px; } }
+
 /* ConventionPreview: three columns A/B/C, one line per component. */
 .tax-preview-inputs { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 .tax-preview-inputs > * { flex: 1 1 150px; min-width: 140px; }

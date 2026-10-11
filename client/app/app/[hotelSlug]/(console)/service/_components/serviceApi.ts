@@ -398,4 +398,5 @@ export const SOURCE_LABELS: Record<string, string> = {
 
 export const LANGUAGE_LABELS: Record<string, string> = {
   en: "English", ar: "Arabic", ru: "Russian", hi: "Hindi", ur: "Urdu", zh: "Chinese", de: "German", fr: "French",
+  ja: "Japanese", ko: "Korean", th: "Thai",
 };

@@ -18,8 +18,9 @@ from typing import Any
 
 from clefs.core import clock
 from clefs.core.errors import ClefsError
+from clefs.core.hotels import get_hotel
 from clefs.modules.concierge import api as concierge_api
-from clefs.modules.voice import constants as C
+from clefs.modules.voice import calls
 
 PRIORITIES = ("low", "medium", "high")
 STATUS_WINDOW_H = 36
@@ -101,14 +102,15 @@ def escalate_to_human(cur: Any, call: dict, args: dict) -> dict:
     reason = _clean(args.get("reason"), 30) or "other"
     summary = _clean(args.get("summary_en") or args.get("description_en"), 400)
     if reason == "emergency":
-        n = C.EMERGENCY_NUMBERS
         row = service_api.create_request(
             cur, call["hotel_slug"], room=room or "unknown", type="security", source="sip", priority_hint="L1",
             description=f"EMERGENCY reported on the room phone: {summary or 'caller reported an emergency'}{_unverified_note(call)}",
             language="en",
         )
-        return result("escalated", f"Tell the caller help is on the way, that they can dial the outside line then "
-                      f"{n['police']} (police), {n['ambulance']} (ambulance) or {n['fire']} (fire), and offer to transfer "
+        # The hotel country's numbers (calls.dial_sequence), never one
+        # country's list for every hotel.
+        dial = calls.dial_sequence(calls.line_prefix(cur, call), get_hotel(cur, call["hotel_slug"]).country)
+        return result("escalated", f"Tell the caller help is on the way, that they can {dial}, and offer to transfer "
                       "them to the front desk.", request_ref=str(row.get("id")), reason=reason,
                       ui={"kind": "emergency", "token": row.get("tracking_token")})
     out = service_api.escalate_to_human(

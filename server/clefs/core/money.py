@@ -31,12 +31,15 @@ from typing import Any
 from clefs.core.errors import ClefsError, NotConfigured
 
 # ISO 4217 minor units for currencies Clefs hotels and their OTAs use. Anything
-# else defaults to 2 (true for nearly every currency).
+# else defaults to 2 (true for nearly every currency). The console's money
+# helpers pin the same table (client lib/format.ts MINOR_UNITS), so an amount
+# is stored and shown in the same unit whatever the browser's Intl data says.
 MINOR_UNITS: dict[str, int] = {
     "AED": 2, "USD": 2, "EUR": 2, "GBP": 2, "INR": 2, "SAR": 2, "QAR": 2, "CNY": 2,
     "RUB": 2, "CHF": 2, "AUD": 2, "CAD": 2, "SGD": 2, "THB": 2, "EGP": 2, "PKR": 2,
+    "HKD": 2, "TWD": 2, "IDR": 2, "PHP": 2,
     "OMR": 3, "KWD": 3, "BHD": 3, "JOD": 3,
-    "JPY": 0, "KRW": 0,
+    "JPY": 0, "KRW": 0, "VND": 0,
 }
 
 # Fixed pegs: units of `quote` per 1 `base`. The AED has been pegged to the USD

@@ -168,7 +168,7 @@ def capture_room_identity(
     values = [(k, v.strip()) for k, v in (("phone", phone), ("email", email)) if isinstance(v, str) and v.strip()]
     if not values:
         raise ClefsError(400, "Give a phone number or an email address", "contact_required")
-    lang = consent_language if consent_language in ("en", "ar") else "en"
+    lang = identity.consent_language(consent_language)
     versions = {p: identity.text_version(cur, hotel_slug, p, lang) for p, g in consents.items() if g}
     hotel = get_hotel(cur, hotel_slug)
     ci = check_in or local_date(hotel)

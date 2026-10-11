@@ -85,7 +85,7 @@ export default function TrustOverview() {
             label="Open privacy requests"
             loading={dsr.loading && !dsr.data}
             value={dsr.data ? fmt.number(dsr.data.length) : "-"}
-            sub={overdue ? `${overdue} past the 30-day deadline` : "UAE PDPL: answer within 30 days of receipt."}
+            sub={overdue ? `${overdue} past the 30-day deadline` : "Each request is due 30 days after it arrives."}
           />
         </Link>
       )}

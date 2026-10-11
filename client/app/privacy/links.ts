@@ -33,8 +33,8 @@ export function privacyRequestHref(hotelSlug: string, lang?: string | null): str
 }
 
 // ─── Link text ───────────────────────────────────────────────────────────────
-// The eight guest languages of the concierge (stay/i18n). Unknown codes fall
-// back to English.
+// The guest languages of the concierge (stay/i18n GUEST_LANGUAGES). Unknown
+// codes fall back to English.
 
 type LinkCopy = { notice: string; rights: string; footer: string };
 
@@ -47,6 +47,9 @@ export const PRIVACY_LINK_COPY: Record<string, LinkCopy> = {
   ru: { notice: "Уведомление о конфиденциальности", rights: "Ваши права на данные", footer: "Ваша конфиденциальность" },
   ur: { notice: "رازداری کا نوٹس", rights: "آپ کے رازداری کے حقوق", footer: "آپ کی رازداری" },
   zh: { notice: "隐私声明", rights: "您的隐私权利", footer: "您的隐私" },
+  ja: { notice: "プライバシーに関するお知らせ", rights: "お客様のプライバシーの権利", footer: "プライバシーについて" },
+  ko: { notice: "개인정보 처리 안내", rights: "개인정보에 관한 권리", footer: "개인정보 보호" },
+  th: { notice: "ประกาศความเป็นส่วนตัว", rights: "สิทธิ์ในความเป็นส่วนตัวของคุณ", footer: "ความเป็นส่วนตัวของคุณ" },
 };
 
 export function privacyLinkCopy(lang?: string | null): LinkCopy {

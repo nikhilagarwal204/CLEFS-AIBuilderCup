@@ -6,6 +6,7 @@
    leaving the floor empty asks the server to infer it from the number. */
 
 import { useState } from "react";
+import { useHotel } from "../../../../../lib/hotel";
 import { Button, Field, Input, Modal, Segmented, Select } from "../../../../../ui";
 import { expandRange, inferFloor, SERVICE_LABEL, validRoom, type Room, type RoomInput, type ServiceState } from "./rooms";
 
@@ -24,6 +25,8 @@ export interface RoomEditorProps {
 const SERVICE_OPTIONS = (Object.keys(SERVICE_LABEL) as ServiceState[]).map(k => ({ value: k, label: SERVICE_LABEL[k] }));
 
 export function RoomEditor({ open, room, existing, saving, onClose, onSave }: RoomEditorProps) {
+  // The Tourism Dirham is a UAE fee: other hotels just count bedrooms.
+  const uae = (useHotel().hotel?.country || "").toUpperCase() === "AE";
   const [mode, setMode] = useState<Mode>("one");
   const [number, setNumber] = useState(room?.room_number ?? "");
   const [from, setFrom] = useState("");
@@ -98,7 +101,7 @@ export function RoomEditor({ open, room, existing, saving, onClose, onSave }: Ro
               <Input value={room.room_type_code} disabled />
             </Field>
           )}
-          <Field label="Bedrooms" hint="Tourism Dirham is charged per bedroom" error={bedsOk ? undefined : "1 to 20"}>
+          <Field label="Bedrooms" hint={uae ? "Tourism Dirham is charged per bedroom" : undefined} error={bedsOk ? undefined : "1 to 20"}>
             <Input inputMode="numeric" value={beds} onChange={e => setBeds(e.target.value.replace(/[^\d]/g, ""))} />
           </Field>
           {(mode === "one" || editing) && (

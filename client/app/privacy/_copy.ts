@@ -103,7 +103,7 @@ export function fill(s: string, vars: Record<string, string | number>): string {
 // ─── Guest notice ────────────────────────────────────────────────────────────
 
 /** Retention rows a guest cares about, by lib/retention.ts data_class. */
-export const GUEST_RETENTION_CLASSES = ["transcripts", "request_free_text", "call_audio", "guest_profiles"] as const;
+export const GUEST_RETENTION_CLASSES = ["transcripts", "request_free_text", "proof_photos", "call_audio", "guest_profiles"] as const;
 
 export const NOTICE_COPY = {
   en: {
@@ -117,14 +117,15 @@ export const NOTICE_COPY = {
     what: [
       "What you ask for and what you write or say to the assistant.",
       "Your room number and the time of each request.",
+      "For some requests, a photo hotel staff take to show the job in your room is done.",
       "Contact details, only if you give them.",
       "Your consent choices, with the wording and language you saw.",
       "Call details and, only if the hotel records calls and you agree, the call audio.",
     ],
     whyH: "Why, and on what basis",
-    why: "To answer your questions and send your requests to the right team. Everything beyond that runs only with your consent, which you can withdraw at any time: AI processing, processing outside the UAE, call recording, remembering your preferences for a later stay, and offers by message.",
+    why: "To answer your questions and send your requests to the right team. Everything beyond that runs only with your consent, which you can withdraw at any time: AI processing, processing outside your country, keeping a transcript, call recording, remembering your preferences for a later stay, and offers by message.",
     whereH: "Where your data is processed",
-    where: "The database is in Singapore and AI processing runs in the United States. Because your messages leave the UAE, the assistant asks for your consent before it starts. Without it you can still ask the front desk directly.",
+    where: "Your data is stored by Google Cloud in India (the Mumbai region), and photos of completed jobs are deleted there after 7 days. The assistant uses Google's Gemini AI models, which may process your messages and voice in other countries, including the United States. Because your data may be processed outside your country, the assistant asks for your consent before it starts. Without it you can still ask the front desk directly.",
     keepH: "How long it is kept",
     keepIntro: "After these periods the data is deleted, or anonymized where noted.",
     rightsH: "Your rights",
@@ -147,14 +148,15 @@ export const NOTICE_COPY = {
     what: [
       "ما تطلبه وما تكتبه أو تقوله للمساعد.",
       "رقم غرفتك ووقت كل طلب.",
+      "في بعض الطلبات، صورة يلتقطها موظفو الفندق لإثبات إنجاز المهمة في غرفتك.",
       "بيانات الاتصال، فقط إذا قدمتها.",
       "اختياراتك بشأن الموافقة، مع النص واللغة اللذين عُرضا عليك.",
       "تفاصيل المكالمات، وتسجيلها الصوتي فقط إذا كان الفندق يسجل المكالمات ووافقت على ذلك.",
     ],
     whyH: "الغرض والأساس القانوني",
-    why: "للإجابة عن أسئلتك وإرسال طلباتك إلى الفريق المناسب. وكل ما يتجاوز ذلك يتم فقط بموافقتك، ويمكنك سحبها في أي وقت: المعالجة بالذكاء الاصطناعي، والمعالجة خارج الإمارات، وتسجيل المكالمات، وتذكر تفضيلاتك لإقامة لاحقة، والعروض عبر الرسائل.",
+    why: "للإجابة عن أسئلتك وإرسال طلباتك إلى الفريق المناسب. وكل ما يتجاوز ذلك يتم فقط بموافقتك، ويمكنك سحبها في أي وقت: المعالجة بالذكاء الاصطناعي، والمعالجة خارج بلدك، والاحتفاظ بنص المحادثة، وتسجيل المكالمات، وتذكر تفضيلاتك لإقامة لاحقة، والعروض عبر الرسائل.",
     whereH: "مكان معالجة بياناتك",
-    where: "قاعدة البيانات في سنغافورة، والمعالجة بالذكاء الاصطناعي في الولايات المتحدة. ولأن رسائلك تُعالج خارج الإمارات، يطلب المساعد موافقتك قبل أن يبدأ. ويمكنك دون ذلك التواصل مع الاستقبال مباشرة.",
+    where: "تُخزَّن بياناتك لدى Google Cloud في الهند (منطقة مومباي)، وتُحذف هناك صور المهام المنجزة بعد 7 أيام. ويستخدم المساعد نماذج Gemini للذكاء الاصطناعي من Google، وقد تعالج رسائلك وصوتك في دول أخرى، منها الولايات المتحدة. ولأن بياناتك قد تُعالج خارج بلدك، يطلب المساعد موافقتك قبل أن يبدأ. ويمكنك دون ذلك التواصل مع الاستقبال مباشرة.",
     keepH: "مدة الاحتفاظ",
     keepIntro: "بعد هذه المدد تُحذف البيانات، أو تُجهّل هويتها حيث ذُكر ذلك.",
     rightsH: "حقوقك",
@@ -172,6 +174,7 @@ export const NOTICE_COPY = {
 export const RETENTION_AR: Record<(typeof GUEST_RETENTION_CLASSES)[number], { label: string; keep: string }> = {
   transcripts: { label: "محادثات المساعد", keep: "12 شهرًا" },
   request_free_text: { label: "ما كتبته في طلبات الخدمة", keep: "12 شهرًا، ثم تُجهّل هويته" },
+  proof_photos: { label: "صور يلتقطها الموظفون لإثبات إنجاز المهمة", keep: "7 أيام" },
   call_audio: { label: "تسجيل المكالمات (فقط إذا كان التسجيل مفعّلًا)", keep: "30 يومًا" },
   guest_profiles: { label: "ملف الضيف", keep: "حتى سحب الموافقة، أو 24 شهرًا دون إقامة" },
 };

@@ -12,8 +12,9 @@ import { useState } from "react";
 import { api, ApiError } from "../../../../../lib/api";
 import { useHotel } from "../../../../../lib/hotel";
 import { Button, Field, Input, Select, useToast } from "../../../../../ui";
-import { errText, gstApi, PURPOSE_LABEL, splitList } from "../lib";
-import type { ConsentFlags, Lang } from "../types";
+import { phonePlaceholder } from "../../../../../lib/phone";
+import { CONSENT_LANG_OPTIONS, errText, gstApi, PURPOSE_LABEL, splitList } from "../lib";
+import type { ConsentFlags, ConsentLang } from "../types";
 
 const NO_CONSENT: ConsentFlags = {
   transfer_abroad: false, profile_memory: false, whatsapp_updates: false, marketing_whatsapp: false, marketing_email: false,
@@ -26,12 +27,12 @@ export default function IdentityForm({
   defaults: { firstName: string; checkIn?: string; checkOut?: string };
   onSaved: () => void;
 }) {
-  const { slug } = useHotel();
+  const { slug, hotel } = useHotel();
   const toast = useToast();
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState(defaults.firstName);
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLang] = useState<ConsentLang>("en");
   const [consents, setConsents] = useState<ConsentFlags>(NO_CONSENT);
   const [allergies, setAllergies] = useState("");
   const [saving, setSaving] = useState(false);
@@ -83,7 +84,7 @@ export default function IdentityForm({
         <p className="gst-note">Only with the guest&apos;s permission. Tick exactly what the guest agreed to; each box is a separate yes.</p>
       </div>
       <Field label="Phone" htmlFor="gst-id-phone">
-        <Input id="gst-id-phone" inputMode="tel" autoComplete="off" placeholder="+971 50 123 4567" value={phone} onChange={e => setPhone(e.target.value)} />
+        <Input id="gst-id-phone" inputMode="tel" autoComplete="off" placeholder={phonePlaceholder(hotel?.country)} value={phone} onChange={e => setPhone(e.target.value)} />
       </Field>
       <Field label="Email" htmlFor="gst-id-email">
         <Input id="gst-id-email" type="email" autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} />
@@ -92,8 +93,8 @@ export default function IdentityForm({
         <Input id="gst-id-name" maxLength={80} value={firstName} onChange={e => setFirstName(e.target.value)} />
       </Field>
       <Field label="Language the guest read" htmlFor="gst-id-lang">
-        <Select id="gst-id-lang" value={lang} onChange={e => setLang(e.target.value as Lang)}
-          options={[{ value: "en", label: "English" }, { value: "ar", label: "Arabic" }]} />
+        <Select id="gst-id-lang" value={lang} onChange={e => setLang(e.target.value as ConsentLang)}
+          options={CONSENT_LANG_OPTIONS} />
       </Field>
       <fieldset className="gst-checks gst-form-grid__wide" style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="gst-small gst-muted" style={{ marginBottom: 6 }}>The guest agreed to</legend>

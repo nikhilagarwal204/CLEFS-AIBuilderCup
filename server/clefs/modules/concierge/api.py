@@ -301,3 +301,19 @@ def go_live_demo(cur: Any, hotel_slug: str, *, actor: Any) -> dict:
     from clefs.modules.concierge import live
 
     return live.set_demo_live(cur, hotel_slug, actor=actor)
+
+
+# ─── Emergency numbers ───
+
+
+def emergency_numbers(country: str | None) -> list[dict]:
+    """The public emergency numbers of a country (ISO code, any case), most
+    used first, as [{number, kind}]: constants.EMERGENCY_NUMBERS, the list
+    the guest prompt and the EmergencyCard read (JP: 119 fire_ambulance,
+    110 police, 118 coast_guard; AE: 999 police, 998 ambulance, 997
+    civil_defence, 996 coast_guard, ...). An unknown country has none: the
+    caller then says "the local emergency services". Voice reads its dial
+    sequence from here, so a phone call names the same numbers as the web."""
+    from clefs.modules.concierge import constants as C
+
+    return [{"number": n, "kind": k} for n, k in C.EMERGENCY_NUMBERS.get((country or "").strip().upper(), ())]

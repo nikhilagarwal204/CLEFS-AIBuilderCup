@@ -13,6 +13,7 @@ import Link from "next/link";
 import { api } from "../../../../../lib/api";
 import { useFormat } from "../../../../../lib/format";
 import { useHotel } from "../../../../../lib/hotel";
+import { phonePlaceholder } from "../../../../../lib/phone";
 import { useSession } from "../../../../../lib/session";
 import { Badge, Button, Card, Input, Segmented, Table, useToast, type Column } from "../../../../../ui";
 import ConsentCard from "../ConsentCard";
@@ -21,7 +22,7 @@ import type { ConsentLookup, ConsentPoint, ContactKind } from "../types";
 import CaptureCard from "./CaptureCard";
 
 export default function ConsentPage() {
-  const { slug } = useHotel();
+  const { slug, hotel } = useHotel();
   const { can } = useSession();
   const fmt = useFormat();
   const toast = useToast();
@@ -103,7 +104,7 @@ export default function ConsentPage() {
               options={[{ value: "phone", label: "Phone" }, { value: "email", label: "Email" }]} />
             <div className="gst-grow">
               <Input aria-label={kind === "phone" ? "Phone number" : "Email address"} value={value} autoComplete="off"
-                inputMode={kind === "phone" ? "tel" : "email"} placeholder={kind === "phone" ? "+971 50 123 4567" : "guest@example.com"}
+                inputMode={kind === "phone" ? "tel" : "email"} placeholder={kind === "phone" ? phonePlaceholder(hotel?.country) : "guest@example.com"}
                 onChange={e => setValue(e.target.value)} />
             </div>
             <Button size="sm" type="submit" loading={busy === "lookup"}>Look up</Button>

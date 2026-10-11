@@ -5,7 +5,7 @@
 
 import { ApiError, hotelPath } from "../../../../lib/api";
 import type { Tone } from "../../../../ui";
-import type { StepKey } from "./types";
+import type { ConsentLang, StepKey } from "./types";
 
 // ─── Paths ───────────────────────────────────────────────────────────────
 
@@ -39,6 +39,15 @@ export const PURPOSE_LABEL: Record<string, string> = {
 };
 
 export const PURPOSES = ["transfer_abroad", "profile_memory", "whatsapp_updates", "marketing_whatsapp", "marketing_email"] as const;
+
+/** The consent wording's languages (server guests identity.CONSENT_LANGUAGES). */
+export const CONSENT_LANG_OPTIONS: { value: ConsentLang; label: string }[] = [
+  { value: "en", label: "English" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "th", label: "Thai" },
+  { value: "ar", label: "Arabic" },
+];
 
 export const PROVENANCE_LABEL: Record<string, string> = {
   guest_direct: "Guest gave it directly",

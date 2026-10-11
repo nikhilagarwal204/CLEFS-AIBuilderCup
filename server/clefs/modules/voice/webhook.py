@@ -217,7 +217,7 @@ def _prepare_accept(cur: Any, webhook_id: str, call: dict, line: dict, hotel: An
         return _reject(cur, webhook_id, call, "session_unavailable", line=line, project=project)
     transport = line.get("tool_transport") or "mcp"
     block_args = dict(hotel_name=hotel.name, language=language, outside_line_prefix=line.get("outside_line_prefix"),
-                      transport=transport)
+                      transport=transport, country=hotel.country)
     block = calls.phone_block(room=room, room_from_extension=bool(room), **block_args)
     template = calls.phone_block(room="{room}" if room else None, room_from_extension=bool(room), **block_args)
     instructions = f"{spec.instructions}\n\n{block}"

@@ -1,13 +1,18 @@
 /**
  * The /security data-flow diagram: who sends data into Clefs, where it is
- * stored, and which flows leave the UAE. Inline SVG so it ships in the HTML,
- * scales without a request, and themes from the --clefs-* tokens.
+ * stored, and which flows can leave India, where this deployment runs. Inline
+ * SVG so it ships in the HTML, scales without a request, and themes from the
+ * --clefs-* tokens.
  *
- * WHY every box names a country: the question a hotel's lawyer asks is "where
- * does guest data go", and the honest answer today has two foreign hops
- * (database in Singapore, AI in the United States). The gold dashed line is the
- * one guests consent to (transfer_abroad) before the assistant starts. Labels
- * come from lib/subprocessors.ts so the diagram and the table cannot disagree.
+ * WHY every box names a place: the question a hotel's lawyer asks is "where
+ * does guest data go". The honest answer today: the application, the
+ * database and the job photos stay in Google Cloud's Mumbai region, and two
+ * hops can leave India: AI through Vertex AI's global endpoint (it may run in
+ * the United States) and guest voice through Gemini Live in the United
+ * States, plus service logs, which Cloud Logging may store elsewhere. The
+ * gold dashed lines are those flows; guests consent to processing abroad
+ * (transfer_abroad) before the assistant starts. Labels come from
+ * lib/subprocessors.ts so the diagram and the table cannot disagree.
  *
  * On a phone the SVG keeps a legible minimum width inside its own scroll box,
  * and the <figcaption> repeats every flow in words for screen readers and for
@@ -20,19 +25,20 @@ import { RESIDENCY } from "../../lib/subprocessors";
 type Box = { x: number; y: number; w: number; h: number; title: string; sub: string; tone?: "core" | "abroad" | "plain" };
 
 const LEFT: Box[] = [
-  { x: 16, y: 40, w: 190, h: 74, title: "Guests", sub: "QR code, room phone, WhatsApp" },
-  { x: 16, y: 170, w: 190, h: 74, title: "Hotel team and owner", sub: "Console, floor devices, brief" },
-  { x: 16, y: 330, w: 190, h: 74, title: "Website visitors", sub: "Marketing pages only" },
+  { x: 16, y: 40, w: 190, h: 74, title: "Guests", sub: "Room QR page: text and voice" },
+  { x: 16, y: 170, w: 190, h: 74, title: "Hotel team and owner", sub: "Console and staff phones" },
+  { x: 16, y: 326, w: 190, h: 74, title: "Website visitors", sub: "Marketing pages only" },
 ];
 
-const CORE: Box = { x: 300, y: 70, w: 200, h: 170, title: "Clefs application", sub: "Hosted on Vercel", tone: "core" };
+const CORE: Box = { x: 300, y: 70, w: 200, h: 180, title: "Clefs application", sub: RESIDENCY.short.hosting, tone: "core" };
 
 const RIGHT: Box[] = [
-  { x: 594, y: 16, w: 190, h: 64, title: "Database", sub: RESIDENCY.database, tone: "abroad" },
-  { x: 594, y: 96, w: 190, h: 64, title: "AI processing", sub: RESIDENCY.ai, tone: "abroad" },
-  { x: 594, y: 176, w: 190, h: 64, title: "Messaging", sub: "WhatsApp, email, SMS" },
-  { x: 594, y: 256, w: 190, h: 64, title: "Market data", sub: "SerpApi, Google: no guest data" },
-  { x: 594, y: 336, w: 190, h: 64, title: "Site analytics", sub: "Clarity: visitors only" },
+  { x: 594, y: 12, w: 190, h: 54, title: "Database", sub: RESIDENCY.short.database },
+  { x: 594, y: 78, w: 190, h: 54, title: "Job photos", sub: RESIDENCY.short.photos },
+  { x: 594, y: 144, w: 190, h: 54, title: "AI processing", sub: RESIDENCY.short.ai, tone: "abroad" },
+  { x: 594, y: 210, w: 190, h: 54, title: "Guest voice", sub: RESIDENCY.short.voice, tone: "abroad" },
+  { x: 594, y: 276, w: 190, h: 54, title: "Logs and keys", sub: "Logging, Secret Manager", tone: "abroad" },
+  { x: 594, y: 342, w: 190, h: 54, title: "Site analytics", sub: "Clarity: visitors only" },
 ];
 
 type Flow = { d: string; kind: "data" | "abroad" | "nopii" };
@@ -44,13 +50,14 @@ const FLOWS: Flow[] = [
   // Inbound: guests and the hotel team talk to the application.
   { d: `M206 ${midY(LEFT[0])} L300 ${CORE.y + 40}`, kind: "data" },
   { d: `M206 ${midY(LEFT[1])} L300 ${CORE.y + 130}`, kind: "data" },
-  // Outbound: stored, sent to AI under consent, messaged, market lookups.
-  { d: `M${CORE_X2} ${CORE.y + 20} L594 ${midY(RIGHT[0])}`, kind: "abroad" },
-  { d: `M${CORE_X2} ${CORE.y + 60} L594 ${midY(RIGHT[1])}`, kind: "abroad" },
-  { d: `M${CORE_X2} ${CORE.y + 110} L594 ${midY(RIGHT[2])}`, kind: "data" },
-  { d: `M${CORE_X2} ${CORE.y + 150} L594 ${midY(RIGHT[3])}`, kind: "nopii" },
+  // Outbound: stored in India, sent to AI and voice under consent, logged.
+  { d: `M${CORE_X2} ${CORE.y + 18} L594 ${midY(RIGHT[0])}`, kind: "data" },
+  { d: `M${CORE_X2} ${CORE.y + 52} L594 ${midY(RIGHT[1])}`, kind: "data" },
+  { d: `M${CORE_X2} ${CORE.y + 86} L594 ${midY(RIGHT[2])}`, kind: "abroad" },
+  { d: `M${CORE_X2} ${CORE.y + 120} L594 ${midY(RIGHT[3])}`, kind: "abroad" },
+  { d: `M${CORE_X2} ${CORE.y + 154} L594 ${midY(RIGHT[4])}`, kind: "abroad" },
   // Visitors reach Clarity directly from the browser, never through Clefs.
-  { d: `M206 ${midY(LEFT[2])} L594 ${midY(RIGHT[4])}`, kind: "nopii" },
+  { d: `M206 ${midY(LEFT[2])} L594 ${midY(RIGHT[5])}`, kind: "nopii" },
 ];
 
 // ─── Pieces ──────────────────────────────────────────────────────────────────
@@ -79,9 +86,8 @@ export default function DataFlow() {
           <title id="mk-df-t">How data moves through Clefs</title>
           <desc id="mk-df-d">
             {/* One template string: a JSX line break after an expression
-                collapses to nothing, which read "(Neon)and sends" (QA PUB-6). */}
-            {`Guests and the hotel team send data to the Clefs application. It stores data in ${RESIDENCY.database} `}
-            and sends guest messages for AI processing in {RESIDENCY.ai} under the guest&apos;s consent.
+                collapses to nothing (QA PUB-6). */}
+            {`Guests and the hotel team send data to the Clefs application on ${RESIDENCY.hosting}. It stores data in ${RESIDENCY.database} and job photos in ${RESIDENCY.photos}, and sends guest messages for AI processing to ${RESIDENCY.ai}, and guest voice to ${RESIDENCY.voice}, under the guest's consent.`}
           </desc>
           <defs>
             <marker id="mk-df-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -99,16 +105,19 @@ export default function DataFlow() {
         </svg>
       </div>
       <ul className="mk-df__legend">
-        <li><span className="mk-df-key mk-df-key--data" /> Personal data, inside Clefs and its processors</li>
-        <li><span className="mk-df-key mk-df-key--abroad" /> Personal data leaving the UAE (guests consent before the assistant starts)</li>
+        <li><span className="mk-df-key mk-df-key--data" /> Personal data, kept in Google Cloud in India</li>
+        <li><span className="mk-df-key mk-df-key--abroad" /> Personal data that may be processed outside India (guests consent before the assistant starts)</li>
         <li><span className="mk-df-key mk-df-key--nopii" /> No guest personal data</li>
       </ul>
       <figcaption className="mk-df__caption">
-        Guests and your team use Clefs through the web and the room phone. Clefs stores hotel data in a
-        database in {RESIDENCY.database}, sends the words a guest types or speaks to {RESIDENCY.ai} for AI
-        processing, and sends messages through WhatsApp, email and SMS providers. Market lookups send hotel
-        names and dates only. Website analytics run on the marketing pages only, never in the console or
-        the guest pages.
+        Guests and your team use Clefs through the web: the room QR page, the console and staff phones.
+        The application runs on Cloud Run and stores hotel data in Cloud SQL, both in Google Cloud&apos;s
+        Mumbai region in India, and photos that show a job is done stay in Cloud Storage there for 7 days.
+        What a guest types is sent to Google&apos;s Gemini models through Vertex AI&apos;s global endpoint,
+        which may process it outside India, including in the United States, and guest voice runs through
+        Gemini Live in the United States. Service logs go to Cloud Logging and keys stay in Secret Manager.
+        For most guests every one of these flows is processing outside their own country. Website analytics
+        run on the marketing pages only, never in the console or the guest pages.
       </figcaption>
     </figure>
   );

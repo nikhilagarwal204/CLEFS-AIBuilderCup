@@ -72,8 +72,23 @@ function dateFormat(locale: string, opts: Intl.DateTimeFormatOptions): Intl.Date
 
 // ─── Money ───────────────────────────────────────────────────────────────
 
+// The minor units money is STORED in: server core/money.py MINOR_UNITS (ISO
+// 4217), pinned here because a browser's Intl data can disagree with ISO 4217
+// (recent ICU gives IDR 0 digits where ISO and the server use 2), and the two
+// sides reading one amount in different units is a 100x error. Codes not
+// listed fall back to Intl.
+const MINOR_UNITS: Readonly<Record<string, number>> = {
+  AED: 2, USD: 2, EUR: 2, GBP: 2, INR: 2, SAR: 2, QAR: 2, CNY: 2,
+  RUB: 2, CHF: 2, AUD: 2, CAD: 2, SGD: 2, THB: 2, EGP: 2, PKR: 2,
+  HKD: 2, TWD: 2, IDR: 2, PHP: 2,
+  OMR: 3, KWD: 3, BHD: 3, JOD: 3,
+  JPY: 0, KRW: 0, VND: 0,
+};
+
 /** ISO 4217 minor-unit digits (AED 2, JPY 0, KWD/BHD/OMR 3). */
 export function currencyDigits(currency: string): number {
+  const pinned = MINOR_UNITS[(currency || "").trim().toUpperCase()];
+  if (pinned !== undefined) return pinned;
   try {
     return new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
   } catch {

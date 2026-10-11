@@ -8,8 +8,10 @@
  * keep_days within the bounds shown here, and the console shows the hotel's
  * actual policy (GET /hotels/{slug}/trust/retention). Change both in one commit.
  *
- * The nightly purge runs at 02:30 Dubai time and logs counts only, never
- * contents (trs_deletion_log).
+ * The nightly purge runs at 02:30 in each hotel's own time zone (trust
+ * retention.py, jobs.daily_at) and logs counts only, never contents
+ * (trs_deletion_log). Job completion photos are Service's: a storage rule
+ * deletes them after 7 days (service/proof.py KEEP_DAYS).
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -46,6 +48,11 @@ export const RETENTION: RetentionRule[] = [
     keep_days: 30, keep: "30 days", action: "delete", max_keep_days: 90,
   },
   {
+    data_class: "proof_photos", label: "Photos staff take to show a job is done",
+    keep_days: 7, keep: "7 days", action: "delete", min_keep_days: 7, max_keep_days: 7,
+    note: "Kept in Cloud Storage in India and deleted by a storage rule; a hotel cannot keep them longer.",
+  },
+  {
     data_class: "guest_profiles", label: "Guest profiles",
     keep_days: null, keep: "Until consent is withdrawn, or 24 months without a stay", action: "delete",
   },
@@ -75,7 +82,7 @@ export const RETENTION: RetentionRule[] = [
   },
 ];
 
-export const PURGE_SCHEDULE = "Every night at 02:30 Dubai time";
+export const PURGE_SCHEDULE = "Every night at 02:30 hotel time";
 
 export function retentionRule(dataClass: string): RetentionRule | undefined {
   return RETENTION.find((r) => r.data_class === dataClass);

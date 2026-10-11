@@ -2,7 +2,7 @@
 
 /* Settings > Rooms: the room register (hotel_rooms) by floor.
    Floors route requests to the right floor tablet and housekeeping team,
-   bedrooms set the Tourism Dirham units, and the service state keeps an
+   bedrooms set the Tourism Dirham units (UAE hotels), and the service state keeps an
    out-of-order room out of occupancy. A hotel with no rooms here is
    "unregistered": any room number is accepted and its floor is read from
    the number, which is fine for a pilot and wrong for a tower with a
@@ -45,7 +45,9 @@ const rmsStyles = `
 `;
 
 export default function RoomsSettingsPage() {
-  const { slug } = useHotel();
+  const { slug, hotel } = useHotel();
+  // Bedrooms count as Tourism Dirham units only for a UAE hotel.
+  const uae = (hotel?.country || "").toUpperCase() === "AE";
   const { can } = useSession();
   const toast = useToast();
   const canView = can(["core.settings.view", "service.view"]);
@@ -146,7 +148,8 @@ export default function RoomsSettingsPage() {
                   sub={rooms.length > active.length ? `${rooms.length - active.length} removed` : undefined} />
         <StatTile label="Floors" value={floors.filter(([k]) => k !== NO_FLOOR).length} loading={res.loading && !res.data} />
         <StatTile label="Out of order" value={ooo} loading={res.loading && !res.data} />
-        <StatTile label="Bedrooms" value={bedrooms} loading={res.loading && !res.data} sub="Tourism Dirham units per night" />
+        <StatTile label="Bedrooms" value={bedrooms} loading={res.loading && !res.data}
+                  sub={uae ? "Tourism Dirham units per night" : "Across active rooms"} />
       </div>
 
       {res.error && <div className="rms-bad" role="alert">{res.error.message}</div>}

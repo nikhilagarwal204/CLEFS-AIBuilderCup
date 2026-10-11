@@ -8,9 +8,10 @@ Rules this file enforces, because each one is a legal line, not a nicety:
   (per-hotel pepper). Raw phones and emails never land in a gst_ table
   except sealed (privacy.seal) on a point the guest gave us themselves.
 - A profile exists ONLY while its subject has a granted profile_memory
-  consent AND a granted transfer_abroad consent (PDPL: consent is the only
-  basis, and the data sits in Neon Singapore). No consent means no row, and
-  a withdrawal deletes the row (stays unlink through ON DELETE SET NULL).
+  consent AND a granted transfer_abroad consent (consent is the only basis
+  Clefs uses, and the data is stored in Google Cloud's India region, outside
+  most guests' own country). No consent means no row, and a withdrawal
+  deletes the row (stays unlink through ON DELETE SET NULL).
 - Allergies are health data: they live in preferences.health and every
   serializer masks them with core.pii's HEALTH class (full for owner, gm and
   front desk; F&B only for department heads and devices; none otherwise).
@@ -45,16 +46,31 @@ for _p in MARKETING_PURPOSE.values():
 PROFILE_PURPOSES = ("profile_memory", "transfer_abroad")
 
 
-# Platform wording this module pins. current_consent_text returns the newest
-# platform text of a purpose, and other lanes seed their own (Trust's
-# "clefs-2026-10" profile_memory text does not mention health data). A
-# profile stores allergies, so the platform wording a guest is shown for it
-# must be one that says so: gst.v2 (migration 0651). whatsapp_updates is
-# pinned to gst.v1 (0675) for the same reason: Trust's generic wording (0801)
-# is newer but does not name the hotel, and Meta's utility opt-in must name
-# the business. A hotel's own wording still wins; that is the hotel's (and
-# its counsel's) call.
-PINNED_PLATFORM_VERSIONS = {"profile_memory": "gst.v2", "whatsapp_updates": "gst.v1"}
+# Platform wording this module pins: gst.v3 (migration 0679) for every
+# purpose it captures. current_consent_text returns the newest platform text
+# of a purpose, and other lanes seed their own: Trust's generic
+# "clefs-2026-10" wording does not mention health data (a profile stores
+# allergies), does not name the hotel (Meta's utility opt-in must name the
+# business) and its transfer text names the UAE and Singapore, and the
+# concierge's sheet speaks of AI use, not of the contact details kept here.
+# gst.v3 says where the data is stored (Google Cloud's India region) and
+# that the AI models may run in other countries, including the United
+# States. gst.v1 (0675) and gst.v2 (0651) stay, retired, as the evidence
+# older consents point at. A hotel's own wording still wins; that is the
+# hotel's (and its counsel's) call.
+CONSENT_TEXT_VERSION = "gst.v3"
+PINNED_PURPOSES = ("transfer_abroad", "profile_memory", "whatsapp_updates", "marketing_whatsapp", "marketing_email")
+PINNED_PLATFORM_VERSIONS = {p: CONSENT_TEXT_VERSION for p in PINNED_PURPOSES}
+# The languages gst.v3 is written in. A capture in another language records
+# the English wording (text_version falls back to EN).
+CONSENT_LANGUAGES: tuple[str, ...] = ("en", "ar", "ja", "ko", "th")
+
+
+def consent_language(language: str | None) -> str:
+    """The wording language for a capture: "ja-JP" -> "ja", anything gst.v3
+    is not written in -> "en"."""
+    base = (language or "").strip().lower().replace("_", "-").split("-")[0]
+    return base if base in CONSENT_LANGUAGES else "en"
 
 
 def _pinned_exists(cur: Any, purpose: str, version: str, language: str) -> bool:

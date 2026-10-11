@@ -63,7 +63,7 @@ class IdentityIn(BaseModel):
     email: str | None = Field(default=None, max_length=320)
     first_name: str | None = Field(default=None, max_length=80)
     consents: ConsentsIn
-    consent_language: Literal["en", "ar"] = "en"
+    consent_language: Literal["en", "ar", "ja", "ko", "th"] = "en"  # identity.CONSENT_LANGUAGES
     preferences: PreferencesIn | None = None
     check_in: date | None = None
     check_out: date | None = None
@@ -459,7 +459,7 @@ class CaptureIn(ContactRef):
     # The wording versions the card showed; omitted = the current platform
     # or hotel wording in `language` (what the printed card carries).
     consent_text_versions: dict[str, str] | None = None
-    language: Literal["en", "ar"] = "en"
+    language: Literal["en", "ar", "ja", "ko", "th"] = "en"  # identity.CONSENT_LANGUAGES
     evidence: EvidenceIn
     first_name: str | None = Field(default=None, max_length=80)
     preferences: PreferencesIn | None = None

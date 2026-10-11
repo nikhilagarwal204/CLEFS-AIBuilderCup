@@ -3,7 +3,11 @@
 /* Hotel profile: the core columns on `hotels` that every module reads
    (timezone, currency, locale, weekend, brief time ...). Saved with
    PATCH /hotels/{slug}/settings, sending only what changed so two people
-   editing different fields do not overwrite each other. */
+   editing different fields do not overwrite each other.
+
+   Country-aware: the emirate (the UAE fee stack) and the Dubai hints show
+   only while the country is AE, and leaving the UAE clears the emirate. The
+   lists below are suggestions (datalists); any valid ISO or IANA code saves. */
 
 import { useMemo, useState, type FormEvent } from "react";
 import { ApiError, api, hotelPath } from "../../../../lib/api";
@@ -13,7 +17,7 @@ import type { Hotel, HotelSettingsPatch } from "../../../../lib/types";
 import { Badge, Button, Card, Field, Input, Select, useToast } from "../../../../ui";
 
 const EMIRATES = [
-  { value: "", label: "Not in the UAE" },
+  { value: "", label: "Not set" },
   { value: "dubai", label: "Dubai" },
   { value: "abu_dhabi", label: "Abu Dhabi" },
   { value: "sharjah", label: "Sharjah" },
@@ -35,9 +39,25 @@ const WEEKDAYS = [
   { iso: 5, label: "Fri" }, { iso: 6, label: "Sat" }, { iso: 7, label: "Sun" },
 ];
 
-const TIMEZONES = ["Asia/Dubai", "Asia/Kolkata", "Asia/Riyadh", "Asia/Qatar", "Asia/Muscat", "Europe/London", "UTC"];
-const CURRENCIES = ["AED", "INR", "USD", "EUR", "GBP", "SAR", "QAR", "OMR"];
-const LOCALES = ["en-AE", "ar-AE", "en-IN", "en-GB", "en-US"];
+// JAPAC first, then the Gulf, India and Europe. Money is stored in each
+// currency's own minor unit (JPY, KRW and VND have none; lib/format.ts and
+// server core/money.py agree on every code listed here).
+const TIMEZONES = [
+  "Asia/Tokyo", "Asia/Seoul", "Asia/Shanghai", "Asia/Hong_Kong", "Asia/Taipei", "Asia/Bangkok", "Asia/Singapore",
+  "Asia/Jakarta", "Asia/Manila", "Asia/Ho_Chi_Minh", "Asia/Kolkata", "Australia/Sydney",
+  "Asia/Dubai", "Asia/Riyadh", "Asia/Qatar", "Asia/Muscat", "Europe/London", "UTC",
+];
+const CURRENCIES = [
+  "JPY", "KRW", "CNY", "HKD", "TWD", "THB", "SGD", "IDR", "PHP", "VND", "AUD",
+  "INR", "AED", "SAR", "QAR", "OMR", "USD", "EUR", "GBP",
+];
+const LOCALES = [
+  "en-JP", "ja-JP", "ko-KR", "zh-CN", "zh-HK", "zh-TW", "th-TH", "en-SG", "id-ID", "en-PH", "vi-VN", "en-AU",
+  "en-IN", "en-AE", "ar-AE", "en-GB", "en-US",
+];
+
+/** The UAE fee stack (emirate, Tourism Dirham) applies to UAE hotels only. */
+const isUae = (country: string) => country.trim().toUpperCase() === "AE";
 
 interface FormState {
   name: string;
@@ -86,15 +106,15 @@ function validLocale(l: string): boolean {
 function validate(f: FormState): Record<string, string> {
   const e: Record<string, string> = {};
   if (!f.name.trim()) e.name = "The hotel needs a name.";
-  if (!/^[A-Z]{2}$/.test(f.country)) e.country = "Two-letter ISO code, e.g. AE.";
-  if (!validTimezone(f.timezone)) e.timezone = "Use an IANA timezone such as Asia/Dubai.";
-  if (!/^[A-Z]{3}$/.test(f.currency)) e.currency = "Three-letter ISO code, e.g. AED.";
-  if (!validLocale(f.locale)) e.locale = "Use a locale tag such as en-AE.";
+  if (!/^[A-Z]{2}$/.test(f.country)) e.country = "Two-letter ISO code, such as JP, IN or GB.";
+  if (!validTimezone(f.timezone)) e.timezone = "Use an IANA timezone such as Asia/Tokyo or Europe/London.";
+  if (!/^[A-Z]{3}$/.test(f.currency)) e.currency = "Three-letter ISO code, such as JPY, INR or USD.";
+  if (!validLocale(f.locale)) e.locale = "Use a locale tag such as en-GB or ja-JP.";
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(f.brief_time_local)) e.brief_time_local = "24-hour time, e.g. 07:00.";
   if (f.rooms_count && !/^\d+$/.test(f.rooms_count)) e.rooms_count = "A whole number.";
   const langs = f.guest_languages.split(",").map(s => s.trim()).filter(Boolean);
-  if (!langs.length) e.guest_languages = "At least one language, e.g. en, ar.";
-  else if (langs.some(l => !validLocale(l))) e.guest_languages = "Use language codes such as en, ar, hi, ru, zh.";
+  if (!langs.length) e.guest_languages = "At least one language, such as en.";
+  else if (langs.some(l => !validLocale(l))) e.guest_languages = "Use language codes such as en, ja, ko, zh, ar.";
   return e;
 }
 
@@ -107,7 +127,10 @@ function diff(f: FormState, h: Hotel | null): HotelSettingsPatch {
   };
   (["name", "city", "country", "timezone", "currency", "locale", "status"] as const).forEach(str);
   if (f.assistant_name.trim() !== base.assistant_name) out.assistant_name = f.assistant_name.trim() || null;
-  if (f.emirate !== base.emirate) out.emirate = f.emirate || null;
+  // A hotel outside the UAE has no emirate: changing the country away from
+  // AE clears it, so no UAE fee rule can follow the hotel abroad.
+  const emirate = isUae(f.country) ? f.emirate : "";
+  if (emirate !== base.emirate) out.emirate = emirate || null;
   if (f.guest_languages !== base.guest_languages) {
     out.guest_languages = f.guest_languages.split(",").map(s => s.trim()).filter(Boolean);
   }
@@ -153,6 +176,7 @@ export default function HotelProfilePage() {
   };
 
   const dis = !canManage || saving;
+  const uae = isUae(form.country);
 
   return (
     <form onSubmit={onSubmit} noValidate>
@@ -169,7 +193,7 @@ export default function HotelProfilePage() {
             <Field label="Assistant name" hint="What the AI concierge calls itself with guests.">
               <Input value={form.assistant_name} disabled={dis} placeholder="Clefs" onChange={e => set("assistant_name", e.target.value)} />
             </Field>
-            <Field label="Star rating" hint="Sets the Tourism Dirham category in Dubai.">
+            <Field label="Star rating" hint={uae ? "Sets the Tourism Dirham category in Dubai." : undefined}>
               <Select value={form.star_rating} disabled={dis} onChange={e => set("star_rating", e.target.value)}
                       placeholder="Not rated" options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `${n} star` }))} />
             </Field>
@@ -192,9 +216,11 @@ export default function HotelProfilePage() {
               <Input value={form.country} maxLength={2} disabled={dis} invalid={!!errors.country}
                      onChange={e => set("country", e.target.value.toUpperCase())} />
             </Field>
-            <Field label="Emirate" hint="Selects the fee stack (Dubai TD, Abu Dhabi tourism fee ...).">
-              <Select value={form.emirate} disabled={dis} onChange={e => set("emirate", e.target.value)} options={EMIRATES} />
-            </Field>
+            {uae && (
+              <Field label="Emirate" hint="Selects the fee stack (Dubai TD, Abu Dhabi tourism fee ...).">
+                <Select value={form.emirate} disabled={dis} onChange={e => set("emirate", e.target.value)} options={EMIRATES} />
+              </Field>
+            )}
             <Field label="Currency" required error={errors.currency}>
               <Input value={form.currency} maxLength={3} list="cx-currencies" disabled={dis} invalid={!!errors.currency}
                      onChange={e => set("currency", e.target.value.toUpperCase())} />
@@ -215,7 +241,7 @@ export default function HotelProfilePage() {
 
         <Card title="Week and brief" subtitle="Weekend days shade the demand calendar; the brief arrives at this local time.">
           <div className="cx-form-grid cx-form-grid--2">
-            <Field label="Weekend days" hint="UAE hotels: Saturday and Sunday." htmlFor="cx-weekend-days">
+            <Field label="Weekend days" hint={uae ? "UAE hotels: Saturday and Sunday." : undefined} htmlFor="cx-weekend-days">
               {/* htmlFor keeps this a <div>: a wrapping <label> would forward clicks to the first button. */}
               <div id="cx-weekend-days" className="cx-row" role="group" aria-label="Weekend days" style={{ gap: 6 }}>
                 {WEEKDAYS.map(d => {
@@ -236,7 +262,7 @@ export default function HotelProfilePage() {
                      onChange={e => set("brief_time_local", e.target.value)} />
             </Field>
             <Field label="Guest languages" required error={errors.guest_languages}
-                   hint="Comma separated, e.g. en, ar, hi, ru, zh. The concierge offers these.">
+                   hint="Comma separated, such as en, ja, ko, zh. The concierge offers these.">
               <Input value={form.guest_languages} disabled={dis} invalid={!!errors.guest_languages}
                      onChange={e => set("guest_languages", e.target.value)} />
             </Field>

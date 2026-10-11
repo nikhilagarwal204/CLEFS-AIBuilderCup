@@ -4,7 +4,7 @@
  * consent ticks and the console read, so a vendor swap or a retention change
  * is one edit that every page follows.
  */
-import { SUBPROCESSORS, type PersonalData, type Subprocessor } from "../../lib/subprocessors";
+import { inUseSubprocessors, type OutsideIndia, type PersonalData, type Subprocessor } from "../../lib/subprocessors";
 import { RETENTION } from "../../lib/retention";
 
 // ─── Sub-processors ──────────────────────────────────────────────────────────
@@ -17,11 +17,27 @@ const DATA_LABEL: Record<PersonalData, string> = {
   none: "No personal data",
 };
 
+// This deployment runs and stores data in India (lib/subprocessors.ts), so
+// the last column says whether a provider's processing can leave it.
+const OUTSIDE_LABEL: Record<OutsideIndia, string> = { no: "No", may: "Can be", yes: "Yes" };
+
 function dataCell(s: Subprocessor): string {
   return s.data.map((d) => DATA_LABEL[d]).join(", ");
 }
 
-export function SubprocessorTable({ rows = SUBPROCESSORS, compact = false }: { rows?: Subprocessor[]; compact?: boolean }) {
+function outsideCell(s: Subprocessor) {
+  if (s.data.includes("none")) return <span className="mk-pill">No personal data</span>;
+  const label = OUTSIDE_LABEL[s.outside_india];
+  return s.outside_india === "no" ? <span className="mk-pill">{label}</span> : <span className="mk-pill mk-pill--warn">{label}</span>;
+}
+
+/**
+ * compact: provider, purpose, data and place only (the /security summary).
+ * optional: rows a hotel switches on with a feature; the last column says which.
+ */
+export function SubprocessorTable({
+  rows = inUseSubprocessors(), compact = false, optional = false,
+}: { rows?: Subprocessor[]; compact?: boolean; optional?: boolean }) {
   return (
     <div className="mk-table-wrap">
       <table className="mk-table">
@@ -31,7 +47,7 @@ export function SubprocessorTable({ rows = SUBPROCESSORS, compact = false }: { r
             <th scope="col">Purpose</th>
             <th scope="col">Personal data</th>
             <th scope="col">Where</th>
-            {!compact && <th scope="col">Leaves the UAE</th>}
+            {!compact && <th scope="col">{optional ? "Used only when the hotel turns on" : "Outside India"}</th>}
           </tr>
         </thead>
         <tbody>
@@ -46,13 +62,7 @@ export function SubprocessorTable({ rows = SUBPROCESSORS, compact = false }: { r
               </td>
               <td>{dataCell(s)}</td>
               <td>{s.location}</td>
-              {!compact && (
-                <td>
-                  {s.transfer_abroad
-                    ? <span className="mk-pill mk-pill--warn">Yes</span>
-                    : <span className="mk-pill">No personal data</span>}
-                </td>
-              )}
+              {!compact && <td>{optional ? s.enabled_by ?? "-" : outsideCell(s)}</td>}
             </tr>
           ))}
         </tbody>

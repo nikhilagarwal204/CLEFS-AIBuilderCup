@@ -33,7 +33,7 @@ from datetime import timedelta
 from typing import Any
 
 from clefs import db, jobs
-from clefs.core import clock
+from clefs.core import clock, hotels
 from clefs.settings import get_settings
 from clefs.modules.service import api as service_api
 from clefs.modules.voice import calls, executor
@@ -267,10 +267,11 @@ class SidebandCall:
         )
         self.emergency_sent = True
         line_prefix = self._outside_prefix(cur)
+        country = hotels.get_hotel(cur, self.call["hotel_slug"]).country
         filed = out.get("status") in ("escalated", "created", "merged") or out.get("deduped")
         instructions = (
             "EMERGENCY. Speak now, calmly, in the caller's language. "
-            f"1. Tell them to {calls._dial_sequence(line_prefix)}. "
+            f"1. Tell them to {calls.dial_sequence(line_prefix, country)}. "
             + ("2. Say hotel staff have been alerted and help is coming; do not call escalate_to_human again. "
                if filed else "2. Call escalate_to_human with reason emergency now. ")
             + "3. Offer to transfer them to the front desk."
@@ -280,9 +281,7 @@ class SidebandCall:
         return [{"type": "inject", "instructions": instructions}]
 
     def _outside_prefix(self, cur: Any) -> str | None:
-        cur.execute("SELECT outside_line_prefix FROM vc_lines WHERE id = %s", (self.call.get("voice_line_id"),))
-        row = cur.fetchone()
-        return row["outside_line_prefix"] if row else None
+        return calls.line_prefix(cur, self.call)
 
     # ─── Function tools (sideband lines) ───
 
