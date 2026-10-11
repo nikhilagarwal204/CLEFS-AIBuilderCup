@@ -2,7 +2,8 @@
 
 /* ═══════════════════════════════════════════════════════════════════════
    LanguagePicker: a header button plus a sheet of the hotel's guest
-   languages (all eight when the hotel configured none; see languages.ts).
+   languages (every UI language when the hotel configured none; see
+   languages.ts).
 
    Names are endonyms (a guest looking for Arabic scans for "العربية", not
    for the English word), in the hotel's order. A pick is explicit: it is

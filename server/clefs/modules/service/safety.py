@@ -5,8 +5,9 @@ Sensitive pathways: the server-side safety classifier and its effects
 Safety runs twice. The prompt carries the rules, and this classifier checks
 every guest utterance whether or not the model called a tool. Two layers:
 
-  1. Deterministic lexicons (safety_lexicon/<lang>.yml, 8 languages), each
-     kind a set of regexes with negative guards ("fire" but not "fire tv").
+  1. Deterministic lexicons (safety_lexicon/<lang>.yml, one per guest
+     language: LANGUAGES), each kind a set of regexes with negative guards
+     ("fire" but not "fire tv").
      A lexicon hit is final: nothing downgrades it.
   2. An LLM JSON classifier (1.5 s budget) that runs only when the lexicons
      found nothing urgent. It may UPGRADE the level at confidence >= 0.6 and
@@ -65,7 +66,8 @@ EMERGENCY_KINDS = tuple(k for k, v in KIND_LEVEL.items() if v == "emergency")
 SENSITIVE_KINDS = tuple(k for k, v in KIND_LEVEL.items() if v == "sensitive")
 HANDOFF_KINDS = tuple(k for k, v in KIND_LEVEL.items() if v == "handoff")
 
-LANGUAGES = ("en", "ar", "ru", "hi", "ur", "zh", "de", "fr")
+# The concierge's guest languages (concierge constants.GUEST_LANGUAGES).
+LANGUAGES = ("en", "ar", "ru", "hi", "ur", "zh", "de", "fr", "ja", "ko", "th")
 LEXICON_DIR = Path(__file__).with_name("safety_lexicon")
 
 # The LLM may lift a verdict only at or above this confidence (03 spec 1.5).
@@ -176,11 +178,15 @@ def match(text: str, language: str) -> dict | None:
 # Scripts that identify a lexicon on their own. Latin text is only read as
 # German or French when the caller says so: "brand" is fire in German and a
 # shampoo question in English.
+_KANA = re.compile(r"[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9f]")
 _SCRIPTS: tuple[tuple[re.Pattern, tuple[str, ...]], ...] = (
     (re.compile(r"[؀-ۿݐ-ݿࢠ-ࣿ]"), ("ar", "ur")),
     (re.compile(r"[ऀ-ॿ]"), ("hi",)),
     (re.compile(r"[Ѐ-ӿ]"), ("ru",)),
     (re.compile(r"[㐀-䶿一-鿿]"), ("zh",)),
+    (_KANA, ("ja",)),
+    (re.compile(r"[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]"), ("ko",)),
+    (re.compile(r"[\u0e00-\u0e7f]"), ("th",)),
 )
 
 
@@ -188,16 +194,23 @@ def languages_for(text: str, language: str | None) -> list[str]:
     """Which lexicons read the guest's own words: the declared language,
     English (guests code-switch: "AC not working, آگ لگی ہے"), and every
     lexicon whose script appears in the text (a wrong or missing language
-    tag must not hide an Arabic "حريق")."""
+    tag must not hide an Arabic "حريق").
+
+    Kana means Japanese: its kanji are then not read as Chinese unless the
+    guest declared Chinese. The Chinese lexicon has no Japanese guards, so
+    its 警察 or 火災 would fire on 最寄りの警察署はどこですか (where is the
+    nearest police station) or 火災の時はどうすれば (what to do in case of
+    fire), which the Japanese lexicon reads correctly."""
     out: list[str] = []
     lang = (language or "").strip().lower().replace("_", "-").split("-")[0]
     if lang in LANGUAGES:
         out.append(lang)
     if "en" not in out:
         out.append("en")
+    japanese = bool(_KANA.search(text))
     for rx, langs in _SCRIPTS:
         if rx.search(text):
-            out.extend(x for x in langs if x not in out)
+            out.extend(x for x in langs if x not in out and not (x == "zh" and japanese))
     return out
 
 

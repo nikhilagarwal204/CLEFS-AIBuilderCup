@@ -135,6 +135,7 @@ const ur: GuestDict = {
       search_rescue: "تلاش اور بچاؤ",
       electricity_water: "بجلی اور پانی",
       fire: "فائر بریگیڈ",
+      fire_ambulance: "فائر بریگیڈ اور ایمبولینس",
       other: "ہنگامی سروس",
     },
   },

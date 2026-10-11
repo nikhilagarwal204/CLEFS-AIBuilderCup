@@ -110,7 +110,7 @@ interface FoodMenuProps {
 
 // ─── Strings ───────────────────────────────────────────────────────────────
 // From the guest dictionaries (app/stay/i18n, `menu.*`), so check-i18n
-// enforces all 8 guest languages. WHY a `lang` prop separate from `locale`:
+// enforces every guest language. WHY a `lang` prop separate from `locale`:
 // the guest picks their language in the LanguagePicker, while `locale` is
 // the hotel's and only formats money. Without `lang` the language follows
 // the locale, as before.

@@ -144,6 +144,7 @@ const en = {
       search_rescue: "Search and rescue",
       electricity_water: "Electricity and water",
       fire: "Fire",
+      fire_ambulance: "Fire and ambulance",
       other: "Emergency",
     },
   },

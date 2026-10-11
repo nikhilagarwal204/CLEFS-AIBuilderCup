@@ -4,8 +4,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { offeredLanguages } from "../concierge/languages.ts";
 import { orderableHere } from "../menuFilter.ts";
+import { dirFor, translate } from "../../lib/i18n.ts";
+import en from "../i18n/en.ts";
+import ja from "../i18n/ja.ts";
+import ko from "../i18n/ko.ts";
+import th from "../i18n/th.ts";
 
-const ALL = ["en", "ar", "ru", "hi", "ur", "zh", "de", "fr"];
+// The guest UI languages (i18n/index.ts, the server's GUEST_LANGUAGES).
+const ALL = ["en", "ar", "ru", "hi", "ur", "zh", "de", "fr", "ja", "ko", "th"];
 
 // ─── offeredLanguages (GS-9) ───
 
@@ -25,6 +31,29 @@ test("no configured languages offers every supported one", () => {
   assert.deepEqual(offeredLanguages([], ALL, "en"), ALL);
   assert.deepEqual(offeredLanguages(undefined, ALL), ALL);
   assert.deepEqual(offeredLanguages(["xx"], ALL, "en"), ALL);
+});
+
+// ─── Japanese, Korean and Thai (the Tokyo hotel's JAPAC guests) ───
+
+test("a JAPAC hotel offers Japanese, Korean and Thai, from region tags too", () => {
+  const tokyo = ["en", "ja", "ko", "zh", "th", "hi", "fr", "de", "ru", "ar", "ur"];
+  assert.deepEqual(offeredLanguages(tokyo, ALL, "ja"), tokyo);
+  assert.deepEqual(offeredLanguages(["ja-JP", "ko_KR", "th-TH"], ALL, "en"), ["ja", "ko", "th", "en"]);
+});
+
+test("Japanese, Korean and Thai read left to right; Arabic and Urdu stay right to left", () => {
+  for (const lang of ["ja", "ko", "th", "ja-JP"]) assert.equal(dirFor(lang), "ltr", lang);
+  for (const lang of ["ar", "ur"]) assert.equal(dirFor(lang), "rtl", lang);
+});
+
+test("the JAPAC dictionaries name themselves and fill their placeholders", () => {
+  assert.deepEqual([ja.meta.name, ko.meta.name, th.meta.name], ["日本語", "한국어", "ไทย"]);
+  const t = (dict) => (key, vars) => translate(dict, key, vars, en);
+  assert.equal(t(ja)("emergency.call", { number: "119" }), "119に電話");
+  assert.equal(t(ja)("emergency.kinds.fire_ambulance"), "消防・救急");
+  assert.equal(t(ko)("job.etaMinutes", { n: 5 }), "약 5분");
+  assert.equal(t(th)("footer.languages", { n: 11 }), "ผู้ช่วย AI · รองรับ 11 ภาษา");
+  assert.equal(t(en)("emergency.kinds.fire_ambulance"), "Fire and ambulance");
 });
 
 // ─── orderableHere (GS-15) ───

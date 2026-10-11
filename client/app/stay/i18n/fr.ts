@@ -135,6 +135,7 @@ const fr: GuestDict = {
       search_rescue: "Recherche et sauvetage",
       electricity_water: "Électricité et eau",
       fire: "Pompiers",
+      fire_ambulance: "Pompiers et ambulance",
       other: "Urgences",
     },
   },

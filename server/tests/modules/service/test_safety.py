@@ -1,5 +1,5 @@
 """Safety classifier (03 spec 0.5, 1.5, 1.9): lexicon hits and false-positive
-fixtures for all 8 languages, negative guards, script detection, the
+fixtures for every guest language, negative guards, script detection, the
 upgrade-only LLM layer, the effect plan and the api.classify_safety door."""
 
 from __future__ import annotations
@@ -54,6 +54,39 @@ HITS = [
     ("fr", "Mon mari ne respire plus", "medical"),
     ("fr", "on m'a volé mon sac", "theft"),
     ("fr", "Je veux être remboursé", "refund"),
+    # Japanese, Korean and Thai (JAPAC guests). Polite and plain forms both.
+    ("ja", "部屋が火事です", "fire"),
+    ("ja", "煙が出ています", "fire"),
+    ("ja", "夫が倒れて意識がありません", "medical"),
+    ("ja", "息ができません、救急車を呼んでください", "medical"),
+    ("ja", "廊下にナイフを持った男がいます", "violence"),
+    ("ja", "エレベーターに閉じ込められました", "lift_entrapment"),
+    ("ja", "子供が見当たりません", "missing_child"),
+    ("ja", "財布を盗まれました", "theft"),
+    ("ja", "体を触られました", "harassment"),
+    ("ja", "パスポートをなくしました", "lost_document"),
+    ("ja", "警察を呼んでください", "police"),
+    ("ja", "返金してください", "refund"),
+    ("ja", "責任者を呼んでください", "complaint"),
+    ("ko", "방에 불이 났어요", "fire"),
+    ("ko", "가스 냄새가 나요", "fire"),
+    ("ko", "남편이 쓰러졌어요", "medical"),
+    ("ko", "숨을 쉴 수가 없어요", "medical"),
+    ("ko", "복도에 칼을 든 남자가 있어요", "violence"),
+    ("ko", "엘리베이터에 갇혔어요", "lift_entrapment"),
+    ("ko", "아이가 없어졌어요", "missing_child"),
+    ("ko", "누가 제 가방을 훔쳐갔어요", "theft"),
+    ("ko", "여권을 잃어버렸어요", "lost_document"),
+    ("ko", "환불해 주세요", "refund"),
+    ("th", "ห้องไฟไหม้", "fire"),
+    ("th", "ได้กลิ่นแก๊สในห้อง", "fire"),
+    ("th", "สามีหมดสติ หายใจไม่ออก", "medical"),
+    ("th", "มีผู้ชายถือมีดอยู่ที่ทางเดิน", "violence"),
+    ("th", "ติดอยู่ในลิฟต์", "lift_entrapment"),
+    ("th", "ลูกหายไป", "missing_child"),
+    ("th", "กระเป๋าเงินถูกขโมย", "theft"),
+    ("th", "พาสปอร์ตหาย", "lost_document"),
+    ("th", "ขอคุยกับผู้จัดการ", "complaint"),
 ]
 
 
@@ -114,6 +147,45 @@ CLEAN = [
     ("fr", "un toast à l'avocat, s'il vous plaît"),
     ("fr", "le feu rouge devant l'hôtel"),
     ("fr", "le détecteur de fumée fait bip"),
+    ("ja", "禁煙ルームですか？"),  # 煙 inside 禁煙 (non-smoking)
+    ("ja", "近くの警察署はどこですか？"),
+    ("ja", "火災の時の避難経路を教えてください"),
+    ("ja", "燃えるゴミはどこに捨てればいいですか"),
+    ("ja", "スリッパをもう一足ください"),  # not スリ (a pickpocket)
+    ("ja", "ナイフとフォークをください"),
+    ("ja", "押し入れに布団はありますか"),  # the futon closet, not a break-in
+    ("ja", "蚊に刺されたので、かゆみ止めはありますか"),
+    ("ja", "スマホの電池が死んだので充電器を貸してください"),
+    ("ja", "お腹が空いて死にそうです"),
+    ("ja", "近くのドラッグストアはどこですか"),
+    ("ja", "クレームブリュレをひとつお願いします"),
+    ("ja", "新宿駅で迷子になりました"),  # an adult lost in the station
+    ("ja", "コンロの火が出ません"),
+    ("ja", "リモコンの反応がありません"),
+    ("ko", "체크아웃을 연기할 수 있나요?"),  # 연기 is also "postpone"
+    ("ko", "방에 불이 안 켜져요"),  # 불 is also the light
+    ("ko", "방에 불이 나갔어요"),
+    ("ko", "불고기 맛집 추천해 주세요"),
+    ("ko", "케이크 자를 칼 좀 가져다주세요"),
+    ("ko", "총 금액이 얼마예요?"),  # 총 is also "total"
+    ("ko", "근처 경찰서가 어디예요?"),
+    ("ko", "핸드폰 배터리가 다 죽었어요"),
+    ("ko", "배고파 죽겠어요"),
+    ("ko", "마약김밥 파는 곳 있어요?"),
+    ("ko", "고소한 커피 한 잔 주세요"),  # 고소 is also "nutty"
+    ("ko", "휴대폰을 물에 빠뜨렸어요"),
+    ("th", "ขอหมอนเพิ่มอีกใบ"),  # หมอน (a pillow) starts with หมอ (a doctor)
+    ("th", "เรียกหมอนวดมาที่ห้องได้ไหม"),
+    ("th", "ชักโครกตัน"),  # the toilet, not a seizure
+    ("th", "ขอมีดตัดเค้กหน่อย"),
+    ("th", "ตายแล้ว ลืมกุญแจไว้ในห้อง"),  # "oh no", nobody died
+    ("th", "หิวจะตาย"),
+    ("th", "ได้กลิ่นควันบุหรี่ในห้อง"),
+    ("th", "สถานีตำรวจที่ใกล้ที่สุดอยู่ที่ไหน"),
+    ("th", "กรณีไฟไหม้ต้องหนีทางไหน"),
+    ("th", "ศาลเจ้าเมจิไปยังไง"),
+    ("th", "ห้องติดลิฟต์เสียงดัง"),  # a room next to the lift
+    ("th", "ขอสบู่ฆ่าเชื้อ"),
 ]
 
 
@@ -129,6 +201,24 @@ def test_every_language_covers_every_kind():
         assert {r.kind for r in lex.kinds} == set(safety.KIND_LEVEL), lang
 
 
+def test_every_guest_language_has_a_lexicon():
+    from clefs.modules.concierge.constants import GUEST_LANGUAGES
+
+    assert set(GUEST_LANGUAGES) <= set(safety.LANGUAGES)
+
+
+def test_kana_keeps_the_chinese_lexicon_off_japanese_text():
+    """Japanese writes kanji the Chinese lexicon knows (警察, 火災) inside
+    questions it has no guards for; a text with kana is read in Japanese."""
+    assert "zh" not in safety.languages_for("近くの警察署はどこですか", "en")
+    assert safety.lexicon_verdict("近くの警察署はどこですか", language="en")["level"] == "none"
+    assert safety.lexicon_verdict("火災の時はどうすればいいですか")["level"] == "none"
+    # ... while Chinese, and Japanese without a tag, still fire
+    assert safety.lexicon_verdict("我要报警", language="ja")["kind"] == "police"
+    assert safety.lexicon_verdict("警察を呼んでください")["kind"] == "police"
+    assert safety.lexicon_verdict("房间着火了", language="ja")["kind"] == "fire"
+
+
 def test_guard_masks_only_its_own_phrase():
     v = safety.lexicon_verdict("the fire pit is nice but there is a fire in the kitchen", language="en")
     assert v["kind"] == "fire"
@@ -141,6 +231,10 @@ def test_script_picks_the_lexicon_when_the_language_tag_is_wrong_or_missing():
     # Latin text is read as German only when the guest speaks German
     assert safety.lexicon_verdict("what brand is it", language=None)["level"] == "none"
     assert safety.lexicon_verdict("Brand im Zimmer", language="de-AT")["kind"] == "fire"
+    # Kana, Hangul and Thai script pick their lexicons too
+    assert safety.lexicon_verdict("部屋が火事です", language="en")["kind"] == "fire"
+    assert safety.lexicon_verdict("엘리베이터에 갇혔어요", language=None)["kind"] == "lift_entrapment"
+    assert safety.lexicon_verdict("AC broken, ไฟไหม้", language="en")["kind"] == "fire"
 
 
 def test_english_rendering_is_read_too():

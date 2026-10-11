@@ -89,8 +89,10 @@ export const FACT_KEYS: readonly { value: string; label: string; hint: string }[
   { value: "wifi", label: "Wi-Fi", hint: "free or paid" },
 ];
 
+/** The guest UI languages (the server's concierge GUEST_LANGUAGES), in order. */
 export const LANGUAGE_NAMES: Record<string, string> = {
   en: "English", ar: "Arabic", ru: "Russian", hi: "Hindi", ur: "Urdu", zh: "Chinese", de: "German", fr: "French",
+  ja: "Japanese", ko: "Korean", th: "Thai",
 };
 export const GUEST_LANGUAGES = Object.keys(LANGUAGE_NAMES);
 

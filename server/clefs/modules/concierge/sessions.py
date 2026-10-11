@@ -185,8 +185,9 @@ def consent_flags(cur: Any, hotel_slug: str, subject_ref: str) -> dict[str, bool
 
 def consent_texts(cur: Any, hotel_slug: str, language: str | None) -> dict[str, dict]:
     """{purpose: {version, language, text, required, required_for_voice}}
-    for the consent sheet, in the guest's language when written (en/ar
-    today), else English. "{hotel}" becomes the hotel's name."""
+    for the consent sheet, in the guest's language when written (every
+    guest language at concierge-2), else English. "{hotel}" becomes the
+    hotel's name."""
     from clefs.core.hotels import get_hotel
 
     hotel = get_hotel(cur, hotel_slug)

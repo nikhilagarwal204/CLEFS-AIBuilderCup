@@ -93,21 +93,32 @@ KB_INLINE_CHAR_BUDGET = 24_000
 
 # ─── Consent (03 spec 2.3, Canon PDPL) ───
 # Required before the AI runs at all: ai_processing and transfer_abroad
-# (Google's Gemini API and Neon are outside the UAE). recording is required for voice (a
-# text-only guest may decline, and then no transcript is stored). ai_analytics
-# is optional. Marketing is asked later and separately (guests module).
+# (Google Cloud's Gemini models may process a message outside the guest's
+# country, and the data is stored in Google Cloud's India region). recording
+# is required for voice (a text-only guest may decline, and then no
+# transcript is stored). ai_analytics is optional. Marketing is asked later
+# and separately (guests module).
 CONSENT_PURPOSES: tuple[str, ...] = ("ai_processing", "transfer_abroad", "recording", "ai_analytics")
 REQUIRED_CONSENTS: tuple[str, ...] = ("ai_processing", "transfer_abroad")
 VOICE_REQUIRED_CONSENTS: tuple[str, ...] = ("ai_processing", "transfer_abroad", "recording")
-# Platform texts seeded by 0202_concierge_consent_texts.py. A distinct
+# The platform wording the sheet shows and grants point at. A distinct
 # version string, so the Guests lane's own "1" texts never collide with it.
-CONSENT_TEXT_VERSION = "concierge-1"
+# concierge-2 (0208_concierge_consent_texts_v2.py, every guest language)
+# replaced concierge-1 (0202, EN/AR, written for a UAE deployment); the
+# concierge-1 rows stay as the evidence earlier grants point at.
+CONSENT_TEXT_VERSION = "concierge-2"
 
 # ─── Emergency numbers ───
-# Canon "Emergency numbers" (UAE). Other countries are kept for the legacy
+# Canon "Emergency numbers" (UAE), Japan (the Tokyo demo hotel: 119 is fire
+# and ambulance in one, 110 police, 118 the coast guard) and the legacy
 # Indian hotels; an unknown country gets none (the prompt then says "local
 # emergency services"). kind -> the number said first.
 EMERGENCY_NUMBERS: dict[str, tuple[tuple[str, str], ...]] = {
+    "JP": (
+        ("119", "fire_ambulance"),
+        ("110", "police"),
+        ("118", "coast_guard"),
+    ),
     "AE": (
         ("999", "police"),
         ("998", "ambulance"),
@@ -185,7 +196,13 @@ LIVE_SURFACES = frozenset({"web_room", "web_location", "phone"})
 SESSION_MODES: tuple[str, ...] = ("voice", "text", "chip", "prewarm")
 
 # Guest UI languages (03 spec 2.6); anything else falls back to English.
-GUEST_LANGUAGES: tuple[str, ...] = ("en", "ar", "ru", "hi", "ur", "zh", "de", "fr")
+# ja, ko and th joined for JAPAC guests (the Tokyo demo hotel). Every list
+# keyed by these must cover all of them: the client dictionaries
+# (client/app/stay/i18n, checked by scripts/check-i18n.mjs), the greetings
+# (prompt._PARTS, _INTRO), the consent texts (latest concierge migration),
+# the WhatsApp consent question and the safety lexicons. Only ar and ur are
+# right-to-left.
+GUEST_LANGUAGES: tuple[str, ...] = ("en", "ar", "ru", "hi", "ur", "zh", "de", "fr", "ja", "ko", "th")
 LANGUAGE_NAMES: dict[str, str] = {
     "en": "English",
     "ar": "Arabic",
@@ -195,6 +212,9 @@ LANGUAGE_NAMES: dict[str, str] = {
     "zh": "Chinese",
     "de": "German",
     "fr": "French",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "th": "Thai",
 }
 DEFAULT_VOICE = "Kore"  # a Gemini prebuilt voice
 

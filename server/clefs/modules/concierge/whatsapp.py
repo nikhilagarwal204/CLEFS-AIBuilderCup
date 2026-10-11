@@ -9,9 +9,11 @@ in house, or arriving within a day) to the hotel's own number, at a hotel
 with the concierge switched on. Everyone else passes through untouched.
 
 Consent first (PDPL): AI processing and transfer abroad. A guest without
-both gets one question with two buttons (the concierge-1 wording); their
-first message waits in the session and is answered once they say yes. "No"
-hands them to a person, and later messages go to Service's fallback.
+both gets one question with two buttons (the current concierge consent
+wording, constants.CONSENT_TEXT_VERSION, in the language their message is
+written in); their first message waits in the session and is answered once
+they say yes. "No" hands them to a person, and later messages go to
+Service's fallback.
 
 The reply is not written in the webhook: the handler binds the message to a
 WhatsApp session (cc_sessions, surface whatsapp, one per sender for 2 hours)
@@ -126,25 +128,88 @@ def _set_pending(cur: Any, session: dict, texts: list[str]) -> None:
 
 
 # ─── Consent question ───
+# One entry per guest language (constants.GUEST_LANGUAGES; a test checks).
+# Button titles stay within WhatsApp's 20 characters.
 
 BUTTONS = {
     "en": ("Yes, that's fine", "No, a person"),
     "ar": ("نعم، موافق", "لا، أريد موظفا"),
+    "ru": ("Да, хорошо", "Нет, нужен человек"),
+    "hi": ("हाँ, ठीक है", "नहीं, स्टाफ़ से बात"),
+    "ur": ("جی ہاں، ٹھیک ہے", "نہیں، عملے سے بات"),
+    "zh": ("好的，同意", "不，转人工"),
+    "de": ("Ja, einverstanden", "Nein, Mitarbeiter"),
+    "fr": ("Oui, d'accord", "Non, une personne"),
+    "ja": ("はい、同意します", "いいえ、スタッフと話す"),
+    "ko": ("네, 동의합니다", "아니요, 직원 연결"),
+    "th": ("ยอมรับ", "ไม่ ขอคุยกับพนักงาน"),
 }
 INTRO = {
     "en": "Hello, I am {name}, the AI assistant of {hotel}. Before I answer:",
     "ar": "مرحبا، أنا {name}، المساعد الذكي في {hotel}. قبل أن أجيب:",
+    "ru": "Здравствуйте! Я {name}, ИИ-ассистент отеля {hotel}. Прежде чем я отвечу:",
+    "hi": "नमस्ते, मैं {name} हूँ, {hotel} का AI सहायक। जवाब देने से पहले:",
+    "ur": "السلام علیکم، میں {name} ہوں، {hotel} کا AI اسسٹنٹ۔ جواب دینے سے پہلے:",
+    "zh": "您好，我是{name}，{hotel}的AI助手。在回答之前，请您确认：",
+    "de": "Hallo, ich bin {name}, der KI-Assistent von {hotel}. Bevor ich antworte:",
+    "fr": "Bonjour, je suis {name}, l'assistant IA de {hotel}. Avant de vous répondre :",
+    "ja": "こんにちは。{hotel}のAIアシスタント、{name}です。お答えする前に、以下をご確認ください。",
+    "ko": "안녕하세요, {hotel}의 AI 어시스턴트 {name}입니다. 답변드리기 전에 확인해 주세요.",
+    "th": "สวัสดีค่ะ ดิฉัน {name} ผู้ช่วย AI ของ {hotel} ก่อนตอบคำถาม โปรดอ่านข้อความต่อไปนี้ค่ะ",
 }
 DECLINED = {
     "en": "No problem. A member of our team will reply to you here shortly.",
     "ar": "لا مشكلة. سيرد عليك أحد أعضاء فريقنا هنا قريبا.",
+    "ru": "Хорошо. Наш сотрудник скоро ответит вам здесь.",
+    "hi": "कोई बात नहीं। हमारी टीम का कोई सदस्य जल्द ही आपको यहीं जवाब देगा।",
+    "ur": "کوئی بات نہیں۔ ہماری ٹیم کا کوئی رکن جلد ہی آپ کو یہیں جواب دے گا۔",
+    "zh": "没问题。我们的工作人员很快会在这里回复您。",
+    "de": "Kein Problem. Ein Mitglied unseres Teams antwortet Ihnen hier in Kürze.",
+    "fr": "Pas de problème. Un membre de notre équipe vous répondra ici très bientôt.",
+    "ja": "承知しました。まもなくスタッフがこちらでご返信いたします。",
+    "ko": "알겠습니다. 곧 저희 직원이 여기에서 답변드리겠습니다.",
+    "th": "ได้เลยค่ะ เจ้าหน้าที่ของเราจะตอบกลับคุณที่นี่ในไม่ช้าค่ะ",
 }
+THANKS = {
+    "en": "Thank you. How can I help?",
+    "ar": "شكرا لك. كيف يمكنني مساعدتك؟",
+    "ru": "Спасибо. Чем могу помочь?",
+    "hi": "धन्यवाद। मैं आपकी कैसे मदद करूँ?",
+    "ur": "شکریہ۔ بتائیے، میں آپ کی کیا مدد کروں؟",
+    "zh": "谢谢。请问有什么可以帮您？",
+    "de": "Vielen Dank. Wie kann ich Ihnen helfen?",
+    "fr": "Merci. Comment puis-je vous aider ?",
+    "ja": "ありがとうございます。どのようなご用件でしょうか？",
+    "ko": "감사합니다. 무엇을 도와드릴까요?",
+    "th": "ขอบคุณค่ะ มีอะไรให้ช่วยไหมคะ",
+}
+
+# Letters only Urdu uses among the Arabic-script guest languages.
+_URDU_LETTERS = frozenset("ٹڈڑںھہۂۃےۓ")
+# Scripts that name one guest language, checked in this order: kana before
+# the Han characters, which Japanese writes too.
+_SCRIPT_LANGS: tuple[tuple[tuple[tuple[str, str], ...], str], ...] = (
+    ((("\u3040", "\u30ff"), ("\u31f0", "\u31ff"), ("\uff66", "\uff9f")), "ja"),
+    ((("\uac00", "\ud7af"), ("\u1100", "\u11ff"), ("\u3130", "\u318f")), "ko"),
+    ((("\u0e00", "\u0e7f"),), "th"),
+    ((("\u0900", "\u097f"),), "hi"),
+    ((("\u0400", "\u04ff"),), "ru"),
+    ((("\u3400", "\u4dbf"), ("\u4e00", "\u9fff")), "zh"),
+)
 
 
 def guess_language(text: str | None) -> str:
-    """ar when the message has Arabic letters, else en (the two languages the
-    concierge-1 consent wording exists in)."""
-    return "ar" if any("؀" <= ch <= "ۿ" for ch in text or "") else "en"
+    """The guest's language from the script of the message: Arabic or Urdu,
+    Japanese, Korean, Thai, Hindi, Russian or Chinese. Latin script reads
+    as English: a short German or French message cannot be told apart
+    reliably, and the model answers in the guest's language anyway."""
+    s = text or ""
+    if any("\u0600" <= ch <= "\u06ff" or "\u0750" <= ch <= "\u077f" for ch in s):
+        return "ur" if any(ch in _URDU_LETTERS for ch in s) else "ar"
+    for ranges, lang in _SCRIPT_LANGS:
+        if any(lo <= ch <= hi for ch in s for lo, hi in ranges):
+            return lang
+    return "en"
 
 
 def consent_body(cur: Any, hotel_slug: str, lang: str) -> str:
@@ -258,8 +323,7 @@ def whatsapp_consent_button(ctx: Any) -> dict:
     if pending:
         enqueue_reply(ctx, session, use_pending=True)
     else:
-        ctx.reply_text("Thank you. How can I help?" if lang != "ar" else "شكرا لك. كيف يمكنني مساعدتك؟",
-                       purpose=PURPOSE, idempotency_key=f"ccwa:thanks:{ctx.provider_id}")
+        ctx.reply_text(THANKS.get(lang, THANKS["en"]), purpose=PURPOSE, idempotency_key=f"ccwa:thanks:{ctx.provider_id}")
     return {"handled": True, "consent": True}
 
 

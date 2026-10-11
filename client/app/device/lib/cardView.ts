@@ -83,7 +83,10 @@ export function hasOriginal(c: Card): boolean {
   return Boolean(c.original_text && c.original_text.trim() && c.original_text.trim() !== descriptionOf(c));
 }
 
-const LANG: Record<string, string> = { ar: "Arabic", en: "English", hi: "Hindi", ur: "Urdu", ru: "Russian", zh: "Chinese", de: "German", fr: "French" };
+const LANG: Record<string, string> = {
+  ar: "Arabic", en: "English", hi: "Hindi", ur: "Urdu", ru: "Russian", zh: "Chinese", de: "German", fr: "French",
+  ja: "Japanese", ko: "Korean", th: "Thai",
+};
 
 export function languageLabel(code: string | null | undefined): string | null {
   if (!code || code === "en") return null;

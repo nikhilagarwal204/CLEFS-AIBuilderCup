@@ -6,9 +6,12 @@
    It appears when a tool result or a turn's safety check returns
    ui.kind === "emergency". The server has already filed an L1 request, so
    staff are on it; this card is for the guest to reach public services
-   directly. The numbers come from the server (UAE: 999 police, 998
-   ambulance, 997 civil defence, ...), most relevant first, never from a
-   hardcoded list here. Digits stay Western and tel: links dial as is.
+   directly. The numbers come from the server, by the hotel's country
+   (UAE: 999 police, 998 ambulance, 997 civil defence, ...; Japan: 119
+   fire and ambulance, 110 police, 118 coast guard), most relevant first,
+   never from a hardcoded list here. Each kind is labelled from the guest
+   dictionary (emergency.kinds). Digits stay Western and tel: links dial
+   as is.
    ═══════════════════════════════════════════════════════════════════════ */
 
 import { LuPhone, LuSiren, LuX } from "react-icons/lu";

@@ -135,6 +135,7 @@ const ru: GuestDict = {
       search_rescue: "Поисково-спасательная служба",
       electricity_water: "Электричество и вода",
       fire: "Пожарная служба",
+      fire_ambulance: "Пожарные и скорая помощь",
       other: "Экстренная служба",
     },
   },

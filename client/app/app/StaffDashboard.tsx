@@ -1731,7 +1731,7 @@ function titleiseSlug(slug: string) {
 
 export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
   // The slug is only a stand-in until the hotel's own name arrives (a slug
-  // like "demo-deira-crest" is not what the property is called).
+  // like "aozora-shinjuku" is not what the property is called).
   const [hotelName, setHotelName] = useState(() => titleiseSlug(hotelSlug));
   useEffect(() => {
     let live = true;

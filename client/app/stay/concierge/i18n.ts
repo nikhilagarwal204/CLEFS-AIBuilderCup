@@ -89,14 +89,19 @@ export function langName(lang: GuestLanguage): string {
 }
 
 // ─── Fonts ───────────────────────────────────────────────────────────────
-// Inter and Playfair have no Arabic, Nastaliq, Devanagari or CJK glyphs;
-// without these the OS fallback renders mixed, often clipped, text.
+// Inter and Playfair have no Arabic, Nastaliq, Devanagari, CJK, Hangul or
+// Thai glyphs; without these the OS fallback renders mixed, often clipped,
+// text. Japanese needs its own CJK font: the Simplified Chinese one draws
+// many kanji with the Chinese glyph shapes.
 
 const FONTS: Partial<Record<GuestLanguage, { family: string; css: string }>> = {
   ar: { family: "'Noto Sans Arabic'", css: "Noto+Sans+Arabic:wght@400;600;700" },
   ur: { family: "'Noto Nastaliq Urdu'", css: "Noto+Nastaliq+Urdu:wght@400;700" },
   hi: { family: "'Noto Sans Devanagari'", css: "Noto+Sans+Devanagari:wght@400;600;700" },
   zh: { family: "'Noto Sans SC'", css: "Noto+Sans+SC:wght@400;600;700" },
+  ja: { family: "'Noto Sans JP'", css: "Noto+Sans+JP:wght@400;600;700" },
+  ko: { family: "'Noto Sans KR'", css: "Noto+Sans+KR:wght@400;600;700" },
+  th: { family: "'Noto Sans Thai'", css: "Noto+Sans+Thai:wght@400;600;700" },
 };
 
 /** Loads the language's webfont once (a <link> in <head>). Safe to call often. */

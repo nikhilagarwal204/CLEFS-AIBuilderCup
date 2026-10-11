@@ -45,6 +45,7 @@ NUMBER_LABELS = {
     "electricity_water": "electricity and water emergencies",
     "emergency": "emergency",
     "fire": "fire",
+    "fire_ambulance": "fire and ambulance",
 }
 
 
@@ -60,6 +61,9 @@ def version_of(blocks: list[tuple[str, str]]) -> str:
 
 
 # ─── Greeting (spoken first; computed in the hotel's timezone) ───
+# One entry per guest language (constants.GUEST_LANGUAGES; a test checks).
+# Thai uses the female polite particles (ค่ะ, คะ), matching the default
+# voice (constants.DEFAULT_VOICE, Kore).
 
 _PARTS: dict[str, tuple[str, str, str]] = {
     "en": ("Good morning", "Good afternoon", "Good evening"),
@@ -70,6 +74,9 @@ _PARTS: dict[str, tuple[str, str, str]] = {
     "zh": ("早上好", "下午好", "晚上好"),
     "de": ("Guten Morgen", "Guten Tag", "Guten Abend"),
     "fr": ("Bonjour", "Bonjour", "Bonsoir"),
+    "ja": ("おはようございます", "こんにちは", "こんばんは"),
+    "ko": ("좋은 아침입니다", "안녕하세요", "안녕하세요"),
+    "th": ("สวัสดีตอนเช้าค่ะ", "สวัสดีค่ะ", "สวัสดีตอนเย็นค่ะ"),
 }
 _INTRO: dict[str, str] = {
     "en": "I'm {name}, the AI concierge at {hotel}. How can I help you today?",
@@ -80,7 +87,20 @@ _INTRO: dict[str, str] = {
     "zh": "我是{name}，{hotel}的AI礼宾助手。请问有什么可以帮您？",
     "de": "Ich bin {name}, der KI-Concierge im {hotel}. Wie kann ich Ihnen helfen?",
     "fr": "Je suis {name}, le concierge IA de {hotel}. Comment puis-je vous aider ?",
+    "ja": "{hotel}のAIコンシェルジュ、{name}です。何かお手伝いできることはございますか？",
+    "ko": "저는 {hotel}의 AI 컨시어지 {name}입니다. 무엇을 도와드릴까요?",
+    "th": "ดิฉัน {name} ผู้ช่วย AI ของ {hotel} ค่ะ มีอะไรให้ช่วยไหมคะ",
 }
+# Where the guest's first name goes ("Good morning, Omar"), and what closes
+# the greeting before the introduction ("! "). CJK full-width marks take no
+# space after them; Thai separates sentences with a space alone.
+_NAMED: dict[str, str] = {
+    "zh": "{first}，{part}",
+    "ja": "{first}様、{part}",
+    "ko": "{first}님, {part}",
+    "th": "{part} คุณ {first}",
+}
+_CLOSE: dict[str, str] = {"zh": "！", "ja": "。", "fr": " ! ", "th": " "}
 
 
 def base_language(language: str | None) -> str:
@@ -93,9 +113,9 @@ def greeting_text(hotel: Hotel, *, name: str, language: str | None, first_name: 
     hour = hotel_time.hotel_now(hotel).hour
     part = _PARTS[lang][0 if 4 <= hour < 12 else 1 if 12 <= hour < 17 else 2]
     if first_name:
-        part = f"{first_name}，{part}" if lang == "zh" else f"{part}, {first_name}"
-    bang = "！" if lang == "zh" else " !" if lang == "fr" else "!"
-    return sanitize(f"{part}{bang} " + _INTRO[lang].format(name=name, hotel=hotel.name))
+        part = _NAMED.get(lang, "{part}, {first}").format(part=part, first=first_name)
+    close = _CLOSE.get(lang, "! ")
+    return sanitize(part + close + _INTRO[lang].format(name=name, hotel=hotel.name))
 
 
 # ─── Inputs ───
@@ -168,6 +188,8 @@ def block_language(p: PromptInput) -> str:
         "For Arabic, including Emirati and Gulf dialect and Arabizi (Arabic written in Latin letters and digits), reply in "
         "simple, Gulf-leaning Modern Standard Arabic. Guests may mix Arabic and English in one sentence; understand both and "
         "reply in the language they mostly used.",
+        "Speak as a hotel speaks to its guests: in Japanese use polite desu/masu forms (keigo where natural), in Korean "
+        "polite haeyo or hamnida endings, in Thai the polite particles ค่ะ and คะ.",
         "Write numbers with Western digits (0-9) unless the guest used Arabic-Indic digits.",
         "Tool arguments that describe a request are always in English (description_en), with the guest's own words kept in original_text.",
     ]
@@ -319,12 +341,22 @@ def emergency_line(country: str | None) -> str:
     if not numbers:
         return "the local emergency services"
     by_kind = {kind: num for num, kind in numbers}
+    main_kinds: tuple[str, ...] = ()
     if {"ambulance", "civil_defence", "police"} <= set(by_kind):
+        main_kinds = ("ambulance", "civil_defence", "police")
         main = (
             f"{by_kind['ambulance']} (ambulance) for anything medical, {by_kind['civil_defence']} (civil defence) for fire, "
             f"gas, smoke or someone trapped, {by_kind['police']} (police) for violence, threats or a missing child"
         )
-        rest = [f"{num} {NUMBER_LABELS.get(k, k.replace('_', ' '))}" for num, k in numbers if k not in ("ambulance", "civil_defence", "police")]
+    elif {"fire_ambulance", "police"} <= set(by_kind):
+        # Japan: one number for fire and ambulance.
+        main_kinds = ("fire_ambulance", "police")
+        main = (
+            f"{by_kind['fire_ambulance']} (fire and ambulance) for anything medical, fire, gas, smoke or someone trapped, "
+            f"{by_kind['police']} (police) for violence, threats or a missing child"
+        )
+    if main_kinds:
+        rest = [f"{num} {NUMBER_LABELS.get(k, k.replace('_', ' '))}" for num, k in numbers if k not in main_kinds]
         return main + (f" (others: {', '.join(rest)})" if rest else "")
     return ", ".join(f"{num} {NUMBER_LABELS.get(kind, kind.replace('_', ' '))}" for num, kind in numbers)
 
@@ -336,9 +368,9 @@ def block_policy(p: PromptInput) -> str:
             "POLICY:",
             "- Never state a price, promise, discount, upgrade, refund or free item that is not in the hotel knowledge or menu above.",
             "- Something the guest asked for never came, was not done, or is still not fixed: call flag_service_recovery. "
-            "Other complaints, billing, refunds, legal matters and any request for a person go to a human: call "
-            "escalate_to_human (reason complaint, refund_or_billing, legal or asked_for_human). Do not admit fault or "
-            "promise compensation.",
+            "Other complaints, billing, refunds, a discount or a different rate, legal matters and any request for a "
+            "person go to a human: call escalate_to_human (reason complaint, refund_or_billing, legal or asked_for_human). "
+            "Do not admit fault or promise compensation.",
             f"- EMERGENCY (medical, fire, gas, smoke, violence, threats, a missing child, someone trapped): first tell the guest to "
             f"call {numbers}, then call escalate_to_human with reason emergency and urgency high straight away. Keep them calm "
             "and stay with them.",
@@ -359,8 +391,9 @@ TOOL_RULES: dict[str, str] = {
     "calls, which may go out together. Say it is on its way only after the tool succeeds, naming the department, the staff "
     "member's first name and the minutes the tool gives you. When several jobs go out at once, confirm them together in "
     "one or two sentences.",
-    "escalate_to_human": "escalate_to_human: complaints, billing, refunds, legal, emergencies, a request for a person, or a "
-    "question you cannot answer from the hotel knowledge (reason unknown_answer).",
+    "escalate_to_human": "escalate_to_human: complaints, billing, refunds, a discount or a different rate, legal, "
+    "emergencies, a request for a person, or a question you cannot answer from the hotel knowledge (reason "
+    "unknown_answer).",
     "get_request_status": "get_request_status: when the guest asks about a request they made.",
     "flag_service_recovery": "flag_service_recovery: when the guest says something they asked for never came, was not "
     "done, or is still not fixed ('the towels never came', 'the AC is still broken'). It reopens their job and tells the "

@@ -12,19 +12,34 @@
      (or invented), since translate() would then print "{name}" verbatim;
    - an em dash (U+2014), which the house style bans in guest copy.
 
+   The language list is GUEST_LANGUAGES in app/stay/i18n/index.ts, so a
+   language added there is checked at once. When the server sits beside
+   the client (this repo), the list must also equal the server's concierge
+   GUEST_LANGUAGES, which the greetings and consent texts are keyed by.
+
    WHY evaluate the literal instead of importing the .ts: CI may run a Node
    without type stripping, and a TypeScript compiler is not a dependency of
    this check. Each file keeps a single `const <lang>... = { ... };` object
    literal of strings (see the note in en.ts), which is also valid JS.
    ═══════════════════════════════════════════════════════════════════════ */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const LANGS = ["en", "ar", "ru", "hi", "ur", "zh", "de", "fr"];
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "app", "stay", "i18n");
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, "..", "app", "stay", "i18n");
+const SERVER_CONSTANTS = join(HERE, "..", "..", "server", "clefs", "modules", "concierge", "constants.py");
 const EM_DASH = String.fromCharCode(0x2014);
+
+/** The quoted codes of a `NAME ... = [ ... ]` or `( ... )` list in a source file. */
+function codesOf(src, name, file) {
+  const m = src.match(new RegExp(`${name}\\b[^=\\n]*=\\s*[\\[(]([^\\])]*)[\\])]`));
+  if (!m) throw new Error(`${file}: no ${name} list found`);
+  return [...m[1].matchAll(/["']([a-z]{2,3})["']/g)].map((x) => x[1]);
+}
+
+const LANGS = codesOf(readFileSync(join(ROOT, "index.ts"), "utf8"), "GUEST_LANGUAGES", "index.ts");
 
 // ─── Loading ─────────────────────────────────────────────────────────────
 
@@ -52,6 +67,13 @@ const placeholders = (s) => [...String(s).matchAll(/\{(\w+)\}/g)].map((m) => m[1
 
 function check() {
   const problems = [];
+  if (!LANGS.includes("en")) problems.push('index.ts: GUEST_LANGUAGES must include "en"');
+  if (existsSync(SERVER_CONSTANTS)) {
+    const server = codesOf(readFileSync(SERVER_CONSTANTS, "utf8"), "GUEST_LANGUAGES", "constants.py");
+    if (server.join(",") !== LANGS.join(",")) {
+      problems.push(`index.ts GUEST_LANGUAGES [${LANGS}] differ from the server's concierge GUEST_LANGUAGES [${server}]`);
+    }
+  }
   const master = flatten(load("en"));
   for (const lang of LANGS) {
     let dict;

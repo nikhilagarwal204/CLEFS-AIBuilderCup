@@ -15,7 +15,8 @@ import {
 } from "./worker.ts";
 import { AUDIO_MIME_PREFERENCE, baseMime, blobToBase64, bytesToBase64, pickAudioMime } from "./voiceNote.ts";
 import {
-  STAFF_DICTS, STAFF_LANGS, agoText, durationText, languageName, placeholders, resolveStaffLang, stateText, staffDir, staffT, toStaffLang,
+  STAFF_DICTS, STAFF_LANG_NAMES, STAFF_LANGS, agoText, durationText, languageName, placeholders, resolveStaffLang, stateText, staffDir,
+  staffT, toStaffLang,
 } from "./i18n.ts";
 
 const card = (over = {}) => ({
@@ -330,6 +331,32 @@ test("lookups interpolate, fall back to English, and Arabic and Urdu read right 
   assert.equal(staffDir("hi"), "ltr");
   assert.equal(stateText("acknowledged", staffT("en")), "Accepted");
   assert.equal(stateText("on_hold", staffT("en")), "on hold");
+});
+
+test("Japanese and Vietnamese staff read the app in their own language", () => {
+  assert.ok(STAFF_LANGS.includes("ja") && STAFF_LANGS.includes("vi"));
+  assert.equal(STAFF_LANG_NAMES.ja, "日本語");
+  assert.equal(STAFF_LANG_NAMES.vi, "Tiếng Việt");
+  for (const [code, lang] of [["ja", "ja"], ["ja-JP", "ja"], ["JA_jp", "ja"], ["jpn", "ja"], ["jp", "ja"], ["vi", "vi"], ["vi-VN", "vi"], ["vie", "vi"]]) {
+    assert.equal(toStaffLang(code), lang, code);
+  }
+  assert.equal(resolveStaffLang({ server: "vi", browser: ["ja-JP"] }), "vi", "the roster beats the browser");
+  assert.equal(resolveStaffLang({ server: "ml", browser: ["ja-JP", "en"] }), "ja");
+  const ja = staffT("ja");
+  const vi = staffT("vi");
+  assert.equal(ja("hi", { name: "Yuki" }), "Yukiさん、お疲れさまです");
+  assert.equal(ja("job.room", { room: "204" }), "204号室");
+  assert.equal(ja("sla.overdue", { t: "3m" }), "期限を3m超過");
+  assert.equal(vi("hi", { name: "Linh" }), "Chào Linh");
+  assert.equal(vi("job.floor", { floor: "2" }), "Tầng 2");
+  assert.equal(stateText("in_progress", vi), "Đang đến");
+  assert.equal(staffDir("ja"), "ltr");
+  assert.equal(staffDir("vi-VN"), "ltr");
+  assert.equal(languageName("vi", "ja"), "ベトナム語");
+  assert.equal(languageName("ja", "vi"), "Tiếng Nhật");
+  assert.equal(languageName("th", "ja"), "タイ語");
+  assert.ok(agoText(0, 3 * 60_000, "ja", ja).includes("3"));
+  assert.ok(durationText(5 * 60_000, "vi").includes("5"));
 });
 
 test("times and language names come out in the worker's language", () => {

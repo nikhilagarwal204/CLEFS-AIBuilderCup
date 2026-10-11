@@ -135,6 +135,7 @@ const zh: GuestDict = {
       search_rescue: "搜索救援",
       electricity_water: "水电服务",
       fire: "消防",
+      fire_ambulance: "消防与急救",
       other: "紧急服务",
     },
   },

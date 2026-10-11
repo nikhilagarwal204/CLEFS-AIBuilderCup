@@ -5,7 +5,8 @@ Owned by lane **B Concierge + Voice** from Wave 1. Only that lane edits this dir
 - Migrations: `migrations/NNNN_concierge_<desc>.sql|.py`, numbers 0200-0299 (`python -m clefs.migrate new --module concierge "desc"`).
   - `0200_concierge_kb.sql`: `cc_kb_sections`, `cc_kb_imports`, `cc_kb_entries`, `cc_kb_revisions`, `cc_kb_unknowns`, `cc_kb_unknown_events`.
   - `0201_concierge_sessions.sql`: `cc_sessions` (the 03 spec `concierge_sessions`), `cc_session_events`, `cc_tool_calls`, `cc_order_quotes`, `conversation_logs` additions.
-  - `0202_concierge_consent_texts.py`: platform consent wording (EN/AR, version `concierge-1`) for `ai_processing`, `transfer_abroad`, `recording`, `ai_analytics`.
+  - `0202_concierge_consent_texts.py`: platform consent wording (EN/AR, version `concierge-1`, written for a UAE deployment) for `ai_processing`, `transfer_abroad`, `recording`, `ai_analytics`. Kept as the evidence earlier grants point at.
+  - `0208_concierge_consent_texts_v2.py`: version `concierge-2` (`constants.CONSENT_TEXT_VERSION`), the current wording, in every guest language (en, ar, ru, hi, ur, zh, de, fr, ja, ko, th): Google Cloud's Gemini AI models may process messages outside the guest's country, including in the United States; data is stored in Google Cloud's India region. Same purposes and required flags as concierge-1.
   - `0203_concierge_turns.sql`: `cc_sessions.chat_history` (a text session's working memory, cleared when the session ends), `sender_ref` (WhatsApp sender hmac, hex), `last_safety_level`; `conversation_logs.consent_ref` and `consents` (the consent a stored turn was logged under).
 - New tables start with `cc_`. Legacy tables it owns (names grandfathered, no prefix): `conversation_logs`, `hotel_locations`.
 - Console routes live under `/hotels/{slug}/concierge/` (`router.py` includes `router_console.py`); guest routes under `/public/` (`router_public.py`, mounted through `legacy.router` because `module.py` lists only `router` and `legacy_router`).
@@ -44,7 +45,7 @@ Demo hotels (QA GS-1): the demo seed wipes and rebuilds `hotels.status = 'demo'`
 
 ## The prompt (03 spec 2.1)
 
-Blocks in order: persona, disclosure (mandatory on phone), language (Gulf-leaning MSA, Arabizi, Western digits), approved knowledge (`[KB:id]` tags; titles and top questions plus `search_hotel_info` above about 6k tokens), menu (ordering surfaces only, from `upsell.api.get_menu`), guest context (room always; first name and preference tags only when verified; loyalty never), policy (no unlisted prices or promises, human handoff, UAE emergency numbers, sourced local places only, never other guests), tool rules (only for the tools the session has). No em dash, no hardcoded menu, currency or timezone.
+Blocks in order: persona, disclosure (mandatory on phone), language (the guest's chosen language, any of `constants.GUEST_LANGUAGES`; Gulf-leaning MSA, Arabizi, polite Japanese, Korean and Thai registers, Western digits), approved knowledge (`[KB:id]` tags; titles and top questions plus `search_hotel_info` above about 6k tokens), menu (ordering surfaces only, from `upsell.api.get_menu`), guest context (room always; first name and preference tags only when verified; loyalty never), policy (no unlisted prices or promises, human handoff, the hotel country's emergency numbers (UAE, Japan, India; else "local emergency services"), sourced local places only, never other guests), tool rules (only for the tools the session has). No em dash, no hardcoded menu, currency or timezone.
 
 `prompt_version` = sha256 (16 hex) of the blocks with the room, first name, preferences and local time replaced by placeholders, plus the surface: it changes when the hotel's prompt changes (KB approval, policy, tools), not per guest.
 
@@ -80,7 +81,7 @@ Errors are `{detail, code}`. The browser calls these through `/api/clefs`.
  guest:{first_name}|null        (only when verified; never another room, never a family name)
  language, greeting_text, chips:[{key,label}], features:{menu,tracker,whatsapp,voice},
  emergency_numbers:[{number,kind}], consent_texts:{purpose:{version,language,text,required,required_for_voice}},
- consent_version: "concierge-1", stay_session_key: string|null}
+ consent_version: "concierge-2", stay_session_key: string|null}
 ```
 
 `stay_session_key` (12 h, bound to the room and its QR key version) verifies later visits and mints without `?k=`.
@@ -126,7 +127,7 @@ Eval sessions (`surface=eval`) run every tool as a dry run: realistic answers (a
 
 ### WhatsApp (GUEST_PRIORITY 30, `concierge.whatsapp_chat`)
 
-A text from a known guest (`guests.api.is_known_guest_sender`) to the hotel's number, concierge enabled. Without `ai_processing` + `transfer_abroad` consent the guest gets one interactive question (concierge-1 wording, EN/AR, signed button ids `ccwa:yes|no:<session>:<lang>`); messages sent meanwhile wait and are answered after "Yes". "No" records the refusal, hands the guest to a person (`service.api.escalate_to_human`) and later messages pass to Service's fallback. The reply is written by task `concierge.whatsapp_reply` (enqueued in the webhook's transaction) and sent as hotel WhatsApp text inside the 24 h window. One `cc_sessions` row (surface `whatsapp`, transport `none`) per sender per 2 hours.
+A text from a known guest (`guests.api.is_known_guest_sender`) to the hotel's number, concierge enabled. Without `ai_processing` + `transfer_abroad` consent the guest gets one interactive question (the current `CONSENT_TEXT_VERSION` wording in the language the message's script points to, any guest language, English for Latin script; signed button ids `ccwa:yes|no:<session>:<lang>`); messages sent meanwhile wait and are answered after "Yes". "No" records the refusal, hands the guest to a person (`service.api.escalate_to_human`) and later messages pass to Service's fallback. The reply is written by task `concierge.whatsapp_reply` (enqueued in the webhook's transaction) and sent as hotel WhatsApp text inside the 24 h window. One `cc_sessions` row (surface `whatsapp`, transport `none`) per sender per 2 hours.
 
 ### Console (`/hotels/{slug}/concierge`, members only)
 

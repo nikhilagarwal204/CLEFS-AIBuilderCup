@@ -137,6 +137,7 @@ const ar: GuestDict = {
       search_rescue: "البحث والإنقاذ",
       electricity_water: "الكهرباء والماء",
       fire: "الإطفاء",
+      fire_ambulance: "الإطفاء والإسعاف",
       other: "طوارئ",
     },
   },

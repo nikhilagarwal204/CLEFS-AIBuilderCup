@@ -271,7 +271,7 @@ def test_grants_link_to_the_wording_shown(client, cur, hotel_uae, minted):
     )
     rows = cur.fetchall()
     assert {r["purpose"]: r["granted"] for r in rows} == GRANTS
-    assert {r["text_version"] for r in rows} == {"concierge-1"} and {r["language"] for r in rows} == {"ar"}
+    assert {r["text_version"] for r in rows} == {"concierge-2"} and {r["language"] for r in rows} == {"ar"}
     assert all(r["subject_ref"].startswith("ccg:") and body["guest_ref"] not in r["subject_ref"] for r in rows)
 
 

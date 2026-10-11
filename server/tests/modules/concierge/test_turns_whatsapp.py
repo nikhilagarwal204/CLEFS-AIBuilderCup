@@ -108,6 +108,22 @@ def test_consented_guest_gets_a_queued_reply_with_tools(cur, hotel_uae, known_gu
     assert any("Towels are on their way" in str(m) for m in outbox.captured("whatsapp"))
 
 
+def test_a_japanese_message_gets_the_question_and_the_wording_in_japanese(cur, hotel_uae, known_guest, outbox):
+    out = whatsapp.whatsapp_chat(inbound(cur, hotel_uae.slug, "チェックアウトは何時ですか？"))
+    assert out["awaiting_consent"] is True
+    msg = [m for m in outbox.captured("whatsapp") if m["payload"].get("type") == "interactive"][-1]["payload"]["interactive"]
+    assert msg["body"]["text"].startswith("こんにちは。Test Hotel DubaiのAIアシスタント、")
+    assert "Google CloudのGemini AIモデル" in msg["body"]["text"]
+    assert [b["reply"]["title"] for b in msg["action"]["buttons"]] == list(whatsapp.BUTTONS["ja"])
+    yes_id = msg["action"]["buttons"][0]["reply"]["id"]
+    whatsapp.whatsapp_consent_button(inbound(cur, hotel_uae.slug, "はい", kind="button_reply", button_id=yes_id))
+    cur.execute("SELECT c.purpose, c.text_version, t.language FROM consents c JOIN consent_texts t ON t.id = c.text_id "
+                "WHERE c.hotel_slug = %s", (hotel_uae.slug,))
+    rows = cur.fetchall()
+    assert {r["purpose"] for r in rows} == {"ai_processing", "transfer_abroad"}
+    assert {(r["text_version"], r["language"]) for r in rows} == {("concierge-2", "ja")}
+
+
 def test_no_hands_the_guest_to_a_person(cur, hotel_uae, known_guest, fake_service, outbox):
     whatsapp.whatsapp_chat(inbound(cur, hotel_uae.slug, "Can I extend my stay?"))
     _yes, no_id = consent_buttons(outbox)
