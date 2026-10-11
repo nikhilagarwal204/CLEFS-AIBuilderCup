@@ -280,6 +280,85 @@ export const CLAIMS: Claim[] = [
     allowed_surfaces: ["google_check", "free_ota_audit", "solution_pages", "faq", "home"],
     label: "free booking links are not affected (Triptease)",
   },
+  // ─── Why now: the AI Builder Cup deck's opportunity slide ───────────────
+  // The four market numbers on the site root's "Why now" section, rendered
+  // through <Claim> with a source link. Each source was re-read on
+  // 2026-10-21; the deck's own source line names the same publishers.
+  {
+    claim_id: "jnto_japan_visitors_2025",
+    exact_quote: "The total number of foreign visitors to Japan in 2025 reached 42,683,600, up 15.8% from the previous year.",
+    value: "42.7 million",
+    unit: "foreign visitor arrivals",
+    geography: "Japan",
+    population: "all foreign visitors to Japan (JNTO annual estimate, announced 21 January 2026)",
+    period: "2025",
+    publisher: "JNTO, via HotelBank",
+    source_type: "secondary",
+    url: "https://en.hotelbank.jp/?p=1473",
+    retrieved_at: "2026-10-21",
+    review_by: "2027-04-30",
+    status: "SECONDARY",
+    allowed_surfaces: ["home"],
+    // A record: the previous high was 36.87 million, in 2024 (JNTO).
+    label: "foreign visitors to Japan in 2025, a record",
+  },
+  {
+    // Kyodo's report of the white paper (approved by the Cabinet on
+    // 10 July 2026): "the survey of 522 lodging facilities ... 72.2% answered
+    // that they are short of staff".
+    claim_id: "jta_lodging_short_of_staff_2026",
+    exact_quote: "宿泊施設５２２カ所を対象に実施。７２・２％が「人手不足の状況にある」と回答した。",
+    value: "72.2%",
+    unit: "share of lodging facilities that say they are short of staff",
+    geography: "Japan",
+    population: "522 hotels and inns surveyed by the Japan Tourism Agency",
+    period: "December 2025 to January 2026 survey, White Paper on Tourism 2026",
+    publisher: "Japan Tourism Agency, White Paper on Tourism 2026, via Kyodo News",
+    source_type: "secondary",
+    url: "https://kumanichi.com/articles/2012123",
+    retrieved_at: "2026-10-21",
+    review_by: "2027-06-30",
+    status: "SECONDARY",
+    allowed_surfaces: ["home"],
+    label: "of Japan's hotels and inns say they are short of staff (522 surveyed, 2026)",
+  },
+  {
+    claim_id: "mews_human_welcome_2026",
+    exact_quote: "bar & restaurant service (72% prefer a human), front desk welcome (66%), and check-in & key (58%)",
+    value: "66%",
+    unit: "share of travellers who prefer a person for the front desk welcome",
+    geography: "France, Germany, Italy, the Netherlands, Spain, Sweden, the UK and the US",
+    population: "3,250 travellers surveyed by Mews",
+    period: "July 2026 survey, published 7 October 2026",
+    publisher: "Mews, traveller survey",
+    source_type: "primary",
+    url: "https://www.mews.com/en/press/new-mews-data-guests-want-ai-in-background",
+    retrieved_at: "2026-10-21",
+    review_by: "2027-06-30",
+    status: "VERIFIED",
+    allowed_surfaces: ["home"],
+    label: "of travellers still want a person to welcome them at the front desk (3,250 surveyed, 2026)",
+  },
+  {
+    // The deck's source line credits this number to Canary's 2026 buyers
+    // survey. Re-checked on 2026-10-21: Canary's release does not carry it;
+    // it comes from the State of Hotel AI survey, recorded here.
+    claim_id: "state_of_hotel_ai_productivity_2026",
+    exact_quote: "The top goal is cutting costs and improving productivity, cited by 34%, versus 13% for new revenue and 9% for guest experience.",
+    value: "34%",
+    unit: "share of hotel leaders naming cost and productivity as their top AI goal",
+    geography: "global",
+    population: "107 hotel company leaders (State of Hotel AI survey)",
+    period: "2026",
+    publisher: "State of Hotel AI 2026 (Josiah Mackenzie and Naz Aydin, Destination AI), via Hospitality Net",
+    source_type: "secondary",
+    url: "https://www.hospitalitynet.org/opinion/4134731/not-done-weekly-destination-ai-summit-recap",
+    retrieved_at: "2026-10-21",
+    review_by: "2027-04-30",
+    status: "SECONDARY",
+    allowed_surfaces: ["home"],
+    label: "of hotel leaders say their top goal for AI is cutting costs and getting more done (107 surveyed, 2026)",
+  },
   // ─── The AI Builder Cup prototype (05 spec; the deck's benchmarks slide) ───
   // Clefs' own measurements, taken on the prototype in scripted tests and
   // published in the deck. The homepage shows each one labelled as measured
@@ -295,7 +374,7 @@ export const CLAIMS: Claim[] = [
     period: "October 2026",
     publisher: "Clefs, AI Builder Cup prototype benchmark",
     source_type: "primary",
-    url: "/try",
+    url: "/#benchmarks",
     retrieved_at: "2026-10-19",
     review_by: "2027-01-31",
     status: "PROPRIETARY",
@@ -312,7 +391,7 @@ export const CLAIMS: Claim[] = [
     period: "October 2026",
     publisher: "Clefs, AI Builder Cup prototype benchmark",
     source_type: "primary",
-    url: "/try",
+    url: "/#benchmarks",
     retrieved_at: "2026-10-19",
     review_by: "2027-01-31",
     status: "PROPRIETARY",
@@ -329,7 +408,7 @@ export const CLAIMS: Claim[] = [
     period: "October 2026",
     publisher: "Clefs, AI Builder Cup prototype benchmark",
     source_type: "primary",
-    url: "/try",
+    url: "/#benchmarks",
     retrieved_at: "2026-10-19",
     review_by: "2027-01-31",
     status: "PROPRIETARY",
@@ -346,7 +425,7 @@ export const CLAIMS: Claim[] = [
     period: "October 2026",
     publisher: "Clefs, AI Builder Cup prototype benchmark",
     source_type: "primary",
-    url: "/try",
+    url: "/#benchmarks",
     retrieved_at: "2026-10-19",
     review_by: "2027-01-31",
     status: "PROPRIETARY",
@@ -358,8 +437,8 @@ export const CLAIMS: Claim[] = [
     // slide). Registered so the linter can tell a price from an untagged
     // number, and so the price lives in one row with its review date.
     claim_id: "clefs_price_list_2026",
-    exact_quote: "USD 3 per room per month, minimum USD 99; text-only USD 1.50 per room; free 30-day pilot",
-    value: "USD 3",
+    exact_quote: "$3 per room per month, minimum $99; Free 30-day pilot; Text-only plan: $1.50 per room",
+    value: "$3",
     unit: "price per room per month",
     geography: "every market",
     population: "hotels on the Clefs guest service desk",
@@ -371,7 +450,7 @@ export const CLAIMS: Claim[] = [
     review_by: "2027-03-31",
     status: "PROPRIETARY",
     allowed_surfaces: ["home", "faq"],
-    label: "per room per month, minimum USD 99 a month",
+    label: "per room per month, minimum $99 a month",
   },
   {
     // Clefs' own dataset, built from consented OTA audits (Canon 23). Lane C
@@ -418,6 +497,9 @@ export const BANNED_CLAIMS: BannedClaim[] = [
     patterns: ["\\b350\\s+reviews"] },
   { claim_id: "missed_call_statistics", reason: "Vendor-blog telephone statistics with no primary study.",
     patterns: ["\\$\\s?127\\b", "85\\s?%[^.]{0,30}never\\s+(call\\s+back|retry)", "40\\s?(-|to|–)\\s?60\\s?%[^.]{0,30}unanswered"] },
+  // Japan's sourced figure (jta_lodging_short_of_staff_2026) renders through
+  // <Claim> in the deck's own words ("short of staff"); this ban still stops
+  // unsourced shortage framing anywhere else.
   { claim_id: "labour_shortage_framing", reason: "UAE 2026 is a margin story; shortage framing is wrong (claims-factcheck).",
     patterns: ["(labou?r|staff(ing)?|workforce|talent)\\s+(shortage|gap)"] },
   { claim_id: "goppar_uplift_tiers", reason: "Outcome promise with no evidence.",

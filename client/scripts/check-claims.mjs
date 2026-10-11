@@ -117,7 +117,8 @@ const SURFACE_RULES = [
   [/^app\/free-ota-audit\//, "free_ota_audit"],
   [/^app\/pilot\//, "pilot"],
   [/^app\/(ai-concierge-software|guest-request-management|hotel-front-desk-automation|multilingual-guest-messaging|profit-guard|demand-radar|service-control|demand-preview|security)\//, "solution_pages"],
-  [/^app\/(page\.tsx|MarketingHomepage\.tsx)$|^app\/components\//, "home"],
+  // The site root: the homepage and its "Try it yourself" section (app/try/).
+  [/^app\/(page\.tsx|MarketingHomepage\.tsx)$|^app\/components\/|^app\/try\//, "home"],
 ];
 
 export function surfaceOf(rel) {

@@ -13,11 +13,10 @@ import { SITE } from "./lib/seo";
  * hold ranking equity.
  */
 const PAGES: { path: string; priority: number; freq?: "weekly" | "monthly" }[] = [
+  // The site root carries the live demo and the whole story; /story and /try
+  // redirect to it (next.config.mjs). The Profit Guard, Demand Radar and
+  // Google check pages redirect home too while their modules are switched off.
   { path: "/", priority: 1 },
-  // The AI Builder Cup prototype is the guest service desk; the Profit
-  // Guard, Demand Radar and Google check pages redirect home (next.config.mjs)
-  // while their modules are switched off.
-  { path: "/story", priority: 0.9 },
   { path: "/service-control", priority: 0.9 },
   { path: "/pilot", priority: 0.8 },
   // Trust

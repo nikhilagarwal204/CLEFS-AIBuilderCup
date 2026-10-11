@@ -41,9 +41,12 @@ const nextConfig = {
     },
     async redirects() {
         return [
-            // The live prototype is the site root (the deck's Final Product
-            // Link); /try was its first address.
+            // The site root is the whole story (the deck's Final Product
+            // Link): the avatar hero, "Try it yourself" and the deck's story.
+            // /try was the live demo's first address and /story the story's.
+            // Temporary, so no browser caches them.
             { source: "/try", destination: "/", permanent: false },
+            { source: "/story", destination: "/", permanent: false },
             // The AI Builder Cup prototype is the guest service desk: these
             // pages front modules switched off with CLEFS_DISABLED_MODULES, so
             // they go to the homepage (temporary, so switching a module back on

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 const FAQS: Faq[] = [
   {
     q: "Which languages can my guests use?",
-    a: "Arabic, English and six more (Russian, Hindi, Urdu, Chinese, German and French), tested for your hotel before go-live. Guests ask by voice or by typing, and your team reads the request in your language. The real test for a hotel is simple: can a guest ask for something at 2am without finding a staff member who speaks their language? That is what this is built for.",
+    a: "Eleven: English, Japanese, Korean, Chinese and Thai, plus Arabic, Hindi, Urdu, Russian, German and French, tested for your hotel before go-live. Guests ask by voice or by typing, and your team reads the request in your language. The real test for a hotel is simple: can a guest ask for something at 2am without finding a staff member who speaks their language? That is what this is built for.",
   },
   {
     q: "Do my staff need to speak the guest's language?",

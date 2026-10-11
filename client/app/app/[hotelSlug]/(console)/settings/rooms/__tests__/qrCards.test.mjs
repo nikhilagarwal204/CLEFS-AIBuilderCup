@@ -13,8 +13,8 @@ import { CARDS_PER_SHEET, cardMessage, floorsOf, qrPath, selectCards, sheets, st
 const ORIGIN = "https://clefs-632652019887.asia-south1.run.app";
 
 test("the card URL is origin plus the keyed stay path", () => {
-  assert.equal(stayUrl(ORIGIN, "/stay/demo-deira-crest/204?k=7F3A9C"), `${ORIGIN}/stay/demo-deira-crest/204?k=7F3A9C`);
-  assert.equal(stayUrl(`${ORIGIN}/`, "/stay/demo-deira-crest/204?k=7F3A9C"), `${ORIGIN}/stay/demo-deira-crest/204?k=7F3A9C`);
+  assert.equal(stayUrl(ORIGIN, "/stay/aozora-shinjuku/204?k=7F3A9C"), `${ORIGIN}/stay/aozora-shinjuku/204?k=7F3A9C`);
+  assert.equal(stayUrl(`${ORIGIN}/`, "/stay/aozora-shinjuku/204?k=7F3A9C"), `${ORIGIN}/stay/aozora-shinjuku/204?k=7F3A9C`);
   // a room number with a space is encoded once, never twice
   assert.equal(stayUrl(ORIGIN, "/stay/h/PH 1?k=K"), `${ORIGIN}/stay/h/PH%201?k=K`);
   assert.equal(stayUrl(ORIGIN, "/stay/h/PH%201?k=K"), `${ORIGIN}/stay/h/PH%201?k=K`);
@@ -37,7 +37,7 @@ test("the QR path draws one rectangle per run of dark modules", () => {
 });
 
 test("a real symbol from the qrcode package keeps its finder patterns", () => {
-  const url = stayUrl(ORIGIN, "/stay/demo-deira-crest/204?k=7F3A9C2B11D04E55");
+  const url = stayUrl(ORIGIN, "/stay/aozora-shinjuku/204?k=7F3A9C2B11D04E55");
   const qr = create(url, { errorCorrectionLevel: "M" });
   const d = qrPath(qr.modules);
   assert.ok(qr.modules.size >= 25);
