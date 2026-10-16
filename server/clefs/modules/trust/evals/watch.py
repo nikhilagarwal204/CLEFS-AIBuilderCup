@@ -70,6 +70,8 @@ def observe(cur: Any, hotel_slug: str) -> dict:
 
 @jobs.scheduled("trust.eval_watch", jobs.every(minutes=5), timeout_s=60)
 def _watch_job(ctx: jobs.JobCtx) -> dict:
+    if not runs.auto_evals_enabled():
+        return {"skipped": "auto_evals_off"}
     if not module_enabled(ctx.cur, ctx.hotel_slug, "concierge"):
         return {"skipped": "concierge_off"}
     return observe(ctx.cur, ctx.hotel_slug)

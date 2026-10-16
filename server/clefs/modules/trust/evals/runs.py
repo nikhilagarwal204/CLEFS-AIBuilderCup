@@ -350,11 +350,21 @@ def _run_task(ctx: jobs.JobCtx, payload: dict) -> dict:
     return {"run_id": run["id"], "status": run["status"], "pass_rate": str(run.get("pass_rate"))}
 
 
+def auto_evals_enabled() -> bool:
+    """TRUST_AUTO_EVALS (default on): the nightly run and the change watcher.
+    Off, eval runs start only on demand (the console, the demo seed), so an
+    idle deployment makes no model calls. Every run costs dozens of model
+    calls, and the watcher sees time-of-day prompt changes several times a day."""
+    return (env("TRUST_AUTO_EVALS") or "true").strip().lower() not in ("0", "false", "no", "off")
+
+
 @jobs.scheduled("trust.eval_nightly", jobs.daily_at("04:00"), timeout_s=60)
 def _nightly(ctx: jobs.JobCtx) -> dict:
     """04:00 hotel time. Only for hotels that run the concierge."""
     from clefs.core.hotels import module_enabled
 
+    if not auto_evals_enabled():
+        return {"skipped": "auto_evals_off"}
     if not module_enabled(ctx.cur, ctx.hotel_slug, "concierge"):
         return {"skipped": "concierge_off"}
     try:
