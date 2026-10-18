@@ -1,0 +1,375 @@
+# Curated UAE venues, events and holidays for 2026 Q4 to 2027 (02 spec 4.2).
+# Source: docs/specs/research/uae/events-demand.md (gathered 2026-09-27).
+#
+# Rules:
+# - Every row carries source_url and last_verified_at.
+# - verification UNVERIFIED marks dates not confirmed by a primary source
+#   (DSF is not announced yet; projected Hijri dates).
+# - Hijri holidays carry moon_dependent: true and uncertainty_days: 1 (Canon:
+#   week and demand calendar), because the date follows the moon sighting.
+# - `key` is the stable external id of the row: never rename one, or the
+#   sync creates a second event instead of updating the first.
+# - Venue coordinates are approximate (coords_verified: false) until checked
+#   on a map; the corridor tags drive the relevance corridor bonus.
+# - The job dr.curated_verify_reminder lists rows whose last_verified_at is
+#   older than a quarter, so this file is re-checked every season.
+
+version: "2026-09-27"
+
+venues:
+  - code: DWTC
+    name: Dubai World Trade Centre
+    aliases: [Dubai World Trade Centre, World Trade Centre, Trade Centre, DWTC, Sheikh Saeed Hall, Za'abeel Hall]
+    lat: 25.2285
+    lon: 55.2866
+    emirate: dubai
+    corridor_tags: [DWTC_SZR, RED_LINE, DEIRA_BURDUBAI, AL_BARSHA]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://www.dwtc.com/en/events/
+  - code: DEC
+    name: Dubai Exhibition Centre (Expo City)
+    aliases: [Dubai Exhibition Centre, Expo City Dubai, Expo City, DEC, Dubai South, Expo 2020 site]
+    lat: 24.9635
+    lon: 55.1487
+    emirate: dubai
+    corridor_tags: [DEC_SOUTH]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://www.dubaiexhibitioncentre.com/en/whats-on
+  - code: DWC
+    name: Dubai World Central (Al Maktoum International)
+    aliases: [Dubai World Central, DWC, Al Maktoum International Airport, Dubai Airshow site]
+    lat: 24.8960
+    lon: 55.1610
+    emirate: dubai
+    corridor_tags: [DEC_SOUTH]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://www.dubaiairshow.aero/en/dubai-airshow.html
+  - code: ADNEC
+    name: ADNEC Centre Abu Dhabi
+    aliases: [ADNEC, Abu Dhabi National Exhibition Centre, ADNEC Centre Abu Dhabi]
+    lat: 24.4180
+    lon: 54.4355
+    emirate: abu_dhabi
+    corridor_tags: [ADNEC_AUH]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://www.mediaoffice.abudhabi/en/tourism/adnec-group-to-host-290-events-across-abu-dhabi-and-al-ain-in-h2-2026/
+  - code: EXPO_CENTRE_SHJ
+    name: Expo Centre Sharjah
+    aliases: [Expo Centre Sharjah, Sharjah Expo Centre, Expo Center Sharjah]
+    lat: 25.3106
+    lon: 55.3722
+    emirate: sharjah
+    corridor_tags: [SHARJAH, DEIRA_BURDUBAI]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://expo-centre.ae/2026/
+  - code: COCA_COLA_ARENA
+    name: Coca-Cola Arena
+    aliases: [Coca-Cola Arena, Coca Cola Arena, City Walk arena]
+    lat: 25.2046
+    lon: 55.2620
+    emirate: dubai
+    corridor_tags: [DWTC_SZR]
+    capacity: 17000
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://en.wikipedia.org/wiki/Coca-Cola_Arena
+  - code: ETIHAD_ARENA
+    name: Etihad Arena
+    aliases: [Etihad Arena, Yas Bay Arena]
+    lat: 24.4695
+    lon: 54.6080
+    emirate: abu_dhabi
+    corridor_tags: [YAS]
+    capacity: 18000
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://en.wikipedia.org/wiki/Etihad_Arena
+  - code: YAS_MARINA
+    name: Yas Marina Circuit
+    aliases: [Yas Marina Circuit, Yas Marina, Yas Island circuit]
+    lat: 24.4672
+    lon: 54.6031
+    emirate: abu_dhabi
+    corridor_tags: [YAS]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://gulfnews.com/sport/motorsport/formula-1-confirms-abu-dhabi-grand-prix-will-close-out-2026-season-in-december-1.500649679
+  - code: SEVENS_STADIUM
+    name: The Sevens Stadium
+    aliases: [The Sevens Stadium, Sevens Stadium, The Sevens]
+    lat: 25.0470
+    lon: 55.4160
+    emirate: dubai
+    corridor_tags: [AL_AIN_ROAD]
+    feed_available: false
+    last_verified_at: 2026-09-27
+    source_url: https://www.thenationalnews.com/sport/2026/08/31/dubai-sevens-2026-tickets-now-on-sale-as-gaelic-football-is-added-to-programme/
+
+# Events. dates are inclusive local dates. `history` rows become
+# dr_event_changes (the original dates stay in original_start/end).
+events:
+  - key: atm-2026
+    title: Arabian Travel Market
+    category: EXPO
+    venues: [DWTC]
+    start: 2026-09-14
+    end: 2026-09-17
+    status: RESCHEDULED
+    original: {start: 2026-05-04, end: 2026-05-07}
+    history:
+      - {at: 2026-03-20, from: {start: 2026-05-04, end: 2026-05-07}, to: {start: 2026-08-17, end: 2026-08-20},
+         source_url: "https://gulfbusiness.com/en/2026/tourism/arabian-travel-market-september-2026-dubai/"}
+      - {at: 2026-06-15, from: {start: 2026-08-17, end: 2026-08-20}, to: {start: 2026-09-14, end: 2026-09-17},
+         source_url: "https://www.thenationalnews.com/news/uae/2026/09/09/dubai-events-calendar-gitex-arabian-travel-market/"}
+    verification: VERIFIED
+    source_url: https://www.thenationalnews.com/news/uae/2026/09/09/dubai-events-calendar-gitex-arabian-travel-market/
+    last_verified_at: 2026-09-27
+  - key: cabsat-2026
+    title: CABSAT / SATExpo
+    category: EXPO
+    venues: [DEC]
+    start: 2026-10-05
+    end: 2026-10-07
+    verification: VERIFIED
+    source_url: https://www.dubaiexhibitioncentre.com/en/whats-on
+    last_verified_at: 2026-09-27
+  - key: beautyworld-me-2026
+    title: Beautyworld Middle East
+    category: EXPO
+    venues: [DWTC]
+    start: 2026-10-06
+    end: 2026-10-08
+    verification: VERIFIED
+    source_url: https://exhibitcitynews.com/dwtc-2026-events-calendar/
+    last_verified_at: 2026-09-27
+  - key: airport-show-2026
+    title: Airport Show
+    category: EXPO
+    venues: [DWTC]
+    start: 2026-10-12
+    end: 2026-10-14
+    verification: VERIFIED
+    source_url: https://exhibitcitynews.com/dwtc-2026-events-calendar/
+    last_verified_at: 2026-09-27
+  - key: dubai-fitness-challenge-2026
+    title: Dubai Fitness Challenge
+    category: CITYWIDE
+    emirate: dubai
+    start: 2026-10-31
+    end: 2026-11-29
+    verification: VERIFIED
+    source_url: https://gulfnews.com/uae/dubai-fitness-challenge-2026-dates-announced-1.500639620
+    last_verified_at: 2026-09-27
+  - key: adipec-2026
+    title: ADIPEC
+    category: CONFERENCE
+    venues: [ADNEC]
+    start: 2026-11-02
+    end: 2026-11-05
+    verification: VERIFIED
+    source_url: https://www.adipec.com/
+    last_verified_at: 2026-09-27
+  - key: gulfood-manufacturing-2026
+    title: Gulfood Manufacturing and Gulf Host
+    category: EXPO
+    venues: [DWTC]
+    start: 2026-11-03
+    end: 2026-11-05
+    verification: VERIFIED
+    source_url: https://exhibitcitynews.com/dwtc-2026-events-calendar/
+    last_verified_at: 2026-09-27
+  - key: automechanika-dubai-2026
+    title: Automechanika Dubai
+    category: EXPO
+    venues: [DEC]
+    start: 2026-11-10
+    end: 2026-11-12
+    verification: VERIFIED
+    source_url: https://exhibitcitynews.com/dwtc-2026-events-calendar/
+    last_verified_at: 2026-09-27
+  - key: big5-global-2026
+    title: Big 5 Global
+    category: EXPO
+    venues: [DWTC]
+    start: 2026-11-23
+    end: 2026-11-26
+    verification: VERIFIED
+    source_url: https://www.big5global.com/
+    last_verified_at: 2026-09-27
+  - key: dubai-sevens-2026
+    title: Emirates Dubai 7s
+    category: SPORTS
+    venues: [SEVENS_STADIUM]
+    start: 2026-11-27
+    end: 2026-11-29
+    attendance: 88000
+    attendance_note: more than 88,000 attended in 2025
+    verification: VERIFIED
+    source_url: https://www.thenationalnews.com/sport/2026/08/31/dubai-sevens-2026-tickets-now-on-sale-as-gaelic-football-is-added-to-programme/
+    last_verified_at: 2026-09-27
+  - key: f1-abu-dhabi-gp-2026
+    title: Formula 1 Abu Dhabi Grand Prix
+    category: SPORTS
+    venues: [YAS_MARINA]
+    start: 2026-12-03
+    end: 2026-12-06
+    citywide: true
+    verification: VERIFIED
+    source_url: https://gulfnews.com/sport/motorsport/formula-1-confirms-abu-dhabi-grand-prix-will-close-out-2026-season-in-december-1.500649679
+    last_verified_at: 2026-09-27
+  - key: gitex-global-summit-2026
+    title: GITEX Global Summit
+    category: CONFERENCE
+    venues: [DWTC]
+    start: 2026-12-04
+    end: 2026-12-08
+    verification: VERIFIED
+    source_url: https://www.gitex.com/
+    last_verified_at: 2026-09-27
+  - key: gitex-global-2026
+    title: GITEX Global
+    category: EXPO
+    venues: [DEC]
+    start: 2026-12-07
+    end: 2026-12-11
+    attendance: 200000
+    attendance_note: more than 200,000 attendees and 6,800 exhibitors
+    verification: VERIFIED
+    source_url: https://www.gitex.com/
+    last_verified_at: 2026-09-27
+  - key: mebaa-2026
+    title: MEBAA Show
+    category: EXPO
+    venues: [DWTC]
+    start: 2026-12-10
+    end: 2026-12-12
+    verification: VERIFIED
+    source_url: https://exhibitcitynews.com/dwtc-2026-events-calendar/
+    last_verified_at: 2026-09-27
+  - key: dsf-2026-27
+    title: Dubai Shopping Festival
+    category: FESTIVAL
+    emirate: dubai
+    start: 2026-12-13
+    end: 2027-01-19
+    citywide: true
+    verification: UNVERIFIED
+    note: 32nd edition dates not officially announced; window follows the 31st edition
+    source_url: https://www.dubaidet.gov.ae/en/newsroom/press-releases/31st-edition-of-dubai-shopping-festival
+    last_verified_at: 2026-09-27
+  - key: nye-dubai-2026
+    title: New Year's Eve in Dubai
+    category: FESTIVAL
+    emirate: dubai
+    start: 2026-12-31
+    end: 2026-12-31
+    citywide: true
+    note: NYE 2025 ran at 94.1% occupancy with ADR AED 2,286.60
+    verification: VERIFIED
+    source_url: https://www.costar.com/products/str-benchmark/resources/press-releases/dubai-hotel-industry-posts-best-december
+    last_verified_at: 2026-09-27
+  - key: whx-dubai-2027
+    title: World Health Expo Dubai
+    category: EXPO
+    venues: [DEC, DWTC]
+    start: 2027-01-25
+    end: 2027-01-28
+    verification: VERIFIED
+    source_url: https://www.worldhealthexpo.com/events/healthcare/dubai/
+    last_verified_at: 2026-09-27
+  - key: idex-2027
+    title: IDEX
+    category: EXPO
+    venues: [ADNEC]
+    start: 2027-01-25
+    end: 2027-01-29
+    verification: VERIFIED
+    source_url: https://www.idexuae.ae/en
+    last_verified_at: 2026-09-27
+  - key: gulfood-2027
+    title: Gulfood
+    category: EXPO
+    venues: [DWTC, DEC]
+    start: 2027-03-15
+    end: 2027-03-19
+    attendance_note: more than 8,500 exhibitors
+    verification: VERIFIED
+    source_url: https://www.gulfood.com/
+    last_verified_at: 2026-09-27
+  - key: dubai-airshow-2027
+    title: Dubai Airshow
+    category: EXPO
+    venues: [DWC]
+    start: 2027-11-15
+    end: 2027-11-19
+    attendance: 85000
+    attendance_note: more than 85,000 trade visitors
+    verification: VERIFIED
+    source_url: https://www.dubaiairshow.aero/en/dubai-airshow.html
+    last_verified_at: 2026-09-27
+
+# Holidays. country AE rows also become calendar events (public, school
+# and religious categories); other countries are source-market holidays.
+holidays:
+  # 2026 actuals (kept for back-testing the calibration).
+  - {key: ae-eid-al-fitr-2026, country: AE, name: Eid Al Fitr, kind: RELIGIOUS, start: 2026-03-20, end: 2026-03-22,
+     moon_dependent: true, uncertainty_days: 0, source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-arafat-2026, country: AE, name: Arafat Day, kind: RELIGIOUS, start: 2026-05-26, end: 2026-05-26,
+     moon_dependent: true, uncertainty_days: 0, source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-eid-al-adha-2026, country: AE, name: Eid Al Adha, kind: RELIGIOUS, start: 2026-05-27, end: 2026-05-29,
+     moon_dependent: true, uncertainty_days: 0, source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-islamic-new-year-2026, country: AE, name: Islamic New Year, kind: RELIGIOUS, start: 2026-06-15, end: 2026-06-15,
+     moon_dependent: true, uncertainty_days: 0, note: moved to 15 Jun by the holiday-transfer rule,
+     source_url: "https://www.khaleejtimes.com/uae/muharram-2026-islamic-new-year-1448-ah-june-16-start"}
+  - {key: ae-prophets-birthday-2026, country: AE, name: Prophet's Birthday, kind: RELIGIOUS, start: 2026-08-25, end: 2026-08-25,
+     moon_dependent: true, uncertainty_days: 0, source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  # 2026 Q4 onwards.
+  - {key: ae-school-midterm-oct-2026, country: AE, name: UAE school mid-term break, kind: SCHOOL, start: 2026-10-12, end: 2026-10-16,
+     source_url: "https://gulfnews.com/living-in-uae/education/uae-school-holidays-2026-27-key-dates-1.500637553"}
+  - {key: ae-eid-al-etihad-2026, country: AE, name: Eid Al Etihad (National Day), kind: PUBLIC, start: 2026-12-02, end: 2026-12-03,
+     source_url: "https://www.timeoutdubai.com/news/eid-al-etihad-2026-day-off-residents"}
+  - {key: ae-school-winter-2026, country: AE, name: UAE school winter break, kind: SCHOOL, start: 2026-12-14, end: 2027-01-03,
+     source_url: "https://gulfnews.com/living-in-uae/education/uae-school-holidays-2026-27-key-dates-1.500637553"}
+  - {key: ae-new-year-2027, country: AE, name: New Year's Day, kind: PUBLIC, start: 2027-01-01, end: 2027-01-01,
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-ramadan-2027, country: AE, name: Ramadan, kind: RELIGIOUS, start: 2027-02-08, end: 2027-03-09,
+     moon_dependent: true, uncertainty_days: 1, verification: UNVERIFIED, note: projected,
+     source_url: "https://www.thenationalnews.com/news/uae/2026/09/09/ramadan-2027-dates-eid-al-fitr-holiday/"}
+  - {key: ae-eid-al-fitr-2027, country: AE, name: Eid Al Fitr, kind: RELIGIOUS, start: 2027-03-10, end: 2027-03-12,
+     moon_dependent: true, uncertainty_days: 1, verification: UNVERIFIED, note: "projected ~9/10 to 11/12 Mar",
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-school-spring-2027, country: AE, name: UAE school spring break, kind: SCHOOL, start: 2027-04-05, end: 2027-04-11,
+     source_url: "https://gulfnews.com/living-in-uae/education/uae-school-holidays-2026-27-key-dates-1.500637553"}
+  - {key: ae-arafat-2027, country: AE, name: Arafat Day, kind: RELIGIOUS, start: 2027-05-15, end: 2027-05-15,
+     moon_dependent: true, uncertainty_days: 1, verification: UNVERIFIED, note: projected,
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-eid-al-adha-2027, country: AE, name: Eid Al Adha, kind: RELIGIOUS, start: 2027-05-16, end: 2027-05-18,
+     moon_dependent: true, uncertainty_days: 1, verification: UNVERIFIED, note: projected,
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-islamic-new-year-2027, country: AE, name: Islamic New Year, kind: RELIGIOUS, start: 2027-06-06, end: 2027-06-06,
+     moon_dependent: true, uncertainty_days: 1, verification: UNVERIFIED, note: projected,
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-prophets-birthday-2027, country: AE, name: Prophet's Birthday, kind: RELIGIOUS, start: 2027-08-14, end: 2027-08-14,
+     moon_dependent: true, uncertainty_days: 1, verification: UNVERIFIED, note: projected,
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  - {key: ae-eid-al-etihad-2027, country: AE, name: Eid Al Etihad (National Day), kind: PUBLIC, start: 2027-12-02, end: 2027-12-03,
+     source_url: "https://gulfnews.com/living-in-uae/ask-us/uae-public-holidays-2027-1.500638729"}
+  # Source markets.
+  - {key: in-diwali-2026, country: IN, name: Diwali, kind: RELIGIOUS, start: 2026-11-08, end: 2026-11-08,
+     source_url: "https://publicholidays.com/diwali/"}
+  - {key: sa-school-autumn-2026, country: SA, name: Saudi autumn school break, kind: SCHOOL, start: 2026-11-20, end: 2026-11-28,
+     source_url: "https://whichschooladvisor.com/saudi/school-news/new-saudi-school-calendar-holidays-for-2026-2027"}
+  - {key: gb-christmas-2026, country: GB, name: Christmas, kind: PUBLIC, start: 2026-12-25, end: 2026-12-26,
+     source_url: "https://en.wikipedia.org/wiki/Christmas"}
+  - {key: de-christmas-2026, country: DE, name: Christmas, kind: PUBLIC, start: 2026-12-25, end: 2026-12-26,
+     source_url: "https://en.wikipedia.org/wiki/Christmas"}
+  - {key: sa-school-midyear-2027, country: SA, name: Saudi mid-year school break, kind: SCHOOL, start: 2027-01-08, end: 2027-01-16,
+     verification: UNVERIFIED, note: "starts 8 Jan; end date not published, one week assumed",
+     source_url: "https://whichschooladvisor.com/saudi/school-news/new-saudi-school-calendar-holidays-for-2026-2027"}
+  - {key: cn-chinese-new-year-2027, country: CN, name: Chinese New Year, kind: PUBLIC, start: 2027-02-06, end: 2027-02-06,
+     source_url: "https://en.wikipedia.org/wiki/Chinese_New_Year"}

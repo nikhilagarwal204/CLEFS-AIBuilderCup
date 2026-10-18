@@ -1,0 +1,50 @@
+"""seed-demo and demo-check commands (python -m clefs.cli)."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from clefs import cli
+from clefs.seed.demo_uae import _check
+
+SLUG = "demo-t-cli"
+
+
+def test_seed_demo_prints_logins_pins_and_a_pairing_code(cur, capsys, tmp_path):
+    manifest = tmp_path / "plants.json"
+    rc = cli.main(["seed-demo", "--hotel", SLUG, "--anchor", "2026-09-27", "--scale", "0.05",
+                   "--password", "demo-pass-123", "--manifest", str(manifest)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert f"owner+{SLUG}@example.com" in out and "demo-pass-123" in out
+    assert "pair this browser as a device" in out
+    data = json.loads(manifest.read_text())
+    assert data["hotel"] == SLUG and data["anchor"] == "2026-09-27" and isinstance(data["plants"], list)
+    # a second run is the same hotel, rebuilt
+    assert cli.main(["seed-demo", "--hotel", SLUG, "--anchor", "2026-09-27", "--scale", "0.05",
+                     "--password", "demo-pass-123", "--no-manifest"]) == 0
+    assert "created=False" in capsys.readouterr().out
+
+
+def test_seed_demo_refuses_a_real_hotel(cur, hotel_uae, capsys):
+    assert cli.main(["seed-demo", "--hotel", hotel_uae.slug, "--anchor", "2026-09-27", "--parts", "core",
+                     "--no-manifest"]) == 1
+    assert "not a demo hotel" in capsys.readouterr().err
+
+
+def test_demo_check_reports_each_spec_check(cur, capsys):
+    assert cli.main(["seed-demo", "--hotel", SLUG, "--anchor", "2026-09-27", "--scale", "0.05",
+                     "--password", "demo-pass-123", "--no-manifest"]) == 0
+    capsys.readouterr()
+    results = {name: ok for name, ok, _d in _check.run_checks(cur, SLUG)}
+    for name in ("hotel is a demo hotel", "80 rooms on 8 floors, 10 family units", "16 demo staff with PINs",
+                 "owner, gm, finance, revenue, front desk users", "120 history days", "forward on the books",
+                 "pace snapshots", "2024-2025 baselines"):
+        assert results[name], name
+    # at 5% volume the occupancy check must fail loudly, not pass by accident
+    assert results["history occupancy 55-66%"] is False
+    with pytest.raises(SystemExit):
+        cli.main(["demo-check", "--hotel", SLUG])
+    assert "[FAIL] history occupancy" in capsys.readouterr().out

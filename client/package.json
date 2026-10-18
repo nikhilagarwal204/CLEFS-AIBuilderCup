@@ -1,0 +1,32 @@
+{
+  "name": "client",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:https": "next dev --experimental-https --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check:claims": "node scripts/check-claims.mjs",
+    "test": "node --test \"app/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@google/genai": "^1.20.0",
+    "@microsoft/clarity": "^1.0.2",
+    "@vercel/speed-insights": "^2.0.0",
+    "next": "^16.2.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-icons": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,8 @@
+.pytest_cache/
+.mypy_cache/
+*.pyc
+# Local secrets: .env and every variant (.env.compose for docker compose,
+# .env.local, ...). Only the documented template is tracked.
+.env
+.env.*
+!.env.example

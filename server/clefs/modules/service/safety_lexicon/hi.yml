@@ -1,0 +1,143 @@
+# Hindi safety lexicon: Devanagari plus the romanised Hinglish guests type
+# ("aag lagi hai"). Format: see en.yml. The word boundary treats Devanagari
+# vowel signs as part of the word, so "आग" (fire) never matches "आगे" (ahead)
+# and "मारा" (hit) never matches "हमारा" (our).
+language: hi
+boundary: word
+kinds:
+  medical:
+    patterns:
+      - (एम्बुलेंस|एंबुलेंस)
+      - दिल का दौरा
+      - हार्ट अटैक
+      - (सांस|साँस) (नहीं|नही) (ले|आ)
+      - (सांस|साँस) लेने में (तकलीफ|दिक्कत|परेशानी)
+      - बेहोश
+      - खून बह
+      - दौरा पड़
+      - मिर्गी
+      - (डॉक्टर|डाक्टर) (चाहिए|बुलाओ|बुलाइए|को बुलाओ)
+      - (ज़हर|जहर)
+      - behosh
+      - saa?ns nahi?
+      - doctor (chahiye|bulao|bulaiye)
+      - khoon beh
+  fire:
+    patterns:
+      - आग
+      - (धुआं|धुआँ|धुंआ)
+      - गैस (लीक|की बदबू|की गंध)
+      - (जल रहा|जल रही|जल रहे)
+      - aag (lag|lagi|lagi hai)
+      - dhu+a+n
+      - (jal raha|jal rahi)
+  sparks_flooding:
+    patterns:
+      - चिंगारी
+      - करंट (लग|मार)
+      - बिजली का झटका
+      - नंगे तार
+      - बाढ़
+      - पानी भर गया
+      - पाइप फट
+      - chingari
+      - current (lag|maar|mar)
+      - paani bhar gaya
+      - pipe phat
+  violence:
+    patterns:
+      - हमला
+      - (मार रहा|मार रही|मारा|पीट रहा|पीट रही|पीटा)
+      - (धमकी|धमका)
+      - (बंदूक|पिस्तौल)
+      - चाकू (से|लेकर|दिखा)
+      - गोली (चल|चला|मार|मारी)
+      - बम
+      - बलात्कार
+      - (लड़ाई|झगड़ा) (हो रही|हो रहा|कर रहे)
+      - जान से मार
+      - (maar raha|peet raha|pitai)
+      - dhamki
+      - bandook
+      - chaa?ku (se|leke)
+      - goli (chal|maar)
+      - jaan se maar
+      - hamla
+  missing_child:
+    patterns:
+      - (मेरा|हमारा) (बच्चा|बेटा) (खो|गुम|लापता)
+      - (मेरी|हमारी) (बच्ची|बेटी) (खो|गुम|लापता)
+      - (बच्चा|बच्ची|बेटा|बेटी) (नहीं मिल|लापता|गुम)
+      - (bach+ha|beta) (kho gaya|gum|nahi mil)
+      - (bach+hi|beti) (kho gayi|gum|nahi mil)
+  death:
+    patterns:
+      - (मर गया|मर गई|मर गयी)
+      - मौत
+      - लाश
+      - आत्महत्या
+      - (मरना चाहता|मरना चाहती)
+      - (mar gaya|mar gayi|laash|aatmahatya|khudkushi)
+    guards:
+      - (फोन|बैटरी|मोबाइल|रिमोट) (मर गया|मर गई)
+      - (phone|battery|mobile|remote) mar gaya
+  lift_entrapment:
+    patterns:
+      - लिफ्ट में (फंस|फँस|अटक)
+      - लिफ्ट (रुक|अटक) गई
+      - lift (me|mein) (phas|phans|atak)
+  drugs:
+    patterns:
+      - ड्रग्स
+      - नशीले
+      - गांजा
+      - चरस
+      - कोकीन
+      - हेरोइन
+      - (ganja|charas)
+  harassment:
+    patterns:
+      - (छेड़छाड़|छेड़खानी)
+      - उत्पीड़न
+      - गलत तरीके से छु
+      - पीछा कर
+      - (chhed|chhedkhani|picha kar)
+  theft:
+    patterns:
+      - चोरी
+      - (चुरा लिया|चुरा लिए|चुराया)
+      - चोर
+      - (chori|chura liya|chor)
+  lost_document:
+    patterns:
+      - पासपोर्ट (खो|गुम|चोरी|नहीं मिल)
+      - passport (kho|gum|nahi mil)
+  police:
+    patterns:
+      - पुलिस
+  legal:
+    patterns:
+      - वकील
+      - (कोर्ट|अदालत)
+      - मुकदमा
+      - केस कर
+      - (vakil|wakeel|case karunga)
+  chargeback:
+    patterns:
+      - चार्जबैक
+      - बैंक में शिकायत
+      - दो बार पैसे कट
+      - (do baar paise kat|double charge)
+  refund:
+    patterns:
+      - रिफंड
+      - (पैसे|पैसा) वापस
+      - (मुआवज़ा|मुआवजा)
+      - (paise|paisa) wapas
+  complaint:
+    patterns:
+      - शिकायत
+      - मैनेजर (से बात|को बुला)
+      - (बहुत बुरा|बेकार सर्विस)
+      - shikayat
+      - manager (ko bulao|se baat)

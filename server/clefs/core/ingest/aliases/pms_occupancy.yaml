@@ -1,0 +1,17 @@
+# PMS daily occupancy / manager's flash report (one row per business date).
+#
+# UNVERIFIED: the common report wording; rename a column in the mapping step
+# when a PMS says it differently.
+source_code: pms_occupancy
+label: PMS daily occupancy
+kind: OCCUPANCY
+unverified: true
+detect: [date, rooms sold]
+fields:
+  date: [date, business date, day, stay date]
+  rooms_occupied: [rooms sold, occupied rooms, rooms occupied, room nights, occ rooms]
+  rooms_available: [rooms available, available rooms, total rooms, inventory]
+  rooms_ooo: [out of order, ooo, ooo rooms, rooms out of order]
+  arrivals: [arrivals, arrival rooms]
+  departures: [departures, departure rooms]
+  room_revenue_minor: [room revenue, rooms revenue, revenue]

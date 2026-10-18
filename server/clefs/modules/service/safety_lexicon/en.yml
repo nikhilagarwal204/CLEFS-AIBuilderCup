@@ -1,0 +1,255 @@
+# English safety lexicon (03 spec 1.5, layer 1).
+#
+# Format (shared by every language file, read by service/safety.py):
+#   boundary: word | none   word wraps each pattern in script-aware word
+#                           boundaries; none is plain substring (Chinese).
+#   prefix:   optional clitic regex allowed before a pattern (Arabic "ال").
+#   kinds.<kind>.patterns   case-insensitive Python regexes; any hit fires.
+#   kinds.<kind>.guards     masked out of the text BEFORE that kind's
+#                           patterns run, so "fire" fires and "fire tv" does
+#                           not, while "fire next to the fire pit" still does.
+# The level of each kind (emergency, sensitive, handoff) is fixed in
+# safety.KIND_LEVEL so every language agrees. Quotes are avoided in patterns
+# (".?" stands for an apostrophe) to keep the YAML plain.
+language: en
+boundary: word
+kinds:
+  medical:
+    patterns:
+      - heart attack
+      - (asthma|panic) attack
+      - chest pains?
+      - (can.?t|cannot|can not|unable to) breathe
+      - (not|stopped) breathing
+      - (difficulty|trouble|struggling) breathing
+      - short(ness)? of breath
+      - unconscious
+      - unresponsive
+      - not responding
+      - passed out
+      - fainted
+      - (he|she|someone|somebody|a guest|a man|a woman|my \w+|our \w+|husband|wife|child|son|daughter|father|mother|friend) (has |just )?collapsed
+      - collapsed (on|in) the (floor|lobby|room|bathroom|corridor|pool|street|lift|elevator)
+      - seizures?
+      - convuls\w*
+      - (a|having a|had a) stroke
+      - overdos\w*
+      - (bleeding|blood) (heavily|badly|a lot|everywhere)
+      - (severe|heavy) bleeding
+      - allergic reaction
+      - anaphyla\w*
+      - choking
+      - (call|get|need|send) (an|the|a) (ambulance|paramedics?|doctor)
+      - ambulance
+      - medical emergency
+      - drown\w*
+      - poison(ed|ing)
+      - (fell|fallen) and (can.?t|cannot) get up
+      - hit (my|his|her|their) head
+      - broke(n)? (my|his|her) (leg|arm|neck|back|hip)
+    guards:
+      - stroke of (luck|genius)
+      - choking hazard
+      - drowning in (work|emails)
+  fire:
+    patterns:
+      - fire
+      - on fire
+      - flames?
+      - smoke
+      - smoky smell
+      - (smell|smells|smelling) (of|like) (gas|burning|smoke)
+      - gas (leak|smell)
+      - burning smell
+      - something (is )?burning
+      - carbon monoxide
+      - fire alarm (is )?(going off|ringing|sounding)
+    guards:
+      - fire ?(tv|stick|pit|place|works|exit|escape|safety|drill|extinguisher|door|proof)
+      - fire (up|away)
+      - fire alarm test
+      - cease ?fire
+      - smoke[- ]?(free|detector|alarm) (is )?(beeping|chirping|battery)
+      - smoke[- ]?free
+      - (can|may|could|where) (i|we|you) smoke
+      - smoke (a )?(shisha|hookah|cigar|cigarette)
+      - smoked (salmon|meat|turkey|duck|cheese|paprika|fish|brisket)
+      - flame[- ]?grilled
+      - wood[- ]?fired
+      - fire[- ]?roasted
+  sparks_flooding:
+    patterns:
+      - sparks?
+      - sparking
+      - electric(al)? shock
+      - electrocut\w*
+      - (exposed|live|bare) wires?
+      - flood(ed|ing)?
+      - water (is )?(pouring|gushing|everywhere|coming through the ceiling)
+      - ceiling (is )?(collapsing|falling|caving)
+      - burst pipe
+      - pipe (has )?burst
+    guards:
+      - flood ?lights?
+      - spark(ling)? (water|wine)
+  violence:
+    patterns:
+      - attack(ed|ing) (me|us|him|her|my|our|someone)
+      - assault(ed|ing)?
+      - (pulled|holding|has|with|waving|carrying) an? (gun|knife|weapon|blade)
+      - guns?
+      - weapons?
+      - threaten\w*
+      - (been|got|was|were|is|being) (shot|stabbed)
+      - stabb\w*
+      - shooting
+      - (beat|beating|hitting|hurting|punched|kicked) (me|him|her|us|my)
+      - (people|men|guys|guests|someone|they) (are )?fighting
+      - a fight (in|outside|on|at|next)
+      - domestic violence
+      - (going to|gonna|want to|will) kill
+      - kill (me|you|him|her|us)
+      - bomb
+      - hostage
+      - intruder
+      - break-in
+      - (trying|tried|try) to break in
+      - (breaking|broke) into
+      - rape[ds]?
+      - armed robbery
+    guards:
+      - bath bomb
+      - photo ?bomb
+      - (photo|video) ?shooting
+      - shooting (photos|a video|range|star)
+      - (water|glue|massage|nerf|nail|spray|staple|heat|temperature|thermometer|top) ?guns?
+      - (heat|noise|traffic|wait|queue|jet ?lag|hangover|this|that|it|these|those)( \w+)? (is |are )?(going to |gonna |will |would )?kill(ing)? (me|us)
+      - hair ?dryer
+  missing_child:
+    patterns:
+      - (my|our) (child|kid|son|daughter|baby|boy|girl|children|kids) (is |are )?(missing|lost|gone|disappeared)
+      - (can.?t|cannot) find (my|our) (child|kid|son|daughter|baby|boy|girl|children|kids)
+      - lost (my|our) (child|kid|son|daughter|baby|children|kids)
+      - missing (child|kid|toddler)
+      - (child|kid) is missing
+  death:
+    patterns:
+      - (is|he.?s|she.?s|they.?re|looks) dead
+      - died
+      - dead body
+      - passed away
+      - (someone|he|she|my \w+) is dying
+      - suicid\w*
+      - kill (myself|himself|herself)
+      - (want|going) to die
+      - end (my life|it all)
+    guards:
+      - (phone|battery|remote|laptop|tv|television|light|lights|lamp|bulb|charger|ipad|tablet|car|key ?card|card|wifi|internet|ac|a/c|aircon|air ?con|fridge|minibar|kettle|hair ?dryer|heater|fan|router|modem|speaker|plant|flowers?)( has| is|.s)?( just)? (dead|died)
+      - dead (battery|phone|remote|zone|end|line|tired|slow)
+      - dying (for|to)
+      - (die|dying|died) (of|from) (laughter|boredom|the heat|heat|hunger|embarrassment|shame|cuteness)
+      - died laughing
+  lift_entrapment:
+    patterns:
+      - (stuck|trapped|locked) in (the |an )?(lift|elevator)
+      - (lift|elevator) (is |got )?stuck (with|and)
+      - (lift|elevator) (has )?stopped between floors
+      - (someone|people|we|i) (is |are |am )?(stuck|trapped) in (the )?(lift|elevator)
+  drugs:
+    patterns:
+      - drugs?
+      - cocaine
+      - heroin
+      - cannabis
+      - marijuana
+      - hashish
+      - meth
+      - (smell|smells|smelling) (of|like) (weed|marijuana|cannabis|hash)
+      - drug dealer
+    guards:
+      - drug ?store
+      - (pain|headache|fever|cold|flu|allergy|prescription|over the counter|otc) (drugs?|medication)
+      - drugs? (for|from) (the |a |my )?(pharmacy|chemist|headache|pain|fever|cold|flu)
+  # ─── Sensitive: urgent, a person now, no public-number card ───
+  harassment:
+    patterns:
+      - harass\w*
+      - sexual(ly)? (assault\w*|harass\w*|misconduct|advances)
+      - (touched|grabbed|groped) me
+      - grop\w*
+      - inappropriate(ly)? (touch\w*|comments?|behaviou?r|messages)
+      - (stalking|following|watching) me
+      - stalk\w*
+      - peeping
+      - flashed (me|us)
+      - hidden camera
+      - made me (feel )?uncomfortable
+    guards:
+      - (celery|broccoli|flower|rhubarb|corn) stalks?
+  theft:
+    patterns:
+      - stolen
+      - stole
+      - theft
+      - thie(f|ves)
+      - robbed
+      - robbery
+      - pickpocket\w*
+      - burglar\w*
+      - someone took (my|our)
+      - (missing|gone) from (my|our|the) (room|safe|bag|luggage)
+      - safe (was|has been|is) (opened|broken|empty)
+  lost_document:
+    patterns:
+      - lost (my|our|his|her) (passport|id|emirates id|identity card|visa|documents?)
+      - (passport|emirates id|id card|visa) (is |was )?(lost|missing|gone|stolen)
+      - (can.?t|cannot) find (my|our) (passport|id|emirates id|visa)
+  police:
+    patterns:
+      - police
+      - cops?
+      - report (a|this) crime
+      - file a (police )?report
+    guards:
+      - police (tv|show|academy|drama|series)
+      - (where|nearest|nearby|closest|how far)( is| to)? (the |a )?police station
+      - police station (near|nearby|close|address|opening)
+  # ─── Handoff: a manager takes over; the assistant promises nothing ───
+  legal:
+    patterns:
+      - lawyers?
+      - attorney
+      - legal action
+      - sue (you|the hotel|this hotel)
+      - (take|taking) (you|this|the hotel) to court
+      - lawsuit
+      - solicitor
+  chargeback:
+    patterns:
+      - charge ?back
+      - dispute (the|this|a) (charge|transaction|payment)
+      - (call|contact|calling) my bank
+      - (double|over|wrongly|incorrectly) charged
+      - charged twice
+      - unauthori[sz]ed (charge|transaction|payment)
+  refund:
+    patterns:
+      - refund\w*
+      - money back
+      - reimburse\w*
+      - compensat\w*
+    guards:
+      - (non[- ]?)?refundable
+  complaint:
+    patterns:
+      - complain\w*
+      - (speak|talk) (to|with) (the|a|your) (manager|gm|general manager|supervisor|duty manager)
+      - unacceptable
+      - disgusting
+      - worst (hotel|service|stay|experience)
+      - terrible (service|hotel|experience)
+      - very (disappointed|unhappy|upset)
+      - (bad|negative) review
+    guards:
+      - no complaints?
+      - (not|nothing to|can.?t|cannot|won.?t) complain

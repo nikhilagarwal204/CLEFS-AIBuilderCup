@@ -1,0 +1,211 @@
+{
+ "_note": "Engine-neutral AI answers for the Visibility AI radar demo. The seed wraps each into the normalised Gemini (Google Search grounding) and SerpApi google_ai_mode response shapes and replays them (no vendor call). Two answers plant fact errors against the concierge KB (check-in 14:00, free parking): check-in 12:00 and 'no parking'.",
+ "gemini_models": [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-preview-09-2025"
+ ],
+ "model_change_week": 5,
+ "discovery_en": [
+  {
+   "key": "d1",
+   "mentions_self": true,
+   "text": "Good-value hotels in Deira, Dubai:\n1. **Creekview Inn**: 3-star rooms facing Dubai Creek, a short walk to the abra station.\n2. **Al Rigga Crest Hotel**: a 3-star near Al Rigga Metro with family units and free parking.\n3. **Gold Souk Boutique**: small rooms, steps from the Gold Souk.",
+   "sources": [
+    [
+     "https://www.booking.com/city/ae/dubai-deira.html",
+     "Deira hotels"
+    ],
+    [
+     "https://www.tripadvisor.com/Hotels-Deira",
+     "Tripadvisor Deira"
+    ],
+    [
+     "https://alriggacrest.example.com/",
+     "Official site"
+    ]
+   ]
+  },
+  {
+   "key": "d2",
+   "mentions_self": false,
+   "text": "Top picks in Deira:\n1. **Trade Axis Hotel**: 4-star with a rooftop pool, 10 minutes from DWTC.\n2. **Port Saeed Suites**: apartment-style suites near Deira City Centre.\n3. **Creekview Inn**: budget rooms on the creek.",
+   "sources": [
+    [
+     "https://www.agoda.com/deira-dubai",
+     "Agoda Deira"
+    ],
+    [
+     "https://www.reddit.com/r/dubai/comments/demo",
+     "r/dubai thread"
+    ]
+   ]
+  },
+  {
+   "key": "d3",
+   "mentions_self": true,
+   "text": "For a short stay in Deira:\n1. **Al Rigga Crest Hotel**: 3-star on Al Rigga Road, metro on the doorstep, well reviewed for cleanliness.\n2. **Barsha Metro Hotel**: cheaper, but far from the old town.",
+   "sources": [
+    [
+     "https://www.google.com/travel/hotels/demo",
+     "Google Hotels"
+    ],
+    [
+     "https://alriggacrest.example.com/rooms",
+     "Rooms"
+    ]
+   ]
+  },
+  {
+   "key": "d4",
+   "mentions_self": false,
+   "text": "Hotels worth a look:\n1. **Gold Souk Boutique**: character rooms in the souk district.\n2. **Trade Axis Hotel**: best for trade-show visitors.\n3. **Barsha Metro Hotel**: good for the Red Line.",
+   "sources": [
+    [
+     "https://www.expedia.com/Deira-Hotels",
+     "Expedia Deira"
+    ],
+    [
+     "https://en.wikivoyage.org/wiki/Dubai/Deira",
+     "Wikivoyage"
+    ]
+   ]
+  },
+  {
+   "key": "d5",
+   "mentions_self": false,
+   "text": "Recommended:\n1. **Port Saeed Suites**: spacious suites for families.\n2. **Creekview Inn**: creek views at a fair price.\n3. **Gold Souk Boutique**: central and walkable.",
+   "sources": [
+    [
+     "https://www.booking.com/hotel/ae/demo.html",
+     "Booking.com"
+    ],
+    [
+     "https://www.tripadvisor.com/Hotel_Review-demo",
+     "Tripadvisor"
+    ]
+   ]
+  }
+ ],
+ "discovery_ar": [
+  {
+   "key": "a1",
+   "mentions_self": true,
+   "text": "أفضل الفنادق في ديرة:\n1. **فندق الرقة كرست**: فندق 3 نجوم قرب محطة مترو الرقة مع مواقف مجانية.\n2. **Creekview Inn**: غرف مطلة على الخور.",
+   "sources": [
+    [
+     "https://www.almosafer.com/ar/hotels/dubai-deira",
+     "المسافر"
+    ],
+    [
+     "https://alriggacrest.example.com/ar",
+     "الموقع الرسمي"
+    ]
+   ]
+  },
+  {
+   "key": "a2",
+   "mentions_self": false,
+   "text": "فنادق مقترحة في ديرة:\n1. **Trade Axis Hotel**: 4 نجوم قريب من مركز دبي التجاري العالمي.\n2. **Port Saeed Suites**: أجنحة واسعة للعائلات.",
+   "sources": [
+    [
+     "https://www.booking.com/city/ae/dubai-deira.ar.html",
+     "Booking.com"
+    ]
+   ]
+  },
+  {
+   "key": "a3",
+   "mentions_self": false,
+   "text": "خيارات جيدة:\n1. **Gold Souk Boutique**: قرب سوق الذهب.\n2. **Creekview Inn**: سعر مناسب.",
+   "sources": [
+    [
+     "https://www.agoda.com/ar-ae/deira",
+     "Agoda"
+    ]
+   ]
+  }
+ ],
+ "brand_en": [
+  {
+   "key": "b1",
+   "error": null,
+   "text": "Al Rigga Crest Hotel is a well-run 3-star in Deira. Check-in is from 14:00 and the hotel has free basement parking; guests praise the location next to Al Rigga Metro.",
+   "sources": [
+    [
+     "https://alriggacrest.example.com/",
+     "Official site"
+    ],
+    [
+     "https://www.tripadvisor.com/Hotel_Review-demo",
+     "Tripadvisor"
+    ]
+   ]
+  },
+  {
+   "key": "b2",
+   "error": "checkin_time",
+   "text": "Al Rigga Crest Hotel is a budget-friendly 3-star in Deira. Check-in at Al Rigga Crest Hotel starts at 12:00, and the rooms are compact but clean.",
+   "sources": [
+    [
+     "https://www.travel-blog-demo.example.com/deira-hotels",
+     "Deira hotel roundup"
+    ]
+   ]
+  },
+  {
+   "key": "b3",
+   "error": "parking",
+   "text": "Al Rigga Crest Hotel is a 3-star close to the Deira souks. Note that Al Rigga Crest Hotel does not offer parking, so arrive by metro or taxi.",
+   "sources": [
+    [
+     "https://www.reddit.com/r/dubai/comments/demo2",
+     "r/dubai"
+    ],
+    [
+     "https://www.booking.com/hotel/ae/demo.html",
+     "Booking.com"
+    ]
+   ]
+  }
+ ],
+ "facts": {
+  "checkin_time": [
+   {
+    "key": "f_ci_ok",
+    "error": null,
+    "text": "Check-in at Al Rigga Crest Hotel is from 14:00 (2 pm); early check-in depends on availability."
+   },
+   {
+    "key": "f_ci_bad",
+    "error": "checkin_time",
+    "text": "Check-in at Al Rigga Crest Hotel starts at 12:00 noon according to several listings."
+   }
+  ],
+  "parking": [
+   {
+    "key": "f_pk_ok",
+    "error": null,
+    "text": "Yes. Al Rigga Crest Hotel offers free basement parking for guests."
+   },
+   {
+    "key": "f_pk_bad",
+    "error": "parking",
+    "text": "Al Rigga Crest Hotel has no parking on site; guests use public parking nearby."
+   }
+  ],
+  "pool": [
+   {
+    "key": "f_pool",
+    "error": null,
+    "text": "Al Rigga Crest Hotel is a small city hotel; listings do not mention a pool."
+   }
+  ],
+  "star_rating": [
+   {
+    "key": "f_star",
+    "error": null,
+    "text": "Al Rigga Crest Hotel is a 3-star hotel in Deira."
+   }
+  ]
+ }
+}

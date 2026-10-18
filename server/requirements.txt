@@ -1,0 +1,41 @@
+# Runtime dependencies, declared once by the foundation so module lanes never
+# edit this file (FROZEN; leave a FOUNDATION-REQUEST note instead).
+# Every third-party package clefs imports directly is declared here, never
+# left to arrive transitively (tests/foundation/test_w0b_ops.py checks it).
+#
+# fastapi is capped below 0.137: from 0.137.0 include_router() keeps each
+# router as one nested _IncludedRouter entry in app.routes instead of
+# flattening its routes. Every route walker in the suite already goes through
+# tests/foundation/route_walk.iter_routes, which handles both shapes, so the
+# cap is not waiting on walker work (the suite passed on 0.137.0 apart from
+# the cap assertion itself). It stays because Vercel and the Docker build
+# install fresh on every deploy, so an open range would drift there first,
+# and an upgrade should land as a reviewed change, never as a side effect.
+# Lift it as its own change: bump the version, run the full suite on it, drop
+# the cap assertion in tests/foundation/test_w0b_ops.py (CONTRACTS.md Part 3,
+# Deploy and packaging).
+fastapi>=0.115,<0.137
+uvicorn[standard]>=0.30,<1
+psycopg2-binary>=2.9.9,<3
+python-dotenv>=1.0,<2
+google-genai>=1.51,<2
+httpx>=0.27,<1
+# Declared because visibility/http.py subclasses httpcore's backend to pin
+# the resolved IP (SSRF guard); httpx 0.27/0.28 depend on httpcore 1.x.
+httpcore>=1.0,<2
+python-multipart>=0.0.9
+tzdata>=2024.1
+openpyxl>=3.1,<4
+xlrd>=2.0,<3
+pypdf>=5.0,<7
+icalendar>=6.0,<8
+fpdf2>=2.8,<3
+mcp>=1.0,<3
+pyjwt>=2.8,<3
+# AES-256-GCM for sealed PII (clefs.core.privacy); declared directly, not
+# left to arrive transitively through pyjwt[crypto].
+cryptography>=43,<52
+websockets>=13,<16
+rapidfuzz>=3.9,<4
+pyyaml>=6.0,<7
+python-dateutil>=2.9,<3

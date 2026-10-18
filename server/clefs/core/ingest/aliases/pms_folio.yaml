@@ -1,0 +1,19 @@
+# PMS folio / transaction journal export (charges posted to guest folios).
+#
+# UNVERIFIED: transaction code names vary per PMS and per property setup.
+source_code: pms_folio
+label: PMS folio transactions
+kind: PMS_FOLIO
+unverified: true
+detect: [transaction code, posting date]
+fields:
+  pms_txn_id: [transaction id, transaction no, txn id, receipt no, posting id, check no]
+  posted_date: [posting date, business date, date, transaction date, trx date]
+  code: [transaction code, trx code, code, charge code, department code]
+  amount_minor: [amount, net amount, total, debit]
+  pms_res_id: [confirmation, confirmation no, reservation no, res no, reservation id]
+  stay_date: [stay date, night]
+  description: [description, transaction description, trx description, narration]
+  qty: [quantity, qty]
+  currency: [currency]
+  room_number: [room, room no, room number]

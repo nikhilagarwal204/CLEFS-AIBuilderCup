@@ -1,0 +1,19 @@
+# TLS terminator for the UAE-resident VM topology (docker compose --profile tls).
+# Caddy obtains and renews the certificate for API_DOMAIN automatically.
+{$API_DOMAIN:api.clefs.world} {
+	encode zstd gzip
+
+	# Bodies are capped here too, before they reach the API: the file cap
+	# (FILE_MAX_BYTES, 25 MB) plus multipart framing, with headroom. Webhooks
+	# are small (Resend's inbound email webhook carries metadata only).
+	request_body {
+		max_size 40MB
+	}
+
+	reverse_proxy api:8000 {
+		# SSE (/hotels/{slug}/stream) must not be buffered.
+		flush_interval -1
+		# Caddy replaces any client-sent X-Forwarded-For with the real peer
+		# (no trusted_proxies configured), which is what uvicorn trusts.
+	}
+}

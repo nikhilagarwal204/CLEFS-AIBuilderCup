@@ -1,0 +1,254 @@
+{
+ "_note": "SerpApi google_hotels payloads replayed by the demo seed (no vendor call). The parity plant is 450 official vs Booking.com 412 on 2026-10-02 (8.44%); 512 vs 508 on 2026-10-26 is the 0.78% decoy; 2026-10-27 has no official price.",
+ "property_token": "demo-gh-al-rigga-crest",
+ "area_page": {
+  "search_metadata": {
+   "status": "Success"
+  },
+  "search_parameters": {
+   "engine": "google_hotels",
+   "q": "hotels in Deira, Dubai",
+   "gl": "ae",
+   "hl": "en",
+   "currency": "AED"
+  },
+  "ads": [
+   {
+    "name": "Grand Creek Tower (DEMO ad)",
+    "price": "AED 520",
+    "extracted_price": 520
+   }
+  ],
+  "properties": [
+   {
+    "type": "hotel",
+    "name": "Trade Axis Hotel",
+    "property_token": "demo-gh-trade-axis",
+    "overall_rating": 4.3,
+    "rate_per_night": {
+     "lowest": "AED 505",
+     "extracted_lowest": 505
+    },
+    "sponsored": true
+   },
+   {
+    "type": "hotel",
+    "name": "Port Saeed Suites",
+    "property_token": "demo-gh-port-saeed",
+    "overall_rating": 4.1,
+    "rate_per_night": {
+     "lowest": "AED 441",
+     "extracted_lowest": 441
+    }
+   },
+   {
+    "type": "hotel",
+    "name": "Gold Souk Boutique",
+    "property_token": "demo-gh-gold-souk",
+    "overall_rating": 4.2,
+    "rate_per_night": {
+     "lowest": "AED 418",
+     "extracted_lowest": 418
+    }
+   },
+   {
+    "type": "hotel",
+    "name": "Creekview Inn",
+    "property_token": "demo-gh-creekview",
+    "overall_rating": 3.9,
+    "rate_per_night": {
+     "lowest": "AED 392",
+     "extracted_lowest": 392
+    }
+   },
+   {
+    "type": "hotel",
+    "name": "Deira Harbour Stay",
+    "property_token": "demo-gh-deira-harbour",
+    "overall_rating": 3.8,
+    "rate_per_night": {
+     "lowest": "AED 377",
+     "extracted_lowest": 377
+    }
+   },
+   {
+    "type": "hotel",
+    "name": "Al Rigga Crest Hotel",
+    "property_token": "demo-gh-al-rigga-crest",
+    "overall_rating": 4.2,
+    "rate_per_night": {
+     "lowest": "AED 412",
+     "extracted_lowest": 412
+    }
+   },
+   {
+    "type": "hotel",
+    "name": "Barsha Metro Hotel",
+    "property_token": "demo-gh-barsha-metro",
+    "overall_rating": 3.7,
+    "rate_per_night": {
+     "lowest": "AED 365",
+     "extracted_lowest": 365
+    }
+   },
+   {
+    "type": "hotel",
+    "name": "Naif Market Inn",
+    "property_token": "demo-gh-naif",
+    "overall_rating": 3.6,
+    "rate_per_night": {
+     "lowest": "AED 331",
+     "extracted_lowest": 331
+    }
+   }
+  ],
+  "serpapi_pagination": {}
+ },
+ "details": {
+  "_note": "SerpApi google_hotels property pages (property_token) for the demo hotel, keyed by check_in_date. Prices are synthetic.",
+  "2026-10-02": {
+   "name": "Al Rigga Crest Hotel",
+   "property_token": "demo-gh-al-rigga-crest",
+   "featured_prices": [
+    {
+     "source": "Al Rigga Crest Hotel",
+     "official": true,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 450",
+      "extracted_lowest": 450
+     }
+    },
+    {
+     "source": "Booking.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 412",
+      "extracted_lowest": 412
+     }
+    }
+   ],
+   "prices": [
+    {
+     "source": "Agoda",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 419",
+      "extracted_lowest": 419
+     }
+    },
+    {
+     "source": "Expedia.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 431",
+      "extracted_lowest": 431
+     }
+    },
+    {
+     "source": "Trip.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 447",
+      "extracted_lowest": 447
+     }
+    }
+   ]
+  },
+  "2026-10-26": {
+   "name": "Al Rigga Crest Hotel",
+   "property_token": "demo-gh-al-rigga-crest",
+   "featured_prices": [
+    {
+     "source": "Al Rigga Crest Hotel",
+     "official": true,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 512",
+      "extracted_lowest": 512
+     }
+    },
+    {
+     "source": "Agoda",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 508",
+      "extracted_lowest": 508
+     }
+    }
+   ],
+   "prices": [
+    {
+     "source": "Booking.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 510",
+      "extracted_lowest": 510
+     }
+    },
+    {
+     "source": "Expedia.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 515",
+      "extracted_lowest": 515
+     }
+    }
+   ]
+  },
+  "2026-10-27": {
+   "name": "Al Rigga Crest Hotel",
+   "property_token": "demo-gh-al-rigga-crest",
+   "featured_prices": [
+    {
+     "source": "Booking.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 489",
+      "extracted_lowest": 489
+     }
+    }
+   ],
+   "prices": [
+    {
+     "source": "Agoda",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 495",
+      "extracted_lowest": 495
+     }
+    },
+    {
+     "source": "Expedia.com",
+     "official": false,
+     "logo": "",
+     "link": "https://example.com/demo",
+     "rate_per_night": {
+      "lowest": "AED 499",
+      "extracted_lowest": 499
+     }
+    }
+   ]
+  }
+ }
+}

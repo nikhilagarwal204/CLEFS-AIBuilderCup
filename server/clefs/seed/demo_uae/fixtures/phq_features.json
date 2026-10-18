@@ -1,0 +1,635 @@
+{
+ "_note": "PredictHQ Features API (POST /v1/features/) response for the demo hotel's 10 km radius, replayed through phq_features.sync_hotel(payload=...). Days without demand are omitted.",
+ "results": [
+  {
+   "date": "2026-10-05",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 2400,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 18000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-10-06",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 2400,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 18000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-10-07",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 2400,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 18000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-10-20",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 6000,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-10-21",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 6000,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-11-14",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 12000,
+     "count": 1
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 8000,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-02",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 40000,
+     "count": 1
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 1,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-03",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 40000,
+     "count": 1
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 1,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-04",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 9000,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-07",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 12000,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 180000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-08",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 12000,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 180000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-09",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 12000,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 180000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-10",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 12000,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 180000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-11",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 12000,
+     "count": 1
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 180000,
+     "count": 1
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 3500,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  },
+  {
+   "date": "2026-12-31",
+   "phq_attendance_conferences": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_expos": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_sports": {
+    "stats": {
+     "sum": 0,
+     "count": 0
+    }
+   },
+   "phq_attendance_concerts": {
+    "stats": {
+     "sum": 20000,
+     "count": 1
+    }
+   },
+   "phq_attendance_festivals": {
+    "stats": {
+     "sum": 150000,
+     "count": 1
+    }
+   },
+   "phq_rank_public_holidays": {
+    "rank_levels": {
+     "1": 0,
+     "2": 0,
+     "3": 0,
+     "4": 0,
+     "5": 0
+    }
+   }
+  }
+ ]
+}

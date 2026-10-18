@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "base": "avatar-base.webp",
+  "sheet": "avatar-visemes.webp",
+  "frame": {
+    "w": 272,
+    "h": 191
+  },
+  "baseSize": {
+    "w": 727,
+    "h": 1142
+  },
+  "anchor": {
+    "x": 219,
+    "y": 583
+  },
+  "visemes": [
+    {
+      "id": "rest",
+      "openness": 0,
+      "spread": 0.5,
+      "index": 0
+    },
+    {
+      "id": "closed",
+      "openness": 0.08,
+      "spread": 0.5,
+      "index": 1
+    },
+    {
+      "id": "slight",
+      "openness": 0.26,
+      "spread": 0.5,
+      "index": 2
+    },
+    {
+      "id": "mid",
+      "openness": 0.48,
+      "spread": 0.5,
+      "index": 3
+    },
+    {
+      "id": "open",
+      "openness": 0.7,
+      "spread": 0.5,
+      "index": 4
+    },
+    {
+      "id": "wide",
+      "openness": 0.92,
+      "spread": 0.5,
+      "index": 5
+    },
+    {
+      "id": "spread",
+      "openness": 0.6,
+      "spread": 0.88,
+      "index": 6
+    },
+    {
+      "id": "round",
+      "openness": 0.55,
+      "spread": 0.12,
+      "index": 7
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+# German safety lexicon. Format: see en.yml. Only read when the caller says
+# the guest speaks German: "Brand" is fire here and a shampoo question in
+# English. German compounds keep the word boundary from firing inside
+# "Feuerwerk" or "Rauchmelder"; the guards cover the phrases that remain.
+language: de
+boundary: word
+kinds:
+  medical:
+    patterns:
+      - (krankenwagen|rettungswagen|notarzt)
+      - herzinfarkt
+      - schlaganfall
+      - atmet nicht
+      - (bekomme|bekommt|kriege|kriegt) keine luft
+      - atemnot
+      - bewusstlos
+      - ohnmächtig
+      - zusammengebrochen
+      - krampfanfall
+      - blutet (stark|sehr)
+      - starke blutung
+      - allergische reaktion
+      - anaphyla\w*
+      - vergiftung
+      - (brauche|brauchen) (einen|sofort einen) arzt
+      - medizinischer notfall
+      - ertrinkt
+      - erstickt
+  fire:
+    patterns:
+      - feuer
+      - es brennt
+      - brennt
+      - brand
+      - rauch
+      - rauchgeruch
+      - gasgeruch
+      - riecht nach (gas|rauch)
+      - gasleck
+      - riecht verbrannt
+      - flammen
+    guards:
+      - (haben sie|hast du|habt ihr) feuer
+      - (licht|lampe|kerze|kerzen) brennt
+      - brennt (das|die) (licht|lampe|kerze)
+  sparks_flooding:
+    patterns:
+      - funken
+      - stromschlag
+      - elektrischer schlag
+      - (offene|blanke) kabel
+      - überschwemm\w*
+      - überflutet
+      - (wasserrohrbruch|rohrbruch)
+      - wasser überall
+      - decke (tropft stark|stürzt ein|bricht ein)
+  violence:
+    patterns:
+      - angriff
+      - angegriffen
+      - überfall\w*
+      - schlägt (mich|sie|ihn)
+      - (hat mich|wurde) geschlagen
+      - bedroh\w*
+      - (waffe|pistole)
+      - mit (einem )?messer
+      - (messerangriff|erstochen)
+      - (schüsse|schießerei)
+      - bombe
+      - vergewalt\w*
+      - (prügelei|schlägerei)
+      - (einbrecher|eingebrochen)
+      - (töten|umbringen)
+  missing_child:
+    patterns:
+      - (mein|unser) (kind|sohn|baby|junge) ist (weg|verschwunden|verloren)
+      - (meine|unsere) (tochter|kinder) (ist|sind) (weg|verschwunden)
+      - kind vermisst
+      - finde (mein|meine|unser|unsere) (kind|tochter|sohn|kinder) nicht
+  death:
+    patterns:
+      - tot
+      - gestorben
+      - leiche
+      - verstorben
+      - (selbstmord|suizid)
+      - will sterben
+    guards:
+      - (akku|handy|batterie|fernbedienung|telefon) (ist )?tot
+      - tote hose
+  lift_entrapment:
+    patterns:
+      - (stecke|stecken|steckt|sitze|sitzen|eingeschlossen|gefangen) im (aufzug|fahrstuhl|lift)
+      - im (aufzug|fahrstuhl|lift) (stecken|gefangen|eingeschlossen)
+      - (aufzug|fahrstuhl|lift) steckt fest
+  drugs:
+    patterns:
+      - (drogen|kokain|heroin|cannabis|marihuana|haschisch|rauschgift)
+  harassment:
+    patterns:
+      - belästig\w*
+      - sexuell\w* (übergriff|belästigung)
+      - (begrapscht|angefasst)
+      - (stalkt|verfolgt) mich
+      - versteckte kamera
+  theft:
+    patterns:
+      - (gestohlen|geklaut|bestohlen)
+      - diebstahl
+      - (dieb|diebe)
+      - ausgeraubt
+      - raub
+  lost_document:
+    patterns:
+      - (pass|reisepass|ausweis|personalausweis|visum) (verloren|gestohlen|weg)
+      - (meinen|unseren) (pass|reisepass|ausweis) verloren
+  police:
+    patterns:
+      - polizei
+  legal:
+    patterns:
+      - (anwalt|rechtsanwalt)
+      - verklagen
+      - klage
+      - gericht
+      - rechtliche schritte
+  chargeback:
+    patterns:
+      - (rückbuchung|chargeback)
+      - zahlung (anfechten|widersprechen|zurückbuchen)
+      - doppelt (belastet|abgebucht)
+      - (meine|unsere) bank (anrufen|kontaktieren)
+  refund:
+    patterns:
+      - (erstattung|rückerstattung)
+      - geld zurück
+      - entschädigung
+  complaint:
+    patterns:
+      - beschwer\w*
+      - reklamation
+      - (den |mit dem )?(manager|geschäftsführer|direktor) sprechen
+      - (inakzeptabel|unzumutbar|katastrophe)

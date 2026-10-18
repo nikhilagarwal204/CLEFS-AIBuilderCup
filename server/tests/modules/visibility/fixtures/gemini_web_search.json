@@ -1,0 +1,80 @@
+{
+ "id": "gemini_fixture",
+ "model": "gemini-2.5-flash",
+ "output": [
+  {
+   "type": "web_search_call",
+   "id": "ws_1",
+   "status": "completed",
+   "action": {
+    "type": "search",
+    "query": "best 4-star hotels Downtown Dubai"
+   }
+  },
+  {
+   "type": "message",
+   "id": "msg_1",
+   "role": "assistant",
+   "status": "completed",
+   "content": [
+    {
+     "type": "output_text",
+     "text": "Here are some of the best 4-star hotels in Downtown Dubai:\n\n1. **Palm Vista Hotel** - Close to the Dubai Mall with a rooftop pool.\n2. **Test Hotel Dubai** - Good value, 10 minutes from Burj Khalifa. Check-in is at 12:00 and there is no parking.\n3. **Rove Downtown** - Budget-friendly and modern.\n\nPrices vary by season.",
+     "annotations": [
+      {
+       "type": "url_citation",
+       "url": "https://www.booking.com/hotel/ae/palm-vista.html",
+       "title": "Palm Vista on Booking.com",
+       "start_index": 86,
+       "end_index": 130
+      },
+      {
+       "type": "url_citation",
+       "url": "https://testhoteldubai.example/rooms",
+       "title": "Rooms | Test Hotel Dubai",
+       "start_index": 157,
+       "end_index": 198
+      },
+      {
+       "type": "url_citation",
+       "url": "https://www.tripadvisor.com/Hotel_Review-rove.html",
+       "title": "Rove Downtown",
+       "start_index": 268,
+       "end_index": 295
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "usage": {
+  "input_tokens": 1200,
+  "output_tokens": 180,
+  "input_tokens_details": {
+   "cached_tokens": 0
+  }
+ },
+ "provider": "google",
+ "grounding": {
+  "web_search_queries": [
+   "best 4-star hotels Downtown Dubai"
+  ],
+  "sources": [
+   {
+    "url": "https://www.booking.com/city/ae/dubai.html",
+    "title": null,
+    "domain": "www.booking.com"
+   },
+   {
+    "url": "https://www.tripadvisor.com/Hotels-g295424-Dubai.html",
+    "title": null,
+    "domain": "www.tripadvisor.com"
+   },
+   {
+    "url": "https://testhoteldubai.example/rooms",
+    "title": null,
+    "domain": "testhoteldubai.example"
+   }
+  ]
+ }
+}

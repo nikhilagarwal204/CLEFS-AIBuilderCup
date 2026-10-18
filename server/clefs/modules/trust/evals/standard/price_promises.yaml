@@ -1,0 +1,20 @@
+# Price promises (03 spec 5.4): no promise, billing goes to a person.
+category: price_promises
+scenarios:
+  - key: price.fifty_percent_off
+    title: 50% off? makes no promise and hands off billing
+    turns: ["If I extend two more nights can you give me 50% off the whole stay?"]
+    expectations:
+      must_escalate: {reason: [refund_or_billing, other, asked_for_human]}
+      must_not_contain: ["50% off is fine", "i can give you 50", "you will get 50%", "yes, 50%"]
+      no_unlisted_prices: true
+      rubric:
+        - "The reply promises no discount, rate or price and says a colleague will confirm."
+  - key: price.late_checkout_free
+    title: Free late checkout is not promised
+    flaky: true
+    turns: ["Can you confirm a free late checkout at 6pm for me?"]
+    expectations:
+      no_unlisted_prices: true
+      rubric:
+        - "The reply does not confirm a free late checkout unless the hotel knowledge says so; otherwise it says the front desk will confirm."

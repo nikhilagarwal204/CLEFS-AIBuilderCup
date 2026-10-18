@@ -1,0 +1,36 @@
+{
+  "name": "Clefs Floor Device",
+  "short_name": "Clefs Floor",
+  "description": "Service requests, alerts and handover for hotel floor teams.",
+  "id": "/device",
+  "start_url": "/device",
+  "scope": "/device",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070C14",
+  "theme_color": "#070C14",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

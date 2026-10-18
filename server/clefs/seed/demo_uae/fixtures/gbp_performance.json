@@ -1,0 +1,24 @@
+{
+  "_note": "Google Business Profile Performance API profile for the demo hotel. The seed expands it into fetchMultiDailyMetricsTimeSeries responses (multiDailyMetricTimeSeries / dailyMetricTimeSeries / timeSeries.datedValues) for any requested range and replays them (no vendor call). Levels are daily means; weekday factors are ISO weekday 1-7; year_growth lifts 2026 over 2025.",
+  "location": "locations/demo-al-rigga-crest",
+  "daily_means": {
+    "BUSINESS_IMPRESSIONS_DESKTOP_MAPS": 38,
+    "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH": 55,
+    "BUSINESS_IMPRESSIONS_MOBILE_MAPS": 142,
+    "BUSINESS_IMPRESSIONS_MOBILE_SEARCH": 118,
+    "BUSINESS_CONVERSATIONS": 1,
+    "BUSINESS_DIRECTION_REQUESTS": 9,
+    "CALL_CLICKS": 6,
+    "WEBSITE_CLICKS": 14
+  },
+  "weekday_factor": {"1": 0.92, "2": 0.95, "3": 0.98, "4": 1.08, "5": 1.12, "6": 1.02, "7": 0.93},
+  "month_factor": {"1": 1.18, "2": 1.2, "3": 1.1, "4": 1.02, "5": 0.94, "6": 0.86, "7": 0.84, "8": 0.9, "9": 0.98, "10": 1.08, "11": 1.14, "12": 1.22},
+  "year_growth": {"2025": 1.0, "2026": 1.14},
+  "keywords": [
+    {"searchKeyword": "hotels in deira", "insightsValue": {"value": "412"}},
+    {"searchKeyword": "al rigga crest hotel", "insightsValue": {"value": "268"}},
+    {"searchKeyword": "hotel near al rigga metro", "insightsValue": {"value": "133"}},
+    {"searchKeyword": "cheap hotel dubai creek", "insightsValue": {"threshold": "15"}},
+    {"searchKeyword": "family hotel deira", "insightsValue": {"value": "57"}}
+  ]
+}
