@@ -12,6 +12,10 @@
    POST /device/service/handover/ack, POST /device/service/sos,
    GET|POST /device/service/recovery-cases..., POST /device/service/push-subscriptions.
    Each of those has a documented fallback here so a 404 never breaks a shift.
+   The worker screen (05 spec): GET /device/service/requests and /{id} (jobs
+   in the worker's language; the console queue routes are the fallback),
+   GET /device/service/me, POST /device/service/requests/{id}/proof and
+   /reply, POST /device/service/duty; the shapes live in worker.ts.
 
    Auth is the HttpOnly clefs_device cookie through the same-origin proxy.
    The spec's "Device-Token in IndexedDB" is superseded by the foundation's
@@ -20,6 +24,10 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 import { ApiError, apiFetch, hotelPath } from "../../lib/api";
+import {
+  buildProofForm, DUTY_PATH, dutyBody, parseDutyResult, parseMe, parseProofResult, parseReplyResult, proofPath, replyBody, replyPath,
+  type ProofResult, type ReplyInput, type ReplyResult, type StaffMe,
+} from "./worker";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -94,10 +102,35 @@ export interface Card {
   resolve_due_at?: number | null;
   sla_ack_breached?: boolean | null;
   sla_resolve_breached?: boolean | null;
-  escalation_level?: number | null;
+  /** The ladder rung reached: "supervisor" | "duty_manager" | "gm" (older servers: 1-3). */
+  escalation_level?: number | string | null;
   reopen_count?: number | null;
   guest_confirmation?: string | null;
   flags?: Record<string, unknown> | null;
+  resolved_at?: number | string | null;
+  completed_by_staff_id?: number | null;
+  // ── The worker screen (05 spec, REST "Staff app"; see worker.ts) ──
+  /** Title and job text in the acting worker's reading language. */
+  display_title?: string | null;
+  display_text?: string | null;
+  /** That language, when the server names it (staff_members.languages[0]). */
+  display_language?: string | null;
+  /** False when the translation failed and display_text is the English. */
+  display_translated?: boolean | null;
+  /** The server's own reading of decision 11: priority high, and an emergency. */
+  urgent?: boolean | null;
+  emergency?: boolean | null;
+  /** The guest's language (the original_text is in it). */
+  guest_language?: string | null;
+  /** Mark as Done needs a photo that Gemini checks. */
+  needs_proof?: boolean | null;
+  /** verified | rejected | pending, or null before any photo. */
+  proof_status?: string | null;
+  proof_reason?: string | null;
+  /** What the guest was told ("about 5 minutes"). */
+  eta_minutes?: number | null;
+  accepted_at?: number | string | null;
+  department_label?: string | null;
 }
 
 export interface FeedEvent {
@@ -269,13 +302,39 @@ export function getContext(slug: string): Promise<HotelContext> {
   return apiFetch<HotelContext>(hotelPath(slug, "/context"), { silent401: true });
 }
 
-export function getQueue(slug: string, staffId: number | null): Promise<Card[]> {
+/** The device job routes (05 spec) carry each job in the worker's language;
+    a server without them is asked again after this long. */
+const DEVICE_JOBS_RECHECK_MS = 10 * 60_000;
+let deviceJobsMissingUntil = 0;
+
+/** Open jobs in this device's scope: GET /device/service/requests (each with
+    display_title / display_text in the worker's language), else the console
+    queue route of older servers (English only). */
+export async function getQueue(slug: string, staffId: number | null): Promise<Card[]> {
+  if (Date.now() >= deviceJobsMissingUntil) {
+    try {
+      return await apiFetch<Card[]>("/device/service/requests", {
+        query: { state: "open", limit: 300 }, headers: staffHeaders(staffId), silent401: true,
+      });
+    } catch (err) {
+      if (!isMissingRoute(err)) throw err;
+      deviceJobsMissingUntil = Date.now() + DEVICE_JOBS_RECHECK_MS;
+    }
+  }
   return apiFetch<Card[]>(hotelPath(slug, "/service/queue"), {
     query: { state: "open", limit: 300 }, headers: staffHeaders(staffId), silent401: true,
   });
 }
 
-export function getRequest(slug: string, id: number, staffId: number | null): Promise<{ request: Card; events: FeedEvent[] }> {
+export async function getRequest(slug: string, id: number, staffId: number | null): Promise<{ request: Card; events: FeedEvent[] }> {
+  if (Date.now() >= deviceJobsMissingUntil) {
+    try {
+      return await apiFetch(`/device/service/requests/${id}`, { headers: staffHeaders(staffId), silent401: true });
+    } catch (err) {
+      if (!isMissingRoute(err)) throw err;
+      deviceJobsMissingUntil = Date.now() + DEVICE_JOBS_RECHECK_MS;
+    }
+  }
   return apiFetch(hotelPath(slug, `/service/requests/${id}`), { headers: staffHeaders(staffId), silent401: true });
 }
 
@@ -295,6 +354,50 @@ export async function getHandover(slug: string, staffId: number | null, queue: C
     if (!isMissingRoute(err)) throw err;
     return handoverFromQueue(queue ?? (await getQueue(slug, staffId)));
   }
+}
+
+// ─── The worker screen (05 spec: me, proof, reply, duty) ────────────────
+
+/** The person at the screen: name, role, reading language, duty, counts.
+    Throws ApiError (404/405 on a server without the route: see isMissingRoute). */
+export async function getMe(staffId: number): Promise<StaffMe> {
+  const me = parseMe(await apiFetch<unknown>("/device/service/me", { headers: staffHeaders(staffId), silent401: true }));
+  if (!me) throw new ApiError(502, "Unreadable staff profile", "bad_me");
+  return me;
+}
+
+/** Jobs closed since `since` (filing time, epoch ms): "Done today" on a
+    server without GET /device/service/me. */
+export function getClosedSince(slug: string, staffId: number | null, since: number): Promise<Card[]> {
+  return apiFetch<Card[]>(hotelPath(slug, "/service/queue"), {
+    query: { state: "closed", since: Math.floor(since), limit: 500 }, headers: staffHeaders(staffId), silent401: true,
+  });
+}
+
+/** Mark as Done with a photo: the server runs the Gemini check inside the
+    call; a match completes the job, a mismatch leaves it open with a reason. */
+export async function uploadProof(
+  requestId: number, photo: Blob, staffId: number | null, opts: { clientEventId?: string; signal?: AbortSignal } = {},
+): Promise<ProofResult> {
+  const raw = await apiFetch<unknown>(proofPath(requestId), {
+    method: "POST", body: buildProofForm(photo, { clientEventId: opts.clientEventId }),
+    headers: staffHeaders(staffId), signal: opts.signal, silent401: true,
+  });
+  return parseProofResult(raw);
+}
+
+/** A typed or spoken reply; the answer says what the guest will read. */
+export async function sendGuestReply(requestId: number, input: ReplyInput, staffId: number | null, signal?: AbortSignal): Promise<ReplyResult> {
+  const json = replyBody(input);
+  if (!json) throw new ApiError(400, "Nothing to send", "empty_reply");
+  const raw = await apiFetch<unknown>(replyPath(requestId), { method: "POST", json, headers: staffHeaders(staffId), signal, silent401: true });
+  return parseReplyResult(raw);
+}
+
+/** Go Off Duty / Go On Duty for the person at the screen; returns the new state. */
+export async function setDuty(onDuty: boolean, staffId: number | null): Promise<boolean> {
+  const raw = await apiFetch<unknown>(DUTY_PATH, { method: "POST", json: dutyBody(onDuty), headers: staffHeaders(staffId), silent401: true });
+  return parseDutyResult(raw, onDuty);
 }
 
 export interface RecoveryCase {

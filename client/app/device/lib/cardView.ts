@@ -74,6 +74,11 @@ export function descriptionOf(c: Card): string {
   return (c.description || "").trim();
 }
 
+/** The title in the worker's language when the server translated it. */
+export function jobTitle(c: Card): string {
+  return (c.display_title ?? "").trim() || cardTitle(c);
+}
+
 export function hasOriginal(c: Card): boolean {
   return Boolean(c.original_text && c.original_text.trim() && c.original_text.trim() !== descriptionOf(c));
 }
