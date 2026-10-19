@@ -12,7 +12,7 @@ import {
 } from "react-icons/lu";
 
 const DEMO_URL = BRAND.demoUrl;
-const TRY_URL = "/try";
+const TRY_URL = "/"; // the live prototype is the site root (/try redirects there)
 const TAGLINE = "The AI guest service desk for hotels";
 
 // ─── Page data ───────────────────────────────────────────────────────────────

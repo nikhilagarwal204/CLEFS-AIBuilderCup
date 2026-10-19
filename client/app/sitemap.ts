@@ -17,7 +17,7 @@ const PAGES: { path: string; priority: number; freq?: "weekly" | "monthly" }[] =
   // The AI Builder Cup prototype is the guest service desk; the Profit
   // Guard, Demand Radar and Google check pages redirect home (next.config.mjs)
   // while their modules are switched off.
-  { path: "/try", priority: 0.9 },
+  { path: "/story", priority: 0.9 },
   { path: "/service-control", priority: 0.9 },
   { path: "/pilot", priority: 0.8 },
   // Trust

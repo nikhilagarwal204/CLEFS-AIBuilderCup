@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
 import {
-  LuArrowLeft, LuBellRing, LuCamera, LuCopy, LuExternalLink, LuHeartHandshake, LuHourglass, LuLayoutDashboard,
+  LuArrowRight, LuBellRing, LuCamera, LuCopy, LuExternalLink, LuHeartHandshake, LuHourglass, LuLayoutDashboard,
   LuShieldCheck, LuSmartphone, LuUser,
 } from "react-icons/lu";
 import { idbSet, KV } from "../device/lib/idb";
@@ -155,7 +155,7 @@ export default function TryDemo() {
           <img src="/brand/clefs-key.webp" alt="" className="tr-bar__mark" width={520} height={1031} />
           <span className="tr-bar__word clefs-gilt">CLEFS</span>
         </Link>
-        <Link href="/" className="tr-bar__back"><LuArrowLeft size={15} aria-hidden="true" /> Homepage</Link>
+        <Link href="/story" className="tr-bar__back">Why Clefs <LuArrowRight size={15} aria-hidden="true" /></Link>
       </header>
 
       <main className="tr-main clefs-above">
@@ -279,6 +279,14 @@ export default function TryDemo() {
           </div>
         </section>
 
+        <section className="tr-story" aria-label="The story behind Clefs">
+          <div>
+            <p className="tr-story__t">Why hotels need this</p>
+            <p className="tr-story__d">The problem, the nine features, how it is built on Google Cloud with Gemini, pricing and trust.</p>
+          </div>
+          <Link href="/story" className="tr-story__btn">Read the story <LuArrowRight size={15} aria-hidden="true" /></Link>
+        </section>
+
         <p className="tr-fine">
           Every tap here works on the demo hotel only: it pairs a new browser as a staff phone, or opens a
           2-hour duty manager session, and never reaches a real hotel. The demo data is reset regularly.
@@ -289,6 +297,18 @@ export default function TryDemo() {
 }
 
 const tryStyles = `
+  .tr-story {
+    margin: 40px 0 0; padding: 22px 24px; border: 1px solid rgba(201, 162, 39, 0.35); border-radius: 18px;
+    display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    background: rgba(201, 162, 39, 0.06);
+  }
+  .tr-story__t { margin: 0 0 4px; font-family: var(--clefs-serif); font-size: 1.25rem; }
+  .tr-story__d { margin: 0; opacity: 0.75; font-size: 0.95rem; max-width: 560px; }
+  .tr-story__btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px;
+    border: 1px solid rgba(201, 162, 39, 0.6); color: inherit; text-decoration: none; font-weight: 600; white-space: nowrap;
+  }
+  .tr-story__btn:hover { background: rgba(201, 162, 39, 0.12); }
   .tr { min-height: 100vh; color: var(--clefs-ink); font-family: var(--clefs-sans); overflow-x: clip; }
   .tr h1, .tr h2, .tr-step__n { font-family: var(--clefs-serif); font-weight: 500; }
   .tr em { font-style: italic; }
