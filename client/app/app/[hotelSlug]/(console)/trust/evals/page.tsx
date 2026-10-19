@@ -27,7 +27,7 @@ export default function EvalsPage() {
   const [view, setView] = useState<"runs" | "scenarios">("runs");
 
   if (!canGate) {
-    return <Card><EmptyState title="AI evaluations are for owners and GMs" body="Ask the hotel owner if you need access." /></Card>;
+    return <Card><EmptyState title="The quality gate is for owners, GMs and department heads" body="Ask the hotel owner if you need access." /></Card>;
   }
   return (
     <>

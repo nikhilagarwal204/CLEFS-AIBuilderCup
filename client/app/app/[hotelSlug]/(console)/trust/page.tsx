@@ -2,9 +2,10 @@
 
 /* ═══════════════════════════════════════════════════════════════════════
    Trust overview: one tile per section with the one number that says
-   whether it needs attention today (chain intact, concierge ready, privacy
-   requests due, pilots on track). Each fetch runs only when the viewer
-   holds that section's permission, so a GM without a grant sees no 403s.
+   whether it needs attention today (the 22 tests, the shadow week, chain
+   intact, concierge ready, privacy requests due, pilots on track). Each
+   fetch runs only when the viewer holds that section's permission, so a GM
+   without a grant sees no 403s.
    ═══════════════════════════════════════════════════════════════════════ */
 
 import Link from "next/link";
@@ -14,6 +15,7 @@ import { useHotel } from "../../../../lib/hotel";
 import { useSession } from "../../../../lib/session";
 import { Badge, Card, StatTile } from "../../../../ui";
 import { dayLabel, PILOT_STATUS, trustApi, trustHref } from "./lib";
+import { gateTestsText, shadowText } from "./pure";
 import type { ChainState, Dsr, Pilot, Readiness } from "./types";
 
 export default function TrustOverview() {
@@ -28,9 +30,31 @@ export default function TrustOverview() {
 
   const overdue = (dsr.data ?? []).filter(d => d.overdue).length;
   const active = (pilots.data ?? []).filter(p => p.status === "active");
+  const tests = gateTestsText(ready.data?.tests);
+  const shadow = shadowText(ready.data?.shadow);
 
   return (
     <div className="cx-grid cx-grid--2">
+      {can(["trust.evals.view", "concierge.manage"]) && (
+        <Link className="trs-tile-link" href={trustHref(slug, "/evals")}>
+          <StatTile
+            label="Safety and accuracy tests"
+            loading={ready.loading && !ready.data}
+            value={ready.data ? tests.value : ready.error ? "Unavailable" : "-"}
+            sub={ready.data ? tests.sub : "All 22 must pass before the concierge goes live, with Gemini as the judge."}
+          />
+        </Link>
+      )}
+      {can(["trust.evals.view", "concierge.manage"]) && (
+        <Link className="trs-tile-link" href={trustHref(slug, "/evals")}>
+          <StatTile
+            label="Shadow mode"
+            loading={ready.loading && !ready.data}
+            value={ready.data ? shadow.value : ready.error ? "Unavailable" : "-"}
+            sub={ready.data ? shadow.sub : "7 days of escalations worked out and shown before anyone is messaged."}
+          />
+        </Link>
+      )}
       {can("trust.audit.view") && (
         <Link className="trs-tile-link" href={trustHref(slug, "/audit")}>
           <StatTile

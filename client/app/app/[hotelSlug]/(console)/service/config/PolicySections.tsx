@@ -18,7 +18,7 @@ const SCOPES = Object.keys(SCOPE_LABELS) as SlaPolicy["scope_type"][];
 export function SlaSection({ state }: { state: SectionState<SlaPolicy> }) {
   const ro = state.offline;
   return (
-    <SectionFrame title="Response times" state={state}
+    <SectionFrame title="Response targets" state={state}
                   subtitle={<>Minutes to acknowledge and to finish. The most specific rule wins: request type, then
                     department and level, department, level, hotel default. Escalation when nobody acks:{" "}
                     {DEFAULT_LADDER.map(s => `${ROLE_LABELS[s.to]} at ${s.after_min}m`).join(", ")}.</>}

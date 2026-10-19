@@ -21,7 +21,7 @@ import { trsStyles } from "./styles";
 const SECTIONS: readonly { key: string; label: string; sub: string; perm: readonly string[] }[] = [
   { key: "overview", label: "Overview", sub: "", perm: ["trust.view"] },
   { key: "audit", label: "Audit log", sub: "/audit", perm: ["trust.audit.view"] },
-  { key: "evals", label: "AI evaluations", sub: "/evals", perm: ["trust.evals.view", "concierge.manage"] },
+  { key: "evals", label: "Quality gate", sub: "/evals", perm: ["trust.evals.view", "concierge.manage"] },
   { key: "privacy", label: "Privacy", sub: "/privacy", perm: ["trust.privacy.manage", "trust.view"] },
   { key: "pilots", label: "Pilots", sub: "/pilots", perm: ["trust.pilots.view"] },
   { key: "benchmarks", label: "Benchmarks", sub: "/benchmarks", perm: ["trust.pilots.view"] },
@@ -43,8 +43,8 @@ export default function TrustLayout({ children }: { children: ReactNode }) {
       <style dangerouslySetInnerHTML={{ __html: trsStyles }} />
       <PageHeader
         eyebrow="Trust"
-        title="Trust and privacy"
-        subtitle="What changed and who changed it, how the AI concierge scores before it talks to guests, privacy requests under UAE PDPL, and pilot results you can check line by line."
+        title="Quality gate and trust"
+        subtitle="The concierge talks to guests only after all 22 safety and accuracy tests pass, judged by Gemini, and 7 days in shadow mode. Here too: what changed and who changed it, privacy requests, and pilot results you can check line by line."
       />
       <Tabs
         ariaLabel="Trust sections"

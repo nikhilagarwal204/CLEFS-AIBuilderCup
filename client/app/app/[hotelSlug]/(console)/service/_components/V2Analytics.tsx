@@ -18,16 +18,14 @@ import { useFormat } from "../../../../../lib/format";
 import { hotelDayKey, addDays } from "./hotelTime";
 import { useNow } from "./RequestMeta";
 import { ApiError, api, hotelPath } from "../../../../../lib/api";
+import { GROUP_TITLES, type LabelGroup } from "./analyticsLabels";
 
 // ─── Types ───
 
-export type GroupBy =
-  | "staff" | "floor" | "shift" | "department" | "room_type" | "language" | "stay_stage" | "source" | "request_type";
+export type GroupBy = LabelGroup;
 
-export const GROUP_LABELS: Record<GroupBy, string> = {
-  staff: "Staff", floor: "Floor", shift: "Shift", department: "Department", room_type: "Room type",
-  language: "Language", stay_stage: "Stay stage", source: "Channel", request_type: "Request type",
-};
+/** Selector and column names; the department dimension is the deck's "Team". */
+export const GROUP_LABELS: Record<GroupBy, string> = GROUP_TITLES;
 
 export const V2_METRICS = [
   { key: "service.requests", label: "Requests", unit: "count" },
@@ -115,6 +113,47 @@ export async function loadV2(slug: string, start: string, end: string, groupBy?:
   return out;
 }
 
+/** A few metrics grouped by one dimension (the owner view's charts), without
+    the totals and the other metrics loadV2 also fetches. */
+export async function loadBreakdown(
+  slug: string, start: string, end: string, groupBy: GroupBy, metrics: readonly MetricKey[],
+): Promise<GroupRow[]> {
+  const results = await Promise.all(metrics.map(m => query(slug, m, start, end, "total", groupBy).catch(err => {
+    if (err instanceof ApiError && [400, 401, 403, 404].includes(err.status)) return null;
+    throw err;
+  })));
+  const byKey = new Map<string, GroupRow>();
+  metrics.forEach((m, i) => {
+    for (const row of results[i]?.rows ?? []) {
+      const key = row.group?.[groupBy] ?? "(none)";
+      const g = byKey.get(key) ?? { key, values: {} };
+      g.values[m] = row.value;
+      byKey.set(key, g);
+    }
+  });
+  return [...byKey.values()];
+}
+
+/** The owner view (05 spec 2.16): first response by team, floor and shift. */
+export const OWNER_DIMENSIONS = ["department", "floor", "shift"] as const;
+const OWNER_METRICS: readonly MetricKey[] = ["service.ack_p50_min", "service.requests", "service.sla_ack_breach_rate"];
+
+export type OwnerView = Record<(typeof OWNER_DIMENSIONS)[number], GroupRow[]>;
+
+export function useOwnerView(slug: string, start: string, end: string) {
+  const [state, setState] = useState<{ data: OwnerView | null; error: string | null; key: string }>({ data: null, error: null, key: "" });
+  const key = `${slug}|${start}|${end}`;
+  useEffect(() => {
+    if (!start || !end) return;
+    let live = true;
+    Promise.all(OWNER_DIMENSIONS.map(d => loadBreakdown(slug, start, end, d, OWNER_METRICS)))
+      .then(([department, floor, shift]) => { if (live) setState({ data: { department, floor, shift }, error: null, key }); })
+      .catch(err => { if (live) setState({ data: null, error: String((err as Error)?.message ?? err), key }); });
+    return () => { live = false; };
+  }, [slug, start, end, key]);
+  return { data: state.key === key ? state.data : null, error: state.key === key ? state.error : null, loading: state.key !== key };
+}
+
 export function useV2Analytics(slug: string, start: string, end: string, groupBy?: GroupBy, withDaily = false) {
   const [state, setState] = useState<{ data: V2Result | null; error: string | null; loading: boolean; key: string }>(
     { data: null, error: null, loading: true, key: "" });
@@ -163,7 +202,7 @@ export function V2AnalyticsStrip({ hotelSlug }: { hotelSlug: string }) {
     <div className="glass-card" style={{ padding: "18px 20px", marginBottom: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
         <strong>Last 7 days: first response vs completion</strong>
-        <Link className="svc-linkbtn" href={`/app/${encodeURIComponent(hotelSlug)}/service/analytics`}>Full service analytics</Link>
+        <Link className="svc-linkbtn" href={`/app/${encodeURIComponent(hotelSlug)}/service/analytics`}>Owner view: response times by team, floor and shift</Link>
       </div>
       <div className="svc-stats">
         {tiles.map(x => (

@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 import { ApiError, UNAUTHORIZED_EVENT, api, apiUrl, hotelPath } from "../../../../../lib/api";
+import type { StaffCandidate } from "./deskLabels";
 
 // ─── Request card (GET queue, POST requests, transitions) ───
 
@@ -39,11 +40,36 @@ export interface V2Fields {
   resolve_due_at?: number | null;
   sla_ack_breached?: boolean | null;
   sla_resolve_breached?: boolean | null;
-  escalation_level?: number | null;
+  /** The ladder step reached: supervisor | duty_manager | gm (05 spec), or
+      the older 0-3 level. deskLabels.escalationStep reads both. */
+  escalation_level?: number | string | null;
   reopen_count?: number | null;
   merged_count?: number | null;
   guest_confirmation?: "yes" | "no" | "unknown" | null;
   flags?: Record<string, unknown> | null;
+  // 05 spec console contract: proof before closure, ETA, closure, mood.
+  needs_proof?: boolean | null;
+  proof_status?: string | null;
+  proof_reason?: string | null;
+  /** Short-lived signed URL, or an API path the same-origin proxy serves. */
+  proof_photo_url?: string | null;
+  eta_minutes?: number | null;
+  eta_at?: number | string | null;
+  guest_confirmed_at?: number | string | null;
+  closed_at?: number | string | null;
+  closure_reason?: string | null;
+  mood?: string | null;
+  frustration?: number | null;
+  /** The ladder step as a number (escalation_level carries its name). */
+  escalation_step?: number | null;
+  staff_first_name?: string | null;
+  guest_language?: string | null;
+  /** Priority high (05 decision 11). */
+  urgent?: boolean | null;
+  /** Emergency words (the request's sensitivity). */
+  emergency?: boolean | null;
+  /** Completed, not yet closed: the guest has been asked. */
+  awaiting_guest?: boolean | null;
 }
 
 export interface ServiceCard extends V2Fields {
@@ -210,6 +236,58 @@ export async function transition(slug: string, id: number, body: TransitionBody)
 
 export function addNote(slug: string, id: number, body: string) {
   return api.post<ServiceEvent>(svc(slug, `/requests/${id}/notes`), { body });
+}
+
+/** The manager's "Choose staff" list for one job (05 spec decision 5): the
+    free people in dispatch order, then everyone else with why they are not
+    free. Entries follow deskLabels.StaffCandidate. */
+export function fetchFreeStaff(slug: string, id: number) {
+  return api.get<{ free?: StaffCandidate[]; others?: StaffCandidate[] }>(svc(slug, `/requests/${id}/free-staff`),
+    undefined, { silent401: true });
+}
+
+/** Demo hotels only (hotel status "demo"): move a job's clock back so the
+    3 / 5 / 10 minute escalation ladder can be shown live (05 spec 3). */
+export async function demoAdvance(slug: string, id: number, minutes = 3): Promise<ServiceCard | null> {
+  const out = await api.post<unknown>(svc(slug, `/requests/${id}/demo-advance`), { minutes });
+  if (out && typeof out === "object") {
+    const o = out as { request?: ServiceCard; id?: number };
+    if (o.request && typeof o.request === "object") return o.request;
+    if (typeof o.id === "number") return out as ServiceCard;
+  }
+  return null;
+}
+
+// ─── Recovery approvals (05 spec 2.12: "Needs your approval") ───
+
+/** A recovery case as the list route sends it. Only `id` is relied on; the
+    rest is read defensively by deskLabels.approvalItems. */
+export interface RecoveryCase {
+  id: number;
+  status?: string | null;
+  room?: string | null;
+  request_id?: number | null;
+  kind?: string | null;
+  reason?: string | null;
+  [field: string]: unknown;
+}
+
+/** Open cases; `pendingOnly` narrows to gestures waiting for a decision
+    (?approval=pending, the "Needs your approval" panel). */
+export function fetchRecoveryCases(slug: string, opts: { status?: "open" | "all"; pendingOnly?: boolean } = {}) {
+  return api.get<RecoveryCase[] | { items: RecoveryCase[] }>(svc(slug, "/recovery-cases"), {
+    status: opts.status ?? "open", approval: opts.pendingOnly ? "pending" : undefined,
+  }, { silent401: true });
+}
+
+export interface RecoveryDecision {
+  action: "approve" | "dismiss";
+  /** The gesture as approved: the AI suggestion, or the manager's edit of it. */
+  gesture?: string;
+}
+
+export function decideRecoveryCase(slug: string, id: number, body: RecoveryDecision) {
+  return api.post<unknown>(svc(slug, `/recovery-cases/${id}/decide`), body);
 }
 
 // ─── Errors ───

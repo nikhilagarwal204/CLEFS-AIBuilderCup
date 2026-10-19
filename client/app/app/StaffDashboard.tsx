@@ -41,6 +41,8 @@ import {
   LuChevronUp,
   LuX as LuXClose,
   LuMenu,
+  LuSiren,
+  LuFastForward,
 } from "react-icons/lu";
 import {
   ChartCard,
@@ -57,20 +59,28 @@ import {
 import Link from "next/link";
 import { API_PREFIX, ApiError, apiFetch, openHotelStream } from "../lib/api";
 import { formatDateTime, formatDate, useFormat } from "../lib/format";
+import { useHotelOptional } from "../lib/hotel";
 import { useSession } from "../lib/session";
+import { ROLE_LABELS, type Role, type StreamStatus } from "../lib/types";
 import { Drawer, useToast } from "../ui";
 // Service Control v2 pieces (03 spec 1.8: surgical edits now, extraction later).
 import {
-  createRequest, effectiveState, fetchQueue, takesLegacyPath, transition, conflictText, errorText,
+  createRequest, demoAdvance, effectiveState, fetchQueue, takesLegacyPath, transition, conflictText, errorText, isMissingRoute,
   type TransitionAction, type V2Fields,
 } from "./[hotelSlug]/(console)/service/_components/serviceApi";
 import {
-  OriginalToggle, StaffAssign, SvcStyles, V2Chips, useNow,
+  EtaChip, LivePill, OriginalToggle, PhotoThumb, ProofAlert, StaffAssign, SvcStyles, TimeTaken, V2Chips, useNow,
 } from "./[hotelSlug]/(console)/service/_components/RequestMeta";
 import { hotelDayStart, hotelHour } from "./[hotelSlug]/(console)/service/_components/hotelTime";
 import PhoneEntryConsole from "./[hotelSlug]/(console)/service/_components/PhoneEntryConsole";
 import { V2AnalyticsStrip } from "./[hotelSlug]/(console)/service/_components/V2Analytics";
 import { StaffDeviceActions } from "./[hotelSlug]/(console)/service/_components/StaffDeviceActions";
+// 05 spec (AI Builder Cup): approvals, request detail and the deck's wording.
+import ApprovalsPanel from "./[hotelSlug]/(console)/service/_components/ApprovalsPanel";
+import RequestDetail from "./[hotelSlug]/(console)/service/_components/RequestDetail";
+import {
+  escalationLabel, escalationStep, graceStatus, isEmergency, isOpenRow, isUrgentPath, priorityClass, priorityLabel,
+} from "./[hotelSlug]/(console)/service/_components/deskLabels";
 
 
 /* ─────────────────────────────── Styles ─────────────────────────────── */
@@ -292,6 +302,12 @@ const injectStyles = `
   h1,h2,h3 { font-family:'Inter',sans-serif; font-weight:700; }
 
   .req-card { animation: slideIn 0.35s ease forwards; }
+  /* 05 spec: an emergency, and a job whose proof photo was rejected, must not be missed. */
+  .req-card--emergency { border-color: rgba(229,72,77,0.7); background: rgba(229,72,77,0.07); }
+  .req-card--alert { border-color: rgba(229,72,77,0.55); box-shadow: inset 3px 0 0 rgba(229,72,77,0.85); }
+  .req-open { background: none; border: 0; padding: 0; margin: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+  .req-open:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(225,175,104,0.55); }
+  .req-open:focus-visible { outline: 2px solid var(--hc-gold); outline-offset: 3px; border-radius: 4px; }
   .req-card:hover .delete-btn { opacity:1; }
   .delete-btn { opacity:0.3; transition: opacity 0.2s, color 0.2s; }
   .delete-btn:hover { opacity:1 !important; color:var(--hc-urgent) !important; }
@@ -1448,6 +1464,7 @@ function FilterPanel({ filters, onChange, onReset }: FilterPanelProps) {
 
 /* ── Request Card ── */
 interface RequestCardProps {
+  hotelSlug: string;
   req: Request;
   onStatusChange: (id: number, s: "new" | "progress" | "completed") => void;
   onDelete: (id: number) => void;
@@ -1455,10 +1472,32 @@ interface RequestCardProps {
   onAssign: (id: number, staffId: number) => void;
   /** v2: any other transition (ack, start, reopen ...). */
   onAction: (id: number, action: TransitionAction) => void;
+  /** Opens the request detail (photo, guest answer, timeline). */
+  onOpen: (id: number) => void;
+  /** Demo hotels only: move the job's clock 3 minutes so the ladder runs live. */
+  onSimulate?: (id: number) => void;
+  simulating?: boolean;
   staff: StaffMember[];
   now: number;
   busy: boolean;
   canManage: boolean;
+}
+
+/** The urgent ladder pages the duty manager at its second step (level 2). */
+function dutyManagerPaged(req: Request): boolean {
+  const step = escalationStep(req.escalation_level);
+  return step === "duty_manager" || step === "gm";
+}
+
+/** "Accepted: 18:02" from the person's ack (v2), else the assignment time;
+    legacy rows only have accepted_at, which was the old accept. */
+function acceptedLine(req: Request): { label: string; at: number } | null {
+  if (req.state) {
+    if (req.acknowledged_at) return { label: "Accepted", at: req.acknowledged_at };
+    const assigned = req.assigned_at ?? req.accepted_at;
+    return assigned ? { label: "Assigned", at: assigned } : null;
+  }
+  return req.accepted_at ? { label: "Accepted", at: req.accepted_at } : null;
 }
 
 const DEPT_COLORS: Record<string, string> = {
@@ -1470,67 +1509,89 @@ const DEPT_COLORS: Record<string, string> = {
   "General":         "var(--hc-text-muted)",
 };
 
-function RequestCard({ req, onStatusChange, onDelete, onAssign, onAction, staff, now, busy, canManage }: RequestCardProps) {
+function RequestCard({ hotelSlug, req, onStatusChange, onDelete, onAssign, onAction, onOpen, onSimulate, simulating, staff, now, busy, canManage }: RequestCardProps) {
   const hf = useFormat();
   const state = effectiveState(req);
   const deptColor = DEPT_COLORS[req.category] || "#94a3b8";
+  const open = isOpenRow(req);
+  const emergency = open && isEmergency(req);
+  const accepted = acceptedLine(req);
+  // 05 spec 2.7: the ladder runs on jobs nobody has accepted yet. An urgent
+  // job (emergency, sensitive, L1) pages everyone at once: nothing to simulate.
+  const canSimulate = Boolean(onSimulate) && (state === "new" || state === "assigned" || state === "reopened")
+    && !isUrgentPath(req);
+  const cardClass = `glass-card req-card${emergency ? " req-card--emergency" : req.proof_status === "rejected" ? " req-card--alert" : ""}`;
 
   return (
     <div
-      className="glass-card req-card"
+      className={cardClass}
     >
       <div className="icon-box">{getIcon(req.type, req.category)}</div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: "700", fontSize: "1.05rem" }}>Room {req.room}</span>
+          <button type="button" className="req-open" onClick={() => onOpen(req.id)} title="Open the request: photo, guest answer and timeline">
+            <span style={{ fontWeight: "700", fontSize: "1.05rem" }}>Room {req.room}</span>
+          </button>
           <span style={{ color: "rgba(255,255,255,0.25)" }}>•</span>
           <span style={{ color: "var(--hc-gold)", fontSize: "0.9rem", fontWeight: "500" }}>{req.type}</span>
           {req.subtype && (
             <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.82rem", fontStyle: "italic" }}>· {req.subtype}</span>
           )}
-          <span className={`priority-${req.priority}`}>{req.priority}</span>
+          {/* URGENT is priority high (05 spec 2.11); emergencies carry their own badge in the chips. */}
+          <span className={`priority-${priorityClass(req.priority)}`}>{priorityLabel(req.priority)}</span>
           <span style={{ fontSize: "0.7rem", padding: "2px 8px", borderRadius: "100px", background: `${deptColor}20`, color: deptColor, border: `1px solid ${deptColor}44` }}>{req.category}</span>
         </div>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.description}</p>
-        {/* v2: state, SLA countdown, source and language, then the guest's own words */}
-        <div style={{ marginTop: "6px" }}><V2Chips req={req} now={now} /></div>
+        {/* v2: emergency, state, SLA countdown, escalation step, photo and guest
+            stage, mood, source and language, then the guest's own words */}
+        <div style={{ marginTop: "6px" }}><V2Chips req={req} now={now} withProofAlert /></div>
+        <ProofAlert req={req} />
         <OriginalToggle req={req} />
 
         {/* Assignment & Audit Info */}
-        <div style={{ display: "flex", gap: "12px", marginTop: "8px", fontSize: "0.75rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "12px", marginTop: "8px", fontSize: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+          <PhotoThumb req={req} room={req.room} size={40} onOpen={() => onOpen(req.id)} />
           {req.assigned_to && (
             <span style={{ display: "flex", alignItems: "center", gap: "4px", background: "rgba(225, 175, 104,0.1)", color: "var(--hc-gold)", padding: "3px 8px", borderRadius: "6px", fontWeight: 600 }}>
               <BsPersonCircle /> {req.assigned_to}
             </span>
           )}
-          {req.accepted_at && <span style={{ color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", gap: "3px" }}>Accepted: {formatTimestamp(req.accepted_at, hf.tz, hf.locale)}</span>}
+          <EtaChip req={req} now={now} />
+          {accepted && <span style={{ color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", gap: "3px" }}>{accepted.label}: {formatTimestamp(accepted.at, hf.tz, hf.locale)}</span>}
           {req.resolved_at && <span style={{ color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center", gap: "3px" }}>Resolved: {formatTimestamp(req.resolved_at, hf.tz, hf.locale)}</span>}
         </div>
       </div>
 
-      <div className="req-card-status-info" style={{ textAlign: "right", paddingRight: "20px", flexShrink: 0 }}>
-        <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.28)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end" }}>
+      <div className="req-card-status-info" style={{ textAlign: "right", paddingRight: "20px", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px", flexWrap: "wrap" }}>
+        <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.28)", display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end" }}>
           <BsClockHistory /> {relativeTime(req.timestamp)}
         </div>
         <span className={`status-badge status-${req.status}`}>{req.status === "progress" ? "In Progress" : req.status}</span>
+        {/* Time taken (05 spec 2.13): live until a person accepts, then frozen, as on the guest's card. */}
+        <TimeTaken req={req} />
+        {canSimulate && (
+          <button type="button" className="svc-linkbtn" disabled={simulating} onClick={() => onSimulate?.(req.id)}
+                  title="Demo hotel only: moves this job's clock back 3 minutes, so the supervisor, duty manager and GM steps run now"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <LuFastForward size={12} aria-hidden="true" /> {simulating ? "Moving the clock..." : "Simulate 3 min"}
+          </button>
+        )}
       </div>
 
-      <div className="req-card-actions" style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "center" }}>
+      <div className="req-card-actions" style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "420px" }}>
         {/* v2 actions by state. Assigning picks a staff member from a list
             (the old free-text "Your Name" never matched anyone). */}
         {(state === "new" || state === "reopened" || state === "scheduled") && canManage && (
-          <StaffAssign staff={staff} department={req.category} busy={busy} onAssign={sid => onAssign(req.id, sid)} />
+          <StaffAssign key={`assign-${req.id}-${req.version ?? 0}`} staff={staff} department={req.category} busy={busy}
+                       hotelSlug={req.state ? hotelSlug : undefined} requestId={req.state ? req.id : undefined}
+                       onAssign={sid => onAssign(req.id, sid)} />
         )}
         {state === "assigned" && (
-          <>
-            <button className="btn-complete" style={{ padding: "7px 12px", fontSize: "0.8rem" }} disabled={busy}
-                    onClick={() => onAction(req.id, "ack")} title="The assignee has seen it">
-              Ack
-            </button>
-            {canManage && <StaffAssign staff={staff} department={req.category} busy={busy} label="Reassign"
-                                       onAssign={sid => onAssign(req.id, sid)} />}
-          </>
+          <button className="btn-complete" style={{ padding: "7px 12px", fontSize: "0.8rem" }} disabled={busy}
+                  onClick={() => onAction(req.id, "ack")} title="The assignee has seen it">
+            Ack
+          </button>
         )}
         {state === "acknowledged" && (
           <button className="btn-complete" style={{ padding: "7px 12px", fontSize: "0.8rem" }} disabled={busy}
@@ -1538,8 +1599,17 @@ function RequestCard({ req, onStatusChange, onDelete, onAssign, onAction, staff,
             On the way
           </button>
         )}
+        {/* A manager can move the job to someone else until it is done. */}
+        {(state === "assigned" || state === "acknowledged" || state === "in_progress") && canManage && (
+          <StaffAssign key={`reassign-${req.id}-${req.version ?? 0}`} staff={staff} department={req.category} busy={busy} label="Reassign"
+                       hotelSlug={req.state ? hotelSlug : undefined} requestId={req.state ? req.id : undefined}
+                       onAssign={sid => onAssign(req.id, sid)} />
+        )}
         {(state === "assigned" || state === "acknowledged" || state === "in_progress") && (
           <button className="btn-complete" style={{ background: "var(--hc-success)", color: "#fff", padding: "9px 16px" }} disabled={busy}
+                  title={req.needs_proof && req.proof_status !== "verified"
+                    ? "No verified photo yet: this closes the job on your word (staff close it with a photo on the staff app)"
+                    : undefined}
                   onClick={() => onStatusChange(req.id, "completed")}>
             <BsCheckCircleFill /> Resolve
           </button>
@@ -1555,13 +1625,18 @@ function RequestCard({ req, onStatusChange, onDelete, onAssign, onAction, staff,
             Resolved
           </button>
         )}
-        <button
-          className="delete-btn"
-          style={{ background: "none", border: "none", color: "rgba(255,80,80,0.5)", cursor: "pointer", padding: "9px" }}
-          onClick={() => onDelete(req.id)}
-        >
-          <BsTrash size={17} />
-        </button>
+        {canManage && (open || !req.state) && (
+          <button
+            type="button"
+            className="delete-btn"
+            style={{ background: "none", border: "none", color: "rgba(255,80,80,0.5)", cursor: "pointer", padding: "9px" }}
+            onClick={() => onDelete(req.id)}
+            title={req.state ? "Cancel this request (it stays in the history)" : "Delete this request"}
+            aria-label={req.state ? `Cancel the request for room ${req.room}` : `Delete the request for room ${req.room}`}
+          >
+            <BsTrash size={17} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1684,8 +1759,20 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
   const [busyId, setBusyId] = useState<number | null>(null);
   const now = useNow();
   const uiToast = useToast();
-  const { can } = useSession();
+  const session = useSession();
+  const { can } = session;
   const canManage = can("service.manage");
+  // 05 spec: the live link's state, the approvals panel's refresh, the open
+  // request detail, and the demo-only clock helper (demo hotels only).
+  const hotelCtx = useHotelOptional();
+  const isDemo = hotelCtx?.hotel?.status === "demo";
+  const guestsModuleOn = hotelCtx ? hotelCtx.moduleEnabled("guests") : true;
+  const [streamStatus, setStreamStatus] = useState<StreamStatus | null>(null);
+  const [approvalsKey, setApprovalsKey] = useState(0);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [simulatingId, setSimulatingId] = useState<number | null>(null);
+  const signedInAs = session.user?.name ?? (session.legacyMode ? "Concierge Desk" : null);
+  const signedInRole = session.role ? ROLE_LABELS[session.role as Role] ?? session.role : null;
   const requestsRef = useRef<Request[]>([]);
   const staffListRef = useRef<StaffMember[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1776,7 +1863,13 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
       }
     };
 
-    return openHotelStream(hotelSlug, {
+    // The approvals panel reloads on recovery changes, and on request changes
+    // too ("not fixed" reopens the job as it opens the case).
+    const refreshApprovals = () => setApprovalsKey(k => k + 1);
+    // The header's Live / Reconnecting pill (05 spec: a live dashboard).
+    const status = graceStatus<StreamStatus>(setStreamStatus);
+
+    const close = openHotelStream(hotelSlug, {
       [ASSISTANT_REQUEST_EVENT]: (newReq: any) => {
         try {
           // Unparseable payloads arrive as raw strings; ignore them as before.
@@ -1789,9 +1882,24 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
           console.error("Error handling new assistant request", err);
         }
       },
-      requests_changed: refreshRequests,
-    }, { refetch: () => { void pollCursor(); }, pollMs: 15_000 });
-  }, [hotelSlug, playAlertSound]);
+      requests_changed: () => { refreshRequests(); refreshApprovals(); },
+      "service.recovery_changed": refreshApprovals,
+      // Proof before closure (05 spec 2.8): a rejected photo keeps the job
+      // open and alerts the supervisor; the desk hears it too.
+      "service.proof_rejected": (d: any) => {
+        if (!d || typeof d !== "object") return;
+        refreshRequests();
+        const where = `room ${d.room ?? "-"}`;
+        if (d.status === "rejected") uiToast.error(`Photo rejected: ${where}`, "The job stays open and the supervisor was alerted.");
+        else uiToast.info(`Photo needs a look: ${where}`, "The automatic check could not run, so the supervisor was asked to look.");
+      },
+    }, {
+      refetch: () => { void pollCursor(); refreshApprovals(); },
+      pollMs: 15_000,
+      onStatus: status.onStatus,
+    });
+    return () => { status.cancel(); close(); };
+  }, [hotelSlug, playAlertSound, uiToast]);
 
   /* ── Close filter panel when clicking outside ── */
   useEffect(() => {
@@ -1865,6 +1973,43 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
     await fetch(`${API_BASE}/hotels/${hotelSlug}/requests/${id}`, { method: "DELETE" });
     setRequests(prev => prev.filter(r => r.id !== id));
   }, [hotelSlug]);
+
+  /* The trash icon cancels a v2 request (it stays in the history, the
+     analytics and the proof trail); only a pre-v2 row is still deleted.
+     Either way it asks first: one stray tap used to erase a request. */
+  const removeRequest = useCallback(async (id: number) => {
+    const current = requestsRef.current.find(r => r.id === id);
+    if (!current) return;
+    if (current.state) {
+      if (!window.confirm(`Cancel the request for room ${current.room}? It stays in the service history.`)) return;
+      await runTransition(id, "cancel");
+      return;
+    }
+    if (!window.confirm(`Delete the request for room ${current.room}? This cannot be undone.`)) return;
+    await deleteRequest(id);
+  }, [runTransition, deleteRequest]);
+
+  /* ── Demo helper (05 spec 3: demo hotels only): move a job's clock back
+     3 minutes so the supervisor, duty manager and GM steps run live. ── */
+  const simulateMinutes = useCallback(async (id: number) => {
+    setSimulatingId(id);
+    try {
+      const card = await demoAdvance(hotelSlug, id, 3);
+      if (card) {
+        const next = cleanCategory(card as unknown as Request);
+        setRequests(prev => prev.map(r => (r.id === id ? { ...r, ...next } : r)));
+      }
+      reloadRequests();
+      const step = card ? escalationLabel(card.escalation_level) : null;
+      uiToast.info("Moved this job's clock 3 minutes", step ? `Escalated: ${step}` : "The escalation ladder now runs on the new time.");
+    } catch (err) {
+      if (isMissingRoute(err)) uiToast.error("Simulating time is not available on this server yet.");
+      else if (err instanceof ApiError && (err.status === 403 || err.status === 404)) uiToast.error("Only a manager of a demo hotel can simulate time.", errorText(err));
+      else uiToast.error("Could not move the clock", errorText(err));
+    } finally {
+      setSimulatingId(null);
+    }
+  }, [hotelSlug, reloadRequests, uiToast]);
 
   /* ── Staff CRUD ── */
   const openAddStaff = () => {
@@ -1971,11 +2116,15 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
   };
 
   /* ── Combined filtering ── */
-  const filtered = requests.filter(req => {
+  // Safety first (05 spec): an open emergency is never hidden by a
+  // department chip (it is filed under Security, which has no chip) and it
+  // sits at the top of the list.
+  const isOpenEmergency = (req: Request) => isOpenRow(req) && isEmergency(req);
+  const matching = requests.filter(req => {
     // Tab (status quick-filter)
     if (activeTab !== "all" && req.status !== activeTab) return false;
     // Department filtering component integration
-    if (activeDepartment !== "All" && req.category !== activeDepartment) return false;
+    if (activeDepartment !== "All" && req.category !== activeDepartment && !isOpenEmergency(req)) return false;
     // Advanced status filter (filter panel overrides tab if set)
     if (filters.status !== "all" && req.status !== filters.status) return false;
     // Time
@@ -1996,6 +2145,14 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
     }
     return true;
   });
+  const filtered = [...matching.filter(isOpenEmergency), ...matching.filter(r => !isOpenEmergency(r))];
+  const openEmergencies = requests.filter(isOpenEmergency);
+  const detailRequest = detailId === null ? null : requests.find(r => r.id === detailId) ?? null;
+  // The approvals panel reads the guest's mood from the request a case is about.
+  const moodOf = useCallback((id: number) => {
+    const r = requests.find(x => x.id === id);
+    return r ? { mood: r.mood, frustration: r.frustration } : null;
+  }, [requests]);
 
   /* ── Stats ── */
   const stats = {
@@ -2172,12 +2329,16 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
           >
             <BsHouseDoor /> Dashboard
           </div>
-          <div
-            className={`sidebar-item ${sidebarView === "guests" ? "active" : ""}`}
-            onClick={() => { setSidebarView("guests"); fetchGuestRooms(hotelSlug).then(setGuestRooms); setIsSidebarOpen(false); }}
-          >
-            <BsPersonCircle /> Guest List
-          </div>
+          {/* The Guests module can be switched off (CLEFS_DISABLED_MODULES or the
+              hotel's module settings); its list then leaves the sidebar too. */}
+          {guestsModuleOn && (
+            <div
+              className={`sidebar-item ${sidebarView === "guests" ? "active" : ""}`}
+              onClick={() => { setSidebarView("guests"); fetchGuestRooms(hotelSlug).then(setGuestRooms); setIsSidebarOpen(false); }}
+            >
+              <BsPersonCircle /> Guest List
+            </div>
+          )}
           <div
             className={`sidebar-item ${sidebarView === "history" ? "active" : ""}`}
             onClick={() => { setSidebarView("history"); setIsSidebarOpen(false); }}
@@ -2218,7 +2379,12 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
         <div style={{ marginTop: "auto" }}>
           <div className="glass-card" style={{ padding: "16px", fontSize: "0.84rem", color: "rgba(255,255,255,0.5)" }}>
             Logged in as
-            <div style={{ color: "#fff", fontWeight: "600", marginTop: "4px" }}>Concierge Desk</div>
+            <div style={{ color: "#fff", fontWeight: "600", marginTop: "4px", overflowWrap: "anywhere" }}>
+              {signedInAs ?? (session.loading ? "..." : "Not signed in")}
+            </div>
+            {signedInRole && session.user && (
+              <div style={{ fontSize: "0.76rem", marginTop: "2px", color: "rgba(255,255,255,0.4)" }}>{signedInRole}</div>
+            )}
           </div>
         </div>
       </aside>
@@ -2233,7 +2399,10 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
             <header className="dashboard-header">
               <div>
                 <h1 style={{ fontSize: "clamp(1.9rem, 3vw, 2.6rem)", marginBottom: "10px" }}>Staff Requests</h1>
-                <p style={{ color: "var(--clefs-ink-muted)" }}>Guest requests and services, live.</p>
+                <p style={{ color: "var(--clefs-ink-muted)", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                  Guest requests and services, live.
+                  <LivePill status={streamStatus} />
+                </p>
               </div>
 
               <div className="header-controls">
@@ -2261,6 +2430,28 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
                 </button>
               </div>
             </header>
+
+            {/* Safety first (05 spec): every open emergency, above everything else. */}
+            {openEmergencies.length > 0 && (
+              <section className="svc-emerg" aria-label="Open emergencies">
+                {openEmergencies.map(r => (
+                  <div key={r.id} className="svc-emerg__row" role="alert">
+                    <LuSiren aria-hidden="true" />
+                    <span className="svc-emerg__title">EMERGENCY · Room {r.room || "-"}</span>
+                    <span className="svc-emerg__text" dir="auto">
+                      {r.description} · {dutyManagerPaged(r) ? "Duty manager paged" : "Paging the duty manager"} · {relativeTime(r.timestamp)}
+                    </span>
+                    <button type="button" className="btn-ghost" style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                            onClick={() => setDetailId(r.id)}>
+                      Open
+                    </button>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* 05 spec 2.12: recovery gestures for the duty manager to approve. */}
+            <ApprovalsPanel hotelSlug={hotelSlug} canManage={canManage} refreshKey={approvalsKey} moodOf={moodOf} />
 
             {/* Stats Grid */}
             <section className="stats-grid">
@@ -2369,8 +2560,10 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
             {/* Request list */}
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {filtered.length > 0 ? filtered.map(req => (
-                <RequestCard key={req.id} req={req} onStatusChange={handleStatusChange} onDelete={deleteRequest} onAssign={handleAssign}
-                             onAction={handleAction} staff={staffList} now={now} busy={busyId === req.id} canManage={canManage} />
+                <RequestCard key={req.id} hotelSlug={hotelSlug} req={req} onStatusChange={handleStatusChange} onDelete={removeRequest} onAssign={handleAssign}
+                             onAction={handleAction} onOpen={setDetailId}
+                             onSimulate={isDemo && canManage ? simulateMinutes : undefined} simulating={simulatingId === req.id}
+                             staff={staffList} now={now} busy={busyId === req.id} canManage={canManage} />
               )) : (
                 <div className="glass-card" style={{ padding: "80px", textAlign: "center", color: "rgba(255,255,255,0.2)" }}>
                   <div style={{ fontSize: "3rem", marginBottom: "16px" }}><BsBellFill /></div>
@@ -2403,8 +2596,17 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
             {guestRoomList.length === 0 ? (
               <div className="glass-card" style={{ padding: "80px", textAlign: "center", color: "rgba(255,255,255,0.2)" }}>
                 <div style={{ fontSize: "3rem", marginBottom: "16px" }}><LuUsers /></div>
-                <p style={{ fontSize: "1rem" }}>No guest profiles found</p>
-                <p style={{ fontSize: "0.85rem", marginTop: "8px", color: "rgba(255,255,255,0.12)" }}>Add a room profile to get started.</p>
+                {can("guests.view") ? (
+                  <>
+                    <p style={{ fontSize: "1rem" }}>No guest profiles found</p>
+                    <p style={{ fontSize: "0.85rem", marginTop: "8px", color: "rgba(255,255,255,0.12)" }}>Add a room profile to get started.</p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize: "1rem" }}>Guest profiles are not open to your role</p>
+                    <p style={{ fontSize: "0.85rem", marginTop: "8px", color: "rgba(255,255,255,0.3)" }}>Ask the owner or GM if you need them.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: 18 }}>
@@ -2433,7 +2635,7 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
             <header className="view-header">
               <div>
                 <h1>Service History</h1>
-                <p style={{ color: "rgba(255,255,255,0.4)" }}>Every request, past and present.</p>
+                <p style={{ color: "rgba(255,255,255,0.4)" }}>The last 7 days, and every request still open.</p>
               </div>
               <div className="history-filters">
                 <span style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.4)" }}>Show:</span>
@@ -2995,6 +3197,9 @@ export default function StaffDashboard({ hotelSlug }: { hotelSlug: string }) {
 
       {/* Modals */}
       <SvcStyles />
+      {detailRequest && (
+        <RequestDetail hotelSlug={hotelSlug} request={detailRequest} onClose={() => setDetailId(null)} />
+      )}
       <Drawer open={showPhoneEntry} onClose={() => setShowPhoneEntry(false)} title="New request" wide>
         <PhoneEntryConsole
           compact

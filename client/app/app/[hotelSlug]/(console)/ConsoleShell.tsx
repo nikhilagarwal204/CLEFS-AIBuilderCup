@@ -24,6 +24,7 @@ import { loginHref, useSession } from "../../../lib/session";
 import { ROLE_LABELS, type Role } from "../../../lib/types";
 import { Button, Card, EmptyState, Modal, Skeleton, UiStyles } from "../../../ui";
 import { activeNavKey, NAV, navHref, type NavItem } from "./nav";
+import { visibleNav } from "./navVisibility";
 import { NEW_REQUEST_SHORTCUT, newRequestShortcutLabel, shouldOpenNewRequest } from "./newRequestShortcut";
 
 const shellStyles = `
@@ -337,13 +338,16 @@ export default function ConsoleShell({
   const active = activeNavKey(pathname, hotelSlug);
   const activeItem = NAV.find(n => n.key === active);
 
+  // A module switched off for this hotel, or on the whole server
+  // (CLEFS_DISABLED_MODULES), never shows a tab: see navVisibility.ts.
   const visible = useMemo(() => {
     if (!session.me) return [];
-    const items = NAV.filter(n => session.can(n.perm) && hotel.moduleEnabled(n.module));
-    // Anonymous legacy access must still reach the dashboard even if the
-    // server resolves no permissions for an anonymous principal.
-    if (!items.length && session.legacyMode) return NAV.filter(n => n.key === "service");
-    return items;
+    return visibleNav(NAV, {
+      can: perm => session.can(perm),
+      moduleEnabled: m => hotel.moduleEnabled(m),
+      legacyMode: session.legacyMode,
+      contextReady: Boolean(hotel.context) || Boolean(hotel.error),
+    });
   }, [session, hotel]);
 
   const bottomPrimary = useMemo(() => {

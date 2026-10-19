@@ -34,7 +34,8 @@ export default function ServiceShell({
     { key: "queue", label: "Live queue", href: base, show: true },
     { key: "new", label: "Phone entry", href: `${base}/new`, show: can(["service.work", "service.manage"]) },
     { key: "roster", label: "Roster", href: `${base}/roster`, show: can("service.view") },
-    { key: "analytics", label: "Analytics", href: `${base}/analytics`, show: can("service.view") },
+    // The sidebar's "Response times": the owner view (05 spec 2.16).
+    { key: "analytics", label: "Response times", href: `${base}/analytics`, show: can("service.view") },
     { key: "config", label: "Setup", href: `${base}/config`, show: can("service.manage") },
   ] as (TabItem<ServiceTab> & { show: boolean })[])
     .filter(t => t.show || t.key === tab)
