@@ -211,3 +211,18 @@ def test_reply_validation_and_outages(device_client, cur, hotel_uae, fake_ai):
     typed = dev.post(url, json={"text": "Coming now"}, headers=h(maria))
     assert typed.status_code == 200 and typed.json()["translated"] is False
     assert typed.json()["text_for_guest"] == "Coming now"  # the worker's own words, never lost
+
+
+def test_a_note_for_staff_is_translated_plainly_and_cached_apart(cur, hotel_uae, fake_ai):
+    """The photo check's reason is a note to the worker: never softened into
+    a guest apology, and cached apart from guest lines (migration 0135)."""
+    from clefs.modules.service import staff_lang
+
+    answer_by_task(fake_ai, {"service.translate_line": "Hindi tugma ang larawan."})
+    text, translated = staff_lang.english_to(hotel_uae.slug, "The photo does not match the request.", "fil",
+                                             cur=cur, audience="staff")
+    assert (text, translated) == ("Hindi tugma ang larawan.", True)
+    call = next(c for c in fake_ai.calls if c.task == "service.translate_line")
+    assert "staff member" in call.system and "Do not apologise" in call.system
+    cur.execute("SELECT purpose FROM svc_translations WHERE hotel_slug = %s AND lang = 'fil'", (hotel_uae.slug,))
+    assert [r["purpose"] for r in cur.fetchall()] == ["staff_note"]
