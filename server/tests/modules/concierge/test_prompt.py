@@ -72,6 +72,17 @@ def test_arabic_session_uses_arabic_kb_text(cur, hotel_uae):
     assert "Wi-Fi is free." in _spec(cur, hotel_uae.slug, language="en").instructions
 
 
+def test_tool_rules_split_asks_and_route_not_fixed_to_recovery(cur, hotel_uae):
+    """One job per distinct ask (multi-request splitting), a confirmation that
+    names the person and the minutes, and "not done / not fixed" to
+    flag_service_recovery while billing and legal stay with a person."""
+    text = _spec(cur, hotel_uae.slug).instructions
+    assert "once per distinct ask" in text and "is three calls" in text
+    assert "staff member's first name and the minutes" in text
+    assert "still not fixed: call flag_service_recovery" in text
+    assert "escalate_to_human (reason complaint, refund_or_billing, legal or asked_for_human)" in text
+
+
 def test_empty_kb_says_escalate_unknown(cur, hotel_uae):
     spec = _spec(cur, hotel_uae.slug)
     assert "No hotel information has been approved yet" in spec.instructions

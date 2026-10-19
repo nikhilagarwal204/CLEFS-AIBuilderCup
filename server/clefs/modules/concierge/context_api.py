@@ -67,7 +67,7 @@ def chips_for(cur: Any, hotel_slug: str, language: str, *, surface: str, menu: b
     base = DEFAULT_CHIPS.get(language) or DEFAULT_CHIPS["en"]
     out = []
     for key, label in base:
-        if key == "room_service" and not menu:
+        if key == "room_service" and not (menu and cfg.menu_chip):
             continue
         if surface == "web_location" and key not in LOCATION_CHIPS:
             continue

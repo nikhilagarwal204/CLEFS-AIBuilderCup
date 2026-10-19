@@ -131,13 +131,18 @@ def line(cur, hotel_uae):
 
 
 class FakeService:
-    """service.api's create_request / escalate_to_human / status, recorded.
-    Voice tests run with CLEFS_ONLY_MODULES=concierge,voice, so Service's
-    tables may not exist; the contract (api.py) is what voice depends on."""
+    """service.api's create_request / create_job / escalate_to_human / status,
+    recorded. Voice tests run with CLEFS_ONLY_MODULES=concierge,voice, so
+    Service's tables may not exist; the contract (api.py) is what voice
+    depends on. A phone guest's jobs reach Service through the concierge
+    executor's notify_staff, which files them with create_job (05 spec 3);
+    the voice fallback and the emergency path still use create_request.
+    Both record the same row shape here."""
 
     def __init__(self) -> None:
         self.requests: list[dict] = []
         self.escalations: list[dict] = []
+        self.recoveries: list[dict] = []
 
     def create_request(self, cur, hotel_slug, *, room, type, description, source, subtype=None, priority_hint=None,
                        language=None, guest_ref=None, **_kw):
@@ -146,6 +151,33 @@ class FakeService:
                "source": source, "priority_hint": priority_hint, "tracking_token": f"tok{rid}", "merged": False}
         self.requests.append(row)
         return row
+
+    def create_job(self, cur, hotel_slug, *, room, request_type, quantity, description_en, original_text, guest_language,
+                   priority="normal", mood=None, frustration=None, session_id=None, guest_ref=None, channel="concierge",
+                   idempotency_key=None):
+        rid = 1000 + len(self.requests) + len(self.escalations)
+        row = {"id": rid, "hotel_slug": hotel_slug, "room_number": room, "request_type": request_type,
+               "description": description_en, "source": channel, "priority_hint": None, "priority": priority,
+               "quantity": quantity, "original_text": original_text, "tracking_token": f"tok{rid}", "merged": False}
+        self.requests.append(row)
+        return {**self.dispatch_info(cur, hotel_slug, rid), "tracking_token": row["tracking_token"],
+                "item_label": request_type, "quantity": quantity, "room": room, "merged": False, "replayed": False}
+
+    def dispatch_info(self, cur, hotel_slug, request_id):
+        return {"request_id": request_id, "tracking_token": f"tok{request_id}", "item_label": None, "quantity": None,
+                "room": None, "department_key": None, "department_label": None, "staff_id": None,
+                "staff_first_name": None, "eta_minutes": None, "eta_at": None, "created_at": None, "accepted_at": None,
+                "state": "assigned", "status": "progress", "proof_status": None, "guest_confirmed_at": None,
+                "closed_at": None}
+
+    def flag_recovery(self, cur, hotel_slug, *, kind, room, summary, request_id=None, session_id=None,
+                      guest_language=None):
+        self.recoveries.append({"kind": kind, "room": room, "summary": summary, "request_id": request_id})
+        return {"case_id": len(self.recoveries), "created": True}
+
+    def guest_feedback(self, cur, hotel_slug, tracking_token, *, fixed, comment=None):
+        self.recoveries.append({"kind": "not_fixed", "token": tracking_token, "fixed": fixed, "summary": comment})
+        return {"state": "received"}
 
     def escalate_to_human(self, cur, hotel_slug, *, room, reason, channel, sensitive, excerpt):
         rid = 1000 + len(self.requests) + len(self.escalations)
@@ -170,6 +202,7 @@ def fake_service(monkeypatch):
     from clefs.modules.service import api as service_api
 
     fake = FakeService()
-    for name in ("create_request", "escalate_to_human", "request_status_for_guest", "classify_safety"):
+    for name in ("create_request", "create_job", "dispatch_info", "flag_recovery", "guest_feedback", "escalate_to_human",
+                 "request_status_for_guest", "classify_safety"):
         monkeypatch.setattr(service_api, name, getattr(fake, name))
     return fake

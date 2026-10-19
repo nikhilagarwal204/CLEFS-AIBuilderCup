@@ -19,9 +19,18 @@ stored first answer and changes nothing.
 Every result is a dict with `status` and `followup_instructions` (what the
 model should say next, in English; the model answers in the guest's
 language) and optionally `ui` (what the client should show: the request
-tracker, the emergency card, an order). Failures in another module (a 429
-from Service, an unavailable menu item) become a result the model can speak,
-never a 500 in the middle of a conversation.
+tracker, the emergency card, an order, the "Job sent to staff" card of each
+job). Failures in another module (a 429 from Service, an unavailable menu
+item) become a result the model can speak, never a 500 in the middle of a
+conversation.
+
+Jobs (05 spec 3): notify_staff files one job per call through
+service.api.create_job, which routes it to the right free staff member and
+estimates the arrival; the result names that person (first name only) and
+the minutes, and carries the guest page's card. flag_service_recovery is the
+guest saying a job never came or is still not fixed: it reopens the job
+(service.api.guest_feedback) or flags it (service.api.flag_recovery) for the
+duty manager.
 """
 
 from __future__ import annotations
@@ -30,7 +39,7 @@ import json
 import logging
 import time
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from clefs.core import clock
@@ -46,6 +55,7 @@ TOOL_NAMES: tuple[str, ...] = (
     "notify_staff",
     "escalate_to_human",
     "get_request_status",
+    "flag_service_recovery",
     "get_menu",
     "place_order",
     "search_hotel_info",
@@ -73,7 +83,12 @@ ESCALATION_REASONS: tuple[str, ...] = (
     "unknown_answer", "complaint", "refund_or_billing", "legal", "emergency", "asked_for_human", "other",
 )
 PRIORITIES: tuple[str, ...] = ("low", "medium", "high")
+# create_job's priority words; URGENT means high (05 spec decision 11).
+JOB_PRIORITY: dict[str, str] = {"low": "low", "medium": "normal", "high": "high"}
 SENSITIVITIES: tuple[str, ...] = ("none", "handoff", "sensitive")
+# flag_service_recovery: nobody came (or it was never done), or it was done
+# and is still wrong.
+RECOVERY_PROBLEMS: tuple[str, ...] = ("never_arrived", "not_fixed")
 MAX_QUANTITY = 20
 MAX_ORDER_LINES = 20
 MENU_RESULT_MAX = 60
@@ -112,8 +127,12 @@ def _notify_staff(room_arg: bool) -> dict:
     }
     if room_arg:
         props["room"] = _room_prop()
-    return _fn("notify_staff", "Send a service request to hotel staff. One call per distinct request.", props,
-               ["request_type", "description_en"])
+    return _fn(
+        "notify_staff",
+        "Send one job to hotel staff. Call it once per distinct ask: 'two towels and some water, and the AC is not "
+        "cooling' is three calls, which may go out together.",
+        props, ["request_type", "description_en"],
+    )
 
 
 def _escalate() -> dict:
@@ -137,6 +156,25 @@ def _status() -> dict:
         "The status of the guest's own requests and orders from this stay.",
         {"request_ref": {"type": "string", "description": "A specific request reference, if the guest gave one."}},
         [],
+    )
+
+
+def _recovery() -> dict:
+    return _fn(
+        "flag_service_recovery",
+        "The guest says something they asked for never came, was not done, or is still not fixed (for example 'the "
+        "towels never came', 'the AC is still broken'). Reopens their job and tells the duty manager.",
+        {
+            "problem": {"type": "string", "enum": list(RECOVERY_PROBLEMS),
+                        "description": "never_arrived: nobody came or it was never done. not_fixed: it was done but is "
+                                       "still wrong."},
+            "request_type": {"type": "string", "enum": list(REQUEST_TYPES), "description": "What the job was for."},
+            "request_ref": {"type": "string", "description": "The request reference, when known."},
+            "summary_en": {"type": "string", "description": "What is wrong, in one or two English sentences for the "
+                                                            "duty manager."},
+            "original_text": {"type": "string", "description": "The guest's own words."},
+        },
+        ["problem", "summary_en"],
     )
 
 
@@ -183,7 +221,7 @@ def tool_schemas(surface: str, *, search: bool = False, can_order: bool = False)
     """The tools a session on `surface` is offered. The room argument is
     only offered where the session has no room of its own."""
     room_arg = surface not in C.ROOM_BOUND_SURFACES
-    out = [_notify_staff(room_arg), _escalate(), _status()]
+    out = [_notify_staff(room_arg), _escalate(), _status(), _recovery()]
     if can_order and surface in C.ORDER_SURFACES:
         out += [_menu(), _order(room_arg)]
     if search:
@@ -264,6 +302,18 @@ def session_events(cur: Any, session: dict, kinds: tuple[str, ...]) -> list[dict
     return [dict(r) for r in cur.fetchall()]
 
 
+def latest_request_id(cur: Any, session: dict) -> int | None:
+    """The newest job this session filed, if any (a recovery case links to it)."""
+    for ev in reversed(session_events(cur, session, ("request",))):
+        rid = (ev.get("ref") or {}).get("request_id")
+        if rid is not None:
+            try:
+                return int(rid)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
 def _dry_ref() -> str:
     return "DRY-" + uuid.uuid4().hex[:8].upper()
 
@@ -278,7 +328,7 @@ def synthetic_session(spec: Any) -> dict:
     }
 
 
-# ─── notify_staff v2 ───
+# ─── notify_staff: one job per call (05 spec 3) ───
 
 
 def _request_type(args: dict) -> str:
@@ -288,14 +338,27 @@ def _request_type(args: dict) -> str:
     return LEGACY_CATEGORIES.get(_clean(args.get("category"), 40), "other")
 
 
+def _quantity(args: dict) -> int | None:
+    qty = args.get("quantity")
+    if isinstance(qty, bool):
+        return None
+    try:
+        qty = int(qty)
+    except (TypeError, ValueError):
+        return None
+    return qty if 1 <= qty <= MAX_QUANTITY else None
+
+
 def _describe(session: dict, args: dict, *, room: str | None, verified: bool, location: dict | None) -> str:
-    """The staff-facing text. English from the model; the guest's own words
-    are appended when they differ, so nothing is lost in translation."""
+    """The staff-facing English text. The guest's own words and the quantity
+    go to create_job as fields of their own (staff see the original next to
+    their translation), so this adds only what has no field: the model's
+    label, the wanted time, the venue and an unverified room."""
     label = _clean(args.get("label"), 120)
     desc = _clean(args.get("description_en")) or label or "Guest request"
-    qty = args.get("quantity")
-    parts = [desc]
-    if isinstance(qty, int) and 1 < qty <= MAX_QUANTITY and str(qty) not in desc:
+    parts = [desc if not label or label.lower() in desc.lower() else f"{label}: {desc}"]
+    qty = _quantity(args)
+    if qty and qty > 1 and str(qty) not in parts[0]:
         parts.append(f"Quantity: {qty}.")
     when = _clean(args.get("scheduled_for"), 40)
     if when:
@@ -305,10 +368,107 @@ def _describe(session: dict, args: dict, *, room: str | None, verified: bool, lo
     if room and not verified:
         # One wording for web and phone: the staff card reads "confirm at the door".
         parts.append("Room not verified: please confirm at the door.")
-    original = _clean(args.get("original_text"), 300)
-    if original and original.lower() != desc.lower():
-        parts.append(f'Guest said: "{original}"')
     return " ".join(parts)[:2000]
+
+
+def _ms(value: Any) -> int | None:
+    """Epoch milliseconds from a time as Service gives it (epoch ms or
+    seconds, a datetime, an ISO string), so the guest page reads one form."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return int(value if value > 1e11 else value * 1000)
+    if isinstance(value, datetime):
+        stamp = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return int(stamp.timestamp() * 1000)
+    text = str(value).strip()
+    if text.isdigit():
+        return _ms(int(text))
+    try:
+        return _ms(datetime.fromisoformat(text.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
+def _minutes(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        minutes = int(round(float(value)))
+    except (TypeError, ValueError):
+        return None
+    return minutes if minutes > 0 else None
+
+
+def job_card(info: dict | None, *, request_type: str | None = None, label: str | None = None,
+             quantity: int | None = None, room: str | None = None) -> dict:
+    """The guest page's "Job sent to staff" card (05 spec 3) from
+    service.api.dispatch_info. First name only: whatever Service sends, a
+    surname never reaches the guest."""
+    from clefs.core.pii import first_name
+
+    info = info or {}
+    qty = info.get("quantity")
+    fallback_label = (request_type or "").replace("_", " ").capitalize() or None
+    return {
+        "item_label": _clean(info.get("item_label"), 120) or label or fallback_label,
+        "quantity": qty if isinstance(qty, int) and not isinstance(qty, bool) and qty > 0 else quantity,
+        "room": _clean(info.get("room") or room, 24) or None,
+        "staff_first_name": first_name(info.get("staff_first_name")),
+        "department_label": _clean(info.get("department_label"), 80) or None,
+        "eta_minutes": _minutes(info.get("eta_minutes")),
+        "created_at": _ms(info.get("created_at")),
+        "accepted_at": _ms(info.get("accepted_at")),
+        "state": _clean(info.get("state"), 40) or None,
+        # Keys, so the guest page can say the item and the team in its own language.
+        "request_type": request_type,
+        "department_key": _clean(info.get("department_key"), 40) or None,
+    }
+
+
+def dispatch_card(cur: Any, hotel_slug: str, request_id: Any, **card: Any) -> dict | None:
+    """job_card() for a request filed another way (a hand-off), read back
+    through service.api.dispatch_info. None when Service cannot describe it:
+    the tracker link still works without a card."""
+    from clefs.modules.service import api as service_api
+
+    if request_id is None:
+        return None
+    cur.execute("SAVEPOINT cc_card")
+    try:
+        info = service_api.dispatch_info(cur, hotel_slug, int(request_id))
+    except Exception as exc:  # noqa: BLE001 - a card is a nicety, never a failed hand-off
+        cur.execute("ROLLBACK TO SAVEPOINT cc_card")
+        log.info("no dispatch card for request %s at %s: %s", request_id, hotel_slug, type(exc).__name__)
+        return None
+    cur.execute("RELEASE SAVEPOINT cc_card")
+    return job_card(info, **card) if info else None
+
+
+def job_followup(card: dict, *, merged: bool, door_check: bool) -> str:
+    """What the model says once a job is out: the department, the first name
+    of the person on the way and the minutes, when Service knows them ("Of
+    course. Housekeeping has been notified. Maria is on her way, about 5
+    minutes.")."""
+    door = " Say staff will confirm the room at the door." if door_check else ""
+    if merged:
+        return "Tell the guest this was already requested and is on its way; you have added their note to it." + door
+    dept, name, eta = card.get("department_label"), card.get("staff_first_name"), card.get("eta_minutes")
+    if dept and name and eta:
+        line = (f"say that {dept} has been notified and {name} is on the way, about {eta} minutes (for example: "
+                f'"Of course. {dept} has been notified. {name} is on the way, about {eta} minutes.")')
+    elif dept and name:
+        line = f"say that {dept} has been notified and {name} is on the way"
+    elif dept and eta:
+        line = f"say that {dept} has been notified and someone will be with the guest in about {eta} minutes"
+    elif dept:
+        line = f"say that {dept} has been notified and the request is on its way"
+    else:
+        line = "say the request is on its way"
+    rules = f" Name only {name}, by first name." if name else ""
+    if not eta:
+        rules += " Do not promise a time."
+    return f"In one or two short sentences, in the guest's language, {line}.{door}{rules} Promise nothing else."
 
 
 def _location(cur: Any, session: dict) -> dict | None:
@@ -328,8 +488,9 @@ def _requests_so_far(cur: Any, session: dict) -> int:
     return int(row["requests_created"]) if row else 0
 
 
-def notify_staff(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> dict:
+def notify_staff(cur: Any, session: dict, args: dict, *, dry_run: bool = False, call_id: str | None = None) -> dict:
     from clefs.modules.amenities import api as amenities_api
+    from clefs.modules.concierge import mood
     from clefs.modules.service import api as service_api
 
     room, verified = target_room(session, args)
@@ -340,6 +501,8 @@ def notify_staff(cur: Any, session: dict, args: dict, *, dry_run: bool = False) 
         return result("limit", "Tell the guest you have passed on a lot already and ask them to call the front desk "
                       "for anything more in this conversation.")
     rtype = _request_type(args)
+    label = _clean(args.get("label"), 100) or None
+    qty = _quantity(args)
     description = _describe(session, args, room=room, verified=verified, location=location)
     if dry_run:
         return result("created", "Tell the guest their request is on its way.", request_ref=_dry_ref(), merged=False,
@@ -358,26 +521,31 @@ def notify_staff(cur: Any, session: dict, args: dict, *, dry_run: bool = False) 
         return result("escalated", "Tell the guest a manager has been told and will contact them shortly. Be calm and kind.",
                       request_ref=str(out.get("request_id")), merged=False, verified_room=verified,
                       ui={"kind": "request", "token": out.get("tracking_token")})
-    row = service_api.create_request(
-        cur, session["hotel_slug"], room=room or "", type=rtype, description=description, source=source_for(session),
-        subtype=_clean(args.get("label"), 100) or None, priority_hint=priority if priority in PRIORITIES else None,
-        language="en", guest_ref=session.get("consent_ref"),
-    )
-    item_id, qty = args.get("amenity_item_id"), args.get("quantity")
-    if isinstance(item_id, int) and not row.get("merged") and amenities_api.resolve_item(cur, session["hotel_slug"], item_id):
-        amenities_api.link_request(cur, session["hotel_slug"], request_id=row["id"], amenity_item_id=item_id,
-                                   qty=qty if isinstance(qty, int) and qty > 0 else 1)
-    merged = bool(row.get("merged"))
-    add_event(cur, session, "request", {"request_id": row["id"], "tracking_token": row.get("tracking_token"),
+    # The session's mood (mood.py) rides with the job, so Service and the
+    # duty manager see an upset guest's request for what it is.
+    last_mood, peak_frustration = mood.current(cur, session)
+    job = service_api.create_job(
+        cur, session["hotel_slug"], room=room or "", request_type=rtype, quantity=qty, description_en=description,
+        original_text=_clean(args.get("original_text"), 1000) or None, guest_language=language_of(session, args),
+        priority=JOB_PRIORITY.get(priority, "normal"), mood=last_mood, frustration=peak_frustration,
+        session_id=str(session["id"]), guest_ref=session.get("consent_ref"), channel=source_for(session),
+        idempotency_key=f"cc:{session['id']}:{call_id}"[:200] if call_id else None,
+    ) or {}
+    request_id = job.get("request_id", job.get("id"))
+    merged = bool(job.get("merged"))
+    item_id = args.get("amenity_item_id")
+    if (isinstance(item_id, int) and request_id is not None and not merged
+            and amenities_api.resolve_item(cur, session["hotel_slug"], item_id)):
+        amenities_api.link_request(cur, session["hotel_slug"], request_id=int(request_id), amenity_item_id=item_id,
+                                   qty=qty or 1)
+    add_event(cur, session, "request", {"request_id": request_id, "tracking_token": job.get("tracking_token"),
                                         "type": rtype, "merged": merged, "verified_room": verified})
-    if merged:
-        follow = "Tell the guest this was already requested and is on its way; you have added their note to it."
-    elif room and not verified:
-        follow = "Tell the guest the request is on its way and staff will confirm the room at the door."
-    else:
-        follow = "Tell the guest the request is on its way. Do not promise an exact time."
-    return result("merged" if merged else "created", follow, request_ref=str(row["id"]), merged=merged,
-                  verified_room=verified, ui={"kind": "request", "token": row.get("tracking_token")})
+    card = job_card(job, request_type=rtype, label=label, quantity=qty, room=room)
+    follow = job_followup(card, merged=merged, door_check=bool(room) and not verified)
+    return result("merged" if merged else "created", follow, request_ref=str(request_id), merged=merged,
+                  verified_room=verified, department=card["department_label"], staff_first_name=card["staff_first_name"],
+                  eta_minutes=card["eta_minutes"],
+                  ui={"kind": "request", "token": job.get("tracking_token"), "card": card})
 
 
 # ─── escalate_to_human ───
@@ -445,7 +613,7 @@ def raise_emergency(cur: Any, session: dict, *, summary: str, original: str | No
     return result("escalated", follow, request_ref=str(row["id"]), ui=ui)
 
 
-def escalate_to_human(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> dict:
+def escalate_to_human(cur: Any, session: dict, args: dict, *, dry_run: bool = False, call_id: str | None = None) -> dict:
     from clefs.modules.concierge import kb
     from clefs.modules.service import api as service_api
 
@@ -471,13 +639,21 @@ def escalate_to_human(cur: Any, session: dict, args: dict, *, dry_run: bool = Fa
     )
     add_event(cur, session, "escalation", {"request_id": out.get("request_id"), "tracking_token": out.get("tracking_token"),
                                            "reason": reason})
+    # The guest page shows the hand-off as a job card too (who has it, how
+    # fast it was picked up), when Service can describe it.
+    card = dispatch_card(cur, session["hotel_slug"], out.get("request_id"), request_type="front_desk", label="Front desk",
+                         room=room)
+    who, team = (card or {}).get("staff_first_name"), (card or {}).get("department_label") or "the front desk"
     follow = {
         "unknown_answer": "Say you do not have that information and that a team member will get back to the guest.",
         "complaint": "Apologise sincerely, without blaming anyone, and say a manager will contact them shortly.",
         "refund_or_billing": "Say the front office will look into it and contact them; do not promise any refund.",
-    }.get(reason, "Tell the guest a team member will contact them shortly.")
-    return result("escalated", follow, request_ref=str(out.get("request_id")), reason=reason,
-                  ui={"kind": "handoff", "token": out.get("tracking_token")})
+    }.get(reason, f"Tell the guest {who} from {team} will contact them shortly. Name only {who}, by first name." if who
+          else "Tell the guest a team member will contact them shortly.")
+    ui = {"kind": "handoff", "token": out.get("tracking_token")}
+    if card:
+        ui["card"] = card
+    return result("escalated", follow, request_ref=str(out.get("request_id")), reason=reason, ui=ui)
 
 
 # ─── get_request_status ───
@@ -512,7 +688,8 @@ def _tracked(cur: Any, session: dict, room: str | None) -> list[dict]:
     return list(reversed(session_events(cur, session, ("request", "escalation", "emergency", "order"))))[:20]
 
 
-def get_request_status(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> dict:
+def get_request_status(cur: Any, session: dict, args: dict, *, dry_run: bool = False, call_id: str | None = None) -> dict:
+    from clefs.core.pii import first_name
     from clefs.modules.service import api as service_api
     from clefs.modules.upsell import api as upsell_api
 
@@ -543,20 +720,106 @@ def get_request_status(cur: Any, session: dict, args: dict, *, dry_run: bool = F
         seen.add(rid)
         view = service_api.request_status_for_guest(cur, session["hotel_slug"], token)
         if view:
-            items.append({"kind": ev["kind"], "ref": rid, "request_ref": rid, "label": view.get("request_type_label"),
-                          "state": view.get("state"), "state_text": STATE_TEXT.get(view.get("state"), view.get("state")),
-                          "cancelled": bool(view.get("cancelled")), "token": token})
+            item = {"kind": ev["kind"], "ref": rid, "request_ref": rid, "label": view.get("request_type_label"),
+                    "state": view.get("state"), "state_text": STATE_TEXT.get(view.get("state"), view.get("state")),
+                    "cancelled": bool(view.get("cancelled")), "token": token}
+            # Who is on it and how long, when Service shares it with guests
+            # (05 spec 3); a first name only.
+            name, eta = first_name(view.get("staff_first_name")), _minutes(view.get("eta_minutes"))
+            if name:
+                item["staff_first_name"] = name
+            if eta and view.get("state") != "done":
+                item["eta_minutes"] = eta
+            items.append(item)
     if not items:
         return result("none", "Say you cannot see any open requests from this conversation, and offer to send one.",
                       requests=[])
-    return result("ok", "Tell the guest the status of each request in a short sentence. Never name staff.",
-                  requests=items, ui={"kind": "tracker", "token": items[0].get("token")})
+    return result("ok", "Tell the guest the status of each request in a short sentence. Where a request has a "
+                  "staff_first_name, you may say that person is on it, and the minutes when given. Never say any other "
+                  "name.", requests=items, ui={"kind": "tracker", "token": items[0].get("token")})
+
+
+# ─── flag_service_recovery ───
+
+
+def _recovery_target(cur: Any, session: dict, room: str | None, args: dict) -> dict | None:
+    """The guest's own job this is about: the one they named, else the
+    newest of that type, else their newest. Only jobs this guest may ask
+    about (_tracked), so naming another room's job finds nothing."""
+    from clefs.modules.service import api as service_api
+
+    wanted = _clean(args.get("request_ref"), 40).removeprefix("#")
+    rtype = _clean(args.get("request_type"), 40)
+    jobs = [ev["ref"] or {} for ev in _tracked(cur, session, room) if ev["kind"] == "request"]
+    jobs = [j for j in jobs if j.get("tracking_token") and j.get("request_id") is not None]
+    if wanted:
+        pick = next((j for j in jobs if str(j["request_id"]) == wanted), None)
+    elif rtype in REQUEST_TYPES and rtype != "other":
+        pick = next((j for j in jobs if j.get("type") == rtype), None)
+    else:
+        pick = jobs[0] if jobs else None
+    if pick is None:
+        return None
+    view = service_api.request_status_for_guest(cur, session["hotel_slug"], pick["tracking_token"]) or {}
+    return {"request_id": pick["request_id"], "token": pick["tracking_token"], "type": pick.get("type"),
+            "state": view.get("state")}
+
+
+def flag_service_recovery(cur: Any, session: dict, args: dict, *, dry_run: bool = False,
+                          call_id: str | None = None) -> dict:
+    """The guest says a job never came or is still not fixed. A job marked
+    done reopens with a recovery case (service.api.guest_feedback
+    fixed=False); one still open, or none found, is flagged to the duty
+    manager (service.api.flag_recovery never_arrived or not_fixed)."""
+    from clefs.modules.service import api as service_api
+
+    problem = _clean(args.get("problem"), 20)
+    problem = problem if problem in RECOVERY_PROBLEMS else "not_fixed"
+    summary = _clean(args.get("summary_en")) or ("The guest says their request never came." if problem == "never_arrived"
+                                                 else "The guest says it is still not fixed.")
+    original = _clean(args.get("original_text"), 1000) or None
+    follow = ("Apologise sincerely, without blaming anyone, and say a manager has been told and is on it now. Do not "
+              "promise compensation, a refund or a time, and do not file the request again.")
+    if dry_run:
+        return result("flagged", follow, problem=problem, dry_run=True, ui={"kind": "recovery", "token": None})
+    room, _verified = target_room(session, {})
+    job = _recovery_target(cur, session, room, args)
+    text = summary if not original or original.lower() == summary.lower() else f'{summary} Guest said: "{original[:300]}"'
+    outcome: dict | None = None
+    how = "flagged"
+    if job and job["state"] == "done":
+        # Marked done, and the guest says otherwise: reopen it with a case
+        # for the manager (05 spec decision 8, "not fixed").
+        cur.execute("SAVEPOINT cc_feedback")
+        try:
+            outcome = service_api.guest_feedback(cur, session["hotel_slug"], job["token"], fixed=False, comment=text) or {}
+        except Exception as exc:  # noqa: BLE001 - too late to reopen, or refused: the duty manager still hears of it
+            cur.execute("ROLLBACK TO SAVEPOINT cc_feedback")
+            log.info("guest_feedback refused for request %s at %s: %s", job["request_id"], session["hotel_slug"],
+                     getattr(exc, "detail", None) or type(exc).__name__)
+        else:
+            cur.execute("RELEASE SAVEPOINT cc_feedback")
+            how = "reopened"
+    if outcome is None:
+        kind = "never_arrived" if problem == "never_arrived" and not (job and job["state"] == "done") else "not_fixed"
+        outcome = service_api.flag_recovery(
+            cur, session["hotel_slug"], kind=kind, room=room, summary=text,
+            request_id=int(job["request_id"]) if job else None, session_id=str(session["id"]),
+            guest_language=language_of(session, args),
+        ) or {}
+    add_event(cur, session, "recovery", {
+        "kind": problem, "how": how, "request_id": job["request_id"] if job else None,
+        "tracking_token": job["token"] if job else None, "case_id": outcome.get("case_id") or outcome.get("id"),
+    })
+    return result("flagged", follow, problem=problem, reopened=how == "reopened",
+                  request_ref=str(job["request_id"]) if job else None,
+                  ui={"kind": "recovery", "token": job["token"] if job else None})
 
 
 # ─── get_menu and search_hotel_info ───
 
 
-def get_menu(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> dict:
+def get_menu(cur: Any, session: dict, args: dict, *, dry_run: bool = False, call_id: str | None = None) -> dict:
     from clefs.modules.upsell import api as upsell_api
 
     outlet = _clean(args.get("outlet_key"), 64) or None
@@ -576,7 +839,7 @@ def get_menu(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> d
                   "place_order with confirm=false first.", items=out, truncated=len(items) > MENU_RESULT_MAX)
 
 
-def search_hotel_info(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> dict:
+def search_hotel_info(cur: Any, session: dict, args: dict, *, dry_run: bool = False, call_id: str | None = None) -> dict:
     from clefs.modules.concierge import kb
 
     query = _clean(args.get("query"), 200)
@@ -673,7 +936,7 @@ def _fresh_quote(cur: Any, session: dict, lines: list[dict]) -> dict | None:
     return dict(row) if row else None
 
 
-def place_order(cur: Any, session: dict, args: dict, *, dry_run: bool = False) -> dict:
+def place_order(cur: Any, session: dict, args: dict, *, dry_run: bool = False, call_id: str | None = None) -> dict:
     """confirm=false: a priced quote re-priced from the database by
     upsell.api (price display, the plus-plus fees from the hotel's tax
     settings). confirm=true: needs a quote for the same basket from this
@@ -744,6 +1007,7 @@ EXECUTORS: dict[str, Callable[..., dict]] = {
     "notify_staff": notify_staff,
     "escalate_to_human": escalate_to_human,
     "get_request_status": get_request_status,
+    "flag_service_recovery": flag_service_recovery,
     "get_menu": get_menu,
     "place_order": place_order,
     "search_hotel_info": search_hotel_info,
@@ -795,7 +1059,7 @@ def execute(cur: Any, session: dict, name: str, args: dict | None, *, call_id: s
     # can speak, while the call row and the rest of the turn survive.
     cur.execute("SAVEPOINT cc_tool")
     try:
-        out = fn(cur, session, args, dry_run=dry)
+        out = fn(cur, session, args, dry_run=dry, call_id=call_id)
     except ClefsError as exc:
         cur.execute("ROLLBACK TO SAVEPOINT cc_tool")
         out, status = error_result(exc), "refused"

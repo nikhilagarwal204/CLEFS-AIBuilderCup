@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import pytest
 
+from clefs.modules.concierge import mood as _mood
+
+_REAL_SCORE = _mood.score
+
 
 def switch_live(cur, slug: str, live: bool | None) -> None:
     """Write concierge.live straight into cc_live with no gate (fixtures
@@ -30,3 +34,19 @@ def switch_live(cur, slug: str, live: bool | None) -> None:
 def hotel_uae(hotel_uae, cur):
     switch_live(cur, hotel_uae.slug, True)
     return hotel_uae
+
+
+@pytest.fixture(autouse=True)
+def quiet_mood(monkeypatch):
+    """Mood scoring (mood.py) is one more model call per guest turn, made
+    beside the reply: under fake_ai it would take answers queued for the
+    reply model, in no fixed order. It is off here; the tests about it
+    turn it back on with the mood_scoring fixture."""
+    monkeypatch.setattr(_mood, "score", lambda *a, **kw: None)
+
+
+@pytest.fixture
+def mood_scoring(monkeypatch, quiet_mood):
+    """The real mood scorer (answer it per task: see test_mood.by_task)."""
+    monkeypatch.setattr(_mood, "score", _REAL_SCORE)
+    return _mood

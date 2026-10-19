@@ -6,16 +6,23 @@
    Each tool result or menu order that files work hands back a tracking
    token; the page keeps those per stay (storage.ts) and polls the public
    tracker GET /public/r/{token}: every 10 s while the page is visible, 60 s
-   while hidden, and not at all once an item is done and the guest has
-   answered "Resolved?" (or it was cancelled). "No" reopens the request
-   server-side and re-routes it. Staff names never reach this surface.
+   while hidden, and not at all once an item has settled (done and answered,
+   or cancelled).
+
+   A job (05 spec 3) shows as its "Job sent to staff" card (JobSentCard):
+   who has it, by first name only, and how fast it was picked up; once done,
+   "Is everything OK?", where "Not fixed" reopens it and tells a manager.
+   Orders, and requests from before the cards, keep the compact row with
+   "Resolved?". A surname never reaches this surface.
    ═══════════════════════════════════════════════════════════════════════ */
 
 import { useEffect, useRef, useState } from "react";
 import { LuListChecks } from "react-icons/lu";
 import { ApiError } from "../../lib/api";
-import { confirmTracker, fetchTracker, type TrackerStatus } from "./api";
+import { confirmTracker, fetchTracker, sendFeedback, type TrackerStatus } from "./api";
 import { langDir, type TFn } from "./i18n";
+import JobSentCard from "./JobSentCard";
+import { isSettled, jobPhase, mergeJob, toMs } from "./jobs";
 import type { TrackedItem } from "./storage";
 
 const VISIBLE_MS = 10_000;
@@ -27,8 +34,6 @@ const STEPS = ["received", "assigned", "on_the_way", "done"] as const;
 /** A patch for one tracked item: null drops it (a forged or expired token). */
 export type TrackedPatch = Partial<TrackedItem> | null;
 
-const settled = (s: TrackerStatus) => s.cancelled || (s.state === "done" && s.guest_confirmation != null);
-
 export function useTrackerStatuses(items: TrackedItem[], onPatch: (token: string, patch: TrackedPatch) => void) {
   const [statuses, setStatuses] = useState<Record<string, TrackerStatus>>({});
   const itemsRef = useRef(items);
@@ -39,7 +44,7 @@ export function useTrackerStatuses(items: TrackedItem[], onPatch: (token: string
     itemsRef.current = items;
     patchRef.current = onPatch;
   }, [items, onPatch]);
-  const tokensKey = items.map((i) => i.token).join(",");
+  const tokensKey = items.map((i) => `${i.token}${i.done ? "+" : ""}`).join(",");
 
   useEffect(() => {
     if (!tokensKey) return;
@@ -57,7 +62,8 @@ export function useTrackerStatuses(items: TrackedItem[], onPatch: (token: string
           const s = await fetchTracker(i.token);
           if (stopped) return;
           setStatuses((prev) => ({ ...prev, [i.token]: s }));
-          if (settled(s) && !i.done) patchRef.current(i.token, { done: true });
+          const settled = isSettled(s);
+          if (settled !== !!i.done) patchRef.current(i.token, { done: settled });
         } catch (err) {
           if (!stopped && err instanceof ApiError && err.status === 404) patchRef.current(i.token, null);
         }
@@ -83,6 +89,18 @@ export function useTrackerStatuses(items: TrackedItem[], onPatch: (token: string
   }, [tokensKey]);
 
   return { statuses, setStatuses };
+}
+
+/** Date.now(), re-read every second while `running` (a card's live clock). */
+function useNow(running: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+  return now;
 }
 
 // ─── Pill ────────────────────────────────────────────────────────────────
@@ -126,18 +144,29 @@ interface Props {
 export default function StatusTracker({ t, lang, items, statuses, onStatus, onPatch, whatsappNumber }: Props) {
   const [answered, setAnswered] = useState<Record<string, "yes" | "no">>({});
   const [busy, setBusy] = useState<string | null>(null);
-  const rows = [...items].reverse().filter((i) => statuses[i.token]);
+  // Newest first. A job card shows at once from its own snapshot; a plain
+  // row waits for its first tracker read.
+  const rows = [...items].reverse().filter((i) => i.card || statuses[i.token]);
+  // One clock for every card still waiting to be accepted.
+  const ticking = rows.some((i) => {
+    if (!i.card) return false;
+    const job = mergeJob(i.card, statuses[i.token]);
+    return toMs(job.accepted_at) === null && !["done", "cancelled", "confirm"].includes(jobPhase(job, statuses[i.token], i.reopened));
+  });
+  const now = useNow(ticking);
   if (!rows.length) return null;
 
-  const answer = async (token: string, resolved: boolean) => {
+  const answer = async (token: string, resolved: boolean, job: boolean) => {
     setBusy(token);
     try {
-      const s = await confirmTracker(token, resolved);
-      onStatus(token, s);
+      const s = job ? await sendFeedback(token, resolved) : await confirmTracker(token, resolved);
+      // The answer's own response may be partial: read the job again for the card.
+      const fresh = job ? await fetchTracker(token).catch(() => null) : (s as TrackerStatus);
+      if (fresh) onStatus(token, fresh);
       setAnswered((a) => ({ ...a, [token]: resolved ? "yes" : "no" }));
-      if (resolved) onPatch(token, { done: true });
+      onPatch(token, resolved ? { done: true, answer: "yes", reopened: false } : { done: false, answer: "no", reopened: true });
     } catch {
-      /* 409 cannot_confirm: the row simply stops offering the question */
+      /* 409 cannot_confirm: the card simply stops offering the question */
     } finally {
       setBusy(null);
     }
@@ -149,6 +178,23 @@ export default function StatusTracker({ t, lang, items, statuses, onStatus, onPa
     <div className="cc-tracker" dir={langDir(lang)} lang={lang} aria-live="polite">
       {rows.map((i) => {
         const s = statuses[i.token];
+        if (i.card) {
+          return (
+            <JobSentCard
+              key={i.token}
+              t={t}
+              lang={lang}
+              job={mergeJob(i.card, s)}
+              status={s}
+              now={now}
+              askedAt={i.askedAt}
+              reopened={i.reopened}
+              answer={answered[i.token] ?? i.answer ?? null}
+              busy={busy === i.token}
+              onAnswer={(fixed) => void answer(i.token, fixed, true)}
+            />
+          );
+        }
         const label = (lang === "ar" && s.request_type_label_ar) || s.request_type_label
           || t(i.kind === "order" ? "tracker.order" : "tracker.request");
         const stateText = s.cancelled ? t("tracker.cancelled") : t(`tracker.${s.state}`);
@@ -173,10 +219,10 @@ export default function StatusTracker({ t, lang, items, statuses, onStatus, onPa
             ) : s.can_confirm ? (
               <div className="cc-track-q">
                 {t("tracker.resolvedQ")}
-                <button type="button" className="cc-mini" disabled={busy === i.token} onClick={() => answer(i.token, true)}>
+                <button type="button" className="cc-mini" disabled={busy === i.token} onClick={() => answer(i.token, true, false)}>
                   {t("tracker.yes")}
                 </button>
-                <button type="button" className="cc-mini" disabled={busy === i.token} onClick={() => answer(i.token, false)}>
+                <button type="button" className="cc-mini" disabled={busy === i.token} onClick={() => answer(i.token, false, false)}>
                   {t("tracker.no")}
                 </button>
               </div>

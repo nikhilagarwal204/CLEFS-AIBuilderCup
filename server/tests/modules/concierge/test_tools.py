@@ -12,29 +12,85 @@ from clefs.modules.concierge import tools
 GRANTS = {"ai_processing": True, "transfer_abroad": True, "recording": True, "ai_analytics": False}
 
 
+CREATED_MS = 1_760_000_000_000
+
+
 class FakeService:
     """service.api stand-in: the scoped suite runs without Service's tables,
-    and these tests pin what the concierge sends across the boundary."""
+    and these tests pin what the concierge sends across the boundary. The
+    job functions keep the 05 spec section 3 signatures exactly, so a
+    missing or misnamed argument fails here as it would against Service."""
 
     def __init__(self):
         self.requests: list[dict] = []
         self.escalations: list[dict] = []
+        self.recoveries: list[dict] = []
+        self.feedback: list[dict] = []
         self.merge_next = False
+        # Who dispatch picks and the minutes it gives (None: nobody free yet).
+        self.staff: str | None = "Maria"
+        self.department = "Housekeeping"
+        self.eta: int | None = 5
+        self.states: dict[str, str] = {}  # tracking token -> tracker state
+        self.refuse_feedback = False
+
+    def _next(self) -> int:
+        return 1000 + len(self.requests) + len(self.escalations) + 1
 
     def create_request(self, cur, hotel_slug, **kw):
-        n = len(self.requests) + len(self.escalations) + 1
+        rid = self._next()
         self.requests.append({"hotel_slug": hotel_slug, **kw})
         merged, self.merge_next = self.merge_next, False
-        return {"id": 1000 + n, "tracking_token": f"tok-{1000 + n}", "merged": merged, "replayed": False}
+        return {"id": rid, "tracking_token": f"tok-{rid}", "merged": merged, "replayed": False}
+
+    def create_job(self, cur, hotel_slug, *, room, request_type, quantity, description_en, original_text, guest_language,
+                   priority="normal", mood=None, frustration=None, session_id=None, guest_ref=None, channel="concierge",
+                   idempotency_key=None):
+        rid = self._next()
+        # room / type / source / description keep the keys create_request had,
+        # so the room-binding assertions read the same for both.
+        self.requests.append({
+            "hotel_slug": hotel_slug, "room": room, "type": request_type, "source": channel, "description": description_en,
+            "quantity": quantity, "original_text": original_text, "guest_language": guest_language, "priority": priority,
+            "mood": mood, "frustration": frustration, "session_id": session_id, "guest_ref": guest_ref,
+            "idempotency_key": idempotency_key,
+        })
+        merged, self.merge_next = self.merge_next, False
+        return {**self.dispatch_info(cur, hotel_slug, rid), "item_label": request_type.replace("_", " ").title(),
+                "quantity": quantity, "room": room, "merged": merged}
+
+    def dispatch_info(self, cur, hotel_slug, request_id):
+        return {
+            "request_id": request_id, "tracking_token": f"tok-{request_id}", "item_label": "Front desk", "quantity": None,
+            "room": "101", "department_key": "housekeeping", "department_label": self.department,
+            "staff_id": 7 if self.staff else None, "staff_first_name": self.staff, "eta_minutes": self.eta,
+            "eta_at": None, "created_at": CREATED_MS, "accepted_at": None, "state": "assigned", "status": "progress",
+            "proof_status": None, "guest_confirmed_at": None, "closed_at": None,
+        }
 
     def escalate_to_human(self, cur, hotel_slug, **kw):
-        n = len(self.requests) + len(self.escalations) + 1
+        rid = self._next()
         self.escalations.append({"hotel_slug": hotel_slug, **kw})
-        return {"ok": True, "request_id": 1000 + n, "assigned_to": None, "tracking_token": f"tok-{1000 + n}"}
+        return {"ok": True, "request_id": rid, "assigned_to": None, "tracking_token": f"tok-{rid}"}
+
+    def flag_recovery(self, cur, hotel_slug, *, kind, room, summary, request_id=None, session_id=None,
+                      guest_language=None):
+        self.recoveries.append({"hotel_slug": hotel_slug, "kind": kind, "room": room, "summary": summary,
+                                "request_id": request_id, "session_id": session_id, "guest_language": guest_language})
+        return {"case_id": 70 + len(self.recoveries), "status": "open"}
+
+    def guest_feedback(self, cur, hotel_slug, tracking_token, *, fixed, comment=None):
+        from clefs.core.errors import ClefsError
+
+        if self.refuse_feedback:
+            raise ClefsError(409, "This request can no longer be confirmed", "cannot_confirm")
+        self.feedback.append({"hotel_slug": hotel_slug, "token": tracking_token, "fixed": fixed, "comment": comment})
+        return {"ok": True, "case_id": 90 + len(self.feedback), "state": "reopened" if not fixed else "closed"}
 
     def request_status_for_guest(self, cur, hotel_slug, token):
         rid = int(token.split("-")[1])
-        return {"id": rid, "state": "on_the_way", "request_type_label": "Towels", "cancelled": False}
+        return {"id": rid, "state": self.states.get(token, "on_the_way"), "request_type_label": "Towels",
+                "cancelled": False}
 
     def classify_safety(self, text, **kw):
         if "fire" in text.lower():
@@ -42,13 +98,18 @@ class FakeService:
         return {"level": "none", "kind": None, "source": None, "confidence": 0.0}
 
 
+SERVICE_FUNCTIONS = ("create_request", "create_job", "dispatch_info", "escalate_to_human", "flag_recovery",
+                     "guest_feedback", "request_status_for_guest", "classify_safety")
+
+
 @pytest.fixture
 def fake_service(monkeypatch):
     from clefs.modules.service import api as service_api
 
     fake = FakeService()
-    for name in ("create_request", "escalate_to_human", "request_status_for_guest", "classify_safety"):
-        monkeypatch.setattr(service_api, name, getattr(fake, name))
+    for name in SERVICE_FUNCTIONS:
+        # raising=False: the job functions are Service's to add (05 spec 3).
+        monkeypatch.setattr(service_api, name, getattr(fake, name), raising=False)
     return fake
 
 
@@ -90,12 +151,71 @@ def test_notify_staff_uses_session_room_and_ignores_room_argument(client, cur, h
     assert r.status_code == 200, r.text
     out = r.json()
     assert out["status"] == "created" and out["request_ref"] == "1001"
-    assert out["ui"] == {"kind": "request", "token": "tok-1001"} and out["followup_instructions"]
+    assert out["ui"]["kind"] == "request" and out["ui"]["token"] == "tok-1001" and out["followup_instructions"]
     sent = fake_service.requests[0]
     assert sent["room"] == "101" and sent["source"] == "text" and sent["type"] == "towels"
-    assert 'Guest said: "two towels please"' in sent["description"] and "205" not in sent["description"]
+    assert sent["original_text"] == "two towels please" and sent["quantity"] == 2 and sent["guest_language"] == "en"
+    assert "205" not in sent["description"] and "Guest said" not in sent["description"]
+    assert sent["session_id"] == s["session_id"] and sent["guest_ref"]
+    assert sent["idempotency_key"] == f"cc:{s['session_id']}:c1"
     cur.execute("SELECT requests_created, tool_calls FROM cc_sessions WHERE id = %s", (s["session_id"],))
     assert dict(cur.fetchone()) == {"requests_created": 1, "tool_calls": 1}
+
+
+# ─── Jobs: the card and the named, timed confirmation (05 spec 3) ───
+
+
+def test_notify_staff_returns_the_job_card_and_names_staff_and_minutes(client, hotel_uae, fake_service):
+    s = mint(client, hotel_uae.slug, room="101")
+    out = call(client, s, "notify_staff", {"request_type": "towels", "description_en": "Extra bath towels",
+                                           "quantity": 2, "priority": "high"}).json()
+    assert out["ui"]["card"] == {
+        "item_label": "Towels", "quantity": 2, "room": "101", "staff_first_name": "Maria",
+        "department_label": "Housekeeping", "eta_minutes": 5, "created_at": CREATED_MS, "accepted_at": None,
+        "state": "assigned", "request_type": "towels", "department_key": "housekeeping",
+    }
+    follow = out["followup_instructions"]
+    assert "Housekeeping has been notified" in follow and "Maria is on the way, about 5 minutes" in follow
+    assert out["staff_first_name"] == "Maria" and out["eta_minutes"] == 5 and out["department"] == "Housekeeping"
+    assert fake_service.requests[0]["priority"] == "high", "URGENT is high (05 spec decision 11)"
+
+
+def test_a_surname_never_reaches_the_guest(client, hotel_uae, fake_service):
+    fake_service.staff = "Maria Santos"
+    s = mint(client, hotel_uae.slug)
+    out = call(client, s, "notify_staff", {"request_type": "water", "description_en": "Two bottles of water"}).json()
+    assert out["ui"]["card"]["staff_first_name"] == "Maria"
+    assert "Santos" not in json.dumps(out)
+
+
+def test_confirmation_without_a_person_or_a_time_promises_neither(client, hotel_uae, fake_service):
+    fake_service.staff, fake_service.eta = None, 12
+    s = mint(client, hotel_uae.slug)
+    out = call(client, s, "notify_staff", {"request_type": "ac", "description_en": "The AC is not cooling"}).json()
+    assert "someone will be with the guest in about 12 minutes" in out["followup_instructions"]
+    fake_service.eta = None
+    out = call(client, s, "notify_staff", {"request_type": "pillows", "description_en": "One more pillow"}, "c2").json()
+    assert "Do not promise a time" in out["followup_instructions"] and out["ui"]["card"]["eta_minutes"] is None
+
+
+def test_each_ask_is_its_own_job_with_the_sessions_mood(client, cur, hotel_uae, fake_service):
+    s = mint(client, hotel_uae.slug)
+    cur.execute("UPDATE cc_sessions SET last_mood = 'annoyed', max_frustration = 0.55 WHERE id = %s", (s["session_id"],))
+    for i, rtype in enumerate(("towels", "water", "ac")):
+        out = call(client, s, "notify_staff", {"request_type": rtype, "description_en": rtype}, f"c{i}").json()
+        assert out["status"] == "created" and out["ui"]["card"]["request_type"] == rtype
+    assert [r["type"] for r in fake_service.requests] == ["towels", "water", "ac"]
+    assert {(r["mood"], r["frustration"]) for r in fake_service.requests} == {("annoyed", 0.55)}
+    assert len({r["idempotency_key"] for r in fake_service.requests}) == 3
+
+
+def test_label_and_wanted_time_reach_staff_in_english(client, hotel_uae, fake_service):
+    s = mint(client, hotel_uae.slug)
+    call(client, s, "notify_staff", {"request_type": "wake_up", "label": "Wake-up call", "description_en": "Call at 6",
+                                     "scheduled_for": "06:00", "quantity": "1"})
+    sent = fake_service.requests[0]
+    assert sent["description"].startswith("Wake-up call: Call at 6") and "Wanted at: 06:00" in sent["description"]
+    assert sent["quantity"] == 1
 
 
 def test_same_call_id_is_deduped(client, cur, hotel_uae, fake_service):
@@ -165,6 +285,34 @@ def test_unknown_answer_escalates_and_queues_the_question(client, cur, hotel_uae
     assert dict(cur.fetchone()) == {"handoffs": 1, "unknowns": 1}
 
 
+def test_talk_to_the_front_desk_is_a_handoff_with_a_job_card(client, hotel_uae, fake_service):
+    """The guest page's "Talk to the front desk" chip calls this directly,
+    with no model in between."""
+    fake_service.staff, fake_service.department = "Ahmed Khan", "Front Office"
+    s = mint(client, hotel_uae.slug)
+    out = call(client, s, "escalate_to_human", {"reason": "asked_for_human",
+                                                "summary_en": "Guest tapped Talk to the front desk.",
+                                                "original_text": "Talk to the front desk"}).json()
+    assert out["status"] == "escalated" and out["ui"]["kind"] == "handoff" and out["ui"]["token"] == "tok-1001"
+    card = out["ui"]["card"]
+    assert card["staff_first_name"] == "Ahmed" and card["department_label"] == "Front Office"
+    assert card["request_type"] == "front_desk" and card["created_at"] == CREATED_MS
+    assert "Ahmed from Front Office" in out["followup_instructions"] and "Khan" not in str(out)
+
+
+def test_handoff_without_a_dispatch_card_still_goes_through(client, hotel_uae, fake_service, monkeypatch):
+    from clefs.modules.service import api as service_api
+
+    def broken(*a, **kw):
+        raise RuntimeError("no such request")
+
+    monkeypatch.setattr(service_api, "dispatch_info", broken)
+    s = mint(client, hotel_uae.slug)
+    out = call(client, s, "escalate_to_human", {"reason": "asked_for_human", "summary_en": "Wants a person"}).json()
+    assert out["status"] == "escalated" and out["ui"] == {"kind": "handoff", "token": "tok-1001"}
+    assert "a team member" in out["followup_instructions"]
+
+
 def test_emergency_files_an_l1_request_and_shows_the_numbers(client, cur, hotel_uae, fake_service):
     s = mint(client, hotel_uae.slug)
     out = call(client, s, "escalate_to_human", {"reason": "emergency", "urgency": "high",
@@ -194,6 +342,22 @@ def test_request_status_is_this_rooms_only(client, hotel_uae, fake_service):
     assert call(client, guess, "get_request_status", {}).json()["status"] == "none"
 
 
+def test_request_status_may_name_the_staff_member_by_first_name(client, hotel_uae, fake_service, monkeypatch):
+    from clefs.modules.service import api as service_api
+
+    def view(cur, hotel_slug, token):
+        return {"id": 1001, "state": "on_the_way", "request_type_label": "Towels", "cancelled": False,
+                "staff_first_name": "Maria Santos", "eta_minutes": 4}
+
+    s = mint(client, hotel_uae.slug)
+    call(client, s, "notify_staff", {"request_type": "towels", "description_en": "Towels"})
+    monkeypatch.setattr(service_api, "request_status_for_guest", view)
+    out = call(client, s, "get_request_status", {}, "c2").json()
+    [item] = out["requests"]
+    assert item["staff_first_name"] == "Maria" and item["eta_minutes"] == 4
+    assert "Santos" not in str(out) and "staff_first_name" in out["followup_instructions"]
+
+
 def test_search_hotel_info_reads_approved_entries_only(client, cur, hotel_uae):
     from clefs.modules.concierge import kb
 
@@ -213,7 +377,7 @@ def test_service_refusal_becomes_a_speakable_result(client, cur, hotel_uae, fake
     def refuse(cur, hotel_slug, **kw):
         raise too_many("Room 101 has sent 5 requests")
 
-    monkeypatch.setattr(service_api, "create_request", refuse)
+    monkeypatch.setattr(service_api, "create_job", refuse)
     s = mint(client, hotel_uae.slug)
     out = call(client, s, "notify_staff", {"request_type": "towels", "description_en": "Towels"}).json()
     assert out["status"] == "rate_limited" and "front desk" in out["followup_instructions"]
@@ -240,9 +404,13 @@ def test_phone_entry_point_by_session_id(cur, hotel_uae, fake_service):
 def test_real_service_request_when_service_is_installed(client, cur, hotel_uae):
     """End to end through Service's intake when its tables exist (the full
     suite); the scoped concierge run skips it."""
+    from clefs.modules.service import api as service_api
+
     cur.execute("SELECT to_regclass('svc_shift_templates') IS NOT NULL AS ok")
     if not cur.fetchone()["ok"]:
         pytest.skip("service module not migrated in this run")
+    if not hasattr(service_api, "create_job"):
+        pytest.skip("service.api.create_job (05 spec 3) is not in this tree yet")
     s = mint(client, hotel_uae.slug, room="101")
     out = call(client, s, "notify_staff", {"request_type": "towels", "description_en": "2 bath towels", "quantity": 2,
                                            "room": "205"}).json()

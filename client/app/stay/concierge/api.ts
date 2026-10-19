@@ -69,17 +69,43 @@ export interface SessionInfo {
   key_status: string;
   language: string;
   model: string;
-  transport: Transport;
+  /** "relay": voice goes through the server's Live relay socket (relay_url),
+      not straight to Gemini with an ephemeral key (05 spec 3, voice relay). */
+  transport: Transport | "relay";
+  relay_url?: string | null;
+  relay_token?: string | null;
   consents: Partial<ConsentGrants>;
   guest_ref: string;
   stay_token?: string;
 }
 
+/**
+ * The "Job sent to staff" card a job tool result carries (05 spec 3): who
+ * has the job and how fast it was picked up. First name only, never a
+ * surname. Times are epoch ms (the server normalises them).
+ */
+export interface JobCard {
+  item_label: string | null;
+  quantity: number | null;
+  room: string | null;
+  staff_first_name: string | null;
+  department_label: string | null;
+  eta_minutes: number | null;
+  created_at: number | string | null;
+  accepted_at: number | string | null;
+  state: string | null;
+  /** The concierge request type ("towels"), for a label in the guest's language. */
+  request_type?: string | null;
+  /** Service's department key ("housekeeping"), for the same reason. */
+  department_key?: string | null;
+}
+
 export interface ToolUi {
-  kind: "request" | "handoff" | "tracker" | "order" | "emergency";
+  kind: "request" | "handoff" | "tracker" | "order" | "emergency" | "recovery";
   token?: string | null;
   order_id?: string | number | null;
   numbers?: EmergencyNumber[];
+  card?: JobCard | null;
 }
 
 export interface ToolResult {
@@ -110,6 +136,14 @@ export interface ChatReply {
   prompt_version?: string;
 }
 
+/** A staff reply, an approved gesture or a status note, already in the guest's language. */
+export interface TrackerMessage {
+  at?: number | string | null;
+  kind: "staff_reply" | "gesture" | "status" | string;
+  text: string;
+  staff_first_name?: string | null;
+}
+
 export interface TrackerStatus {
   id: number | string;
   room: string | null;
@@ -119,10 +153,22 @@ export interface TrackerStatus {
   request_type_label: string | null;
   request_type_label_ar: string | null;
   department_label?: string | null;
+  department_label_ar?: string | null;
+  created_at_ms?: number | null;
   updated_at_ms?: number | null;
   can_confirm: boolean;
   guest_confirmation: string | boolean | null;
   cancelled: boolean;
+  // Added for the job card (05 spec 3); optional so an older server still reads.
+  item_label?: string | null;
+  quantity?: number | null;
+  staff_first_name?: string | null;
+  eta_minutes?: number | null;
+  accepted_at?: number | string | null;
+  proof_status?: string | null;
+  needs_guest_confirmation?: boolean;
+  closed_at?: number | string | null;
+  messages?: TrackerMessage[];
 }
 
 // ─── Stay context ────────────────────────────────────────────────────────
@@ -279,6 +325,24 @@ export function confirmTracker(token: string, resolved: boolean): Promise<Tracke
   return apiFetch<TrackerStatus>(`/public/r/${encodeURIComponent(token)}/confirm`, {
     method: "POST", json: { resolved }, silent401: true,
   });
+}
+
+/**
+ * "Is everything OK?": POST /public/r/{token}/feedback. fixed=false reopens
+ * the job and opens a case for the duty manager. A server without the route
+ * yet (404/405) gets the older "Resolved?" answer, which does the same.
+ */
+export async function sendFeedback(token: string, fixed: boolean, comment?: string | null): Promise<Partial<TrackerStatus>> {
+  try {
+    return await apiFetch<Partial<TrackerStatus>>(`/public/r/${encodeURIComponent(token)}/feedback`, {
+      method: "POST", json: { fixed, comment: comment || undefined }, silent401: true,
+    });
+  } catch (err) {
+    if (err instanceof ApiError && (err.status === 404 || err.status === 405) && err.code !== "not_found") {
+      return confirmTracker(token, fixed);
+    }
+    throw err;
+  }
 }
 
 // ─── Menu orders ─────────────────────────────────────────────────────────

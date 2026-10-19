@@ -217,3 +217,7 @@ class ConciergeSettings(BaseModel):
     voice: str | None = None
     # Quick-reply chips shown on the guest page, per language: [{key, label}].
     chips: dict[str, list[dict]] = {}
+    # The default chips are the six the guest page is designed around (05
+    # spec: towels, water, cleaning, Wi-Fi, check-out, front desk). "Order
+    # food" joins them only when a hotel switches this on and has a menu.
+    menu_chip: bool = False
