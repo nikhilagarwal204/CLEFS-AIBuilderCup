@@ -141,4 +141,3 @@ These are recommendations built from the obligations above, not quotes from a so
 - `review_sources(id, hotel_id, platform[google|tripadvisor|booking|agoda|expedia|manual], external_location_id, oauth_token_ref, access_mode[api|csv|email|partner], last_synced_at)`
 - `reviews(id, hotel_id, platform, external_review_id UNIQUE(platform, external_review_id), rating, title, text, lang, author_display_name, published_at, owner_reply_text, reply_status[none|draft|approved|posted|manual_required], sentiment, topics[], fetched_at, expires_at)`
 
-Note: the claude.ai "Fortes M365" connector needs authorisation in claude.ai connector settings. It wasn't used for this research.

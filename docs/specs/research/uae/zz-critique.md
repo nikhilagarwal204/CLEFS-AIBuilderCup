@@ -152,4 +152,3 @@
 
 ---
 
-*Note: the claude.ai "Fortes M365" connector needs to be authorised in the claude.ai connector settings. It was not used for this research and stays unavailable until it is authorised.*

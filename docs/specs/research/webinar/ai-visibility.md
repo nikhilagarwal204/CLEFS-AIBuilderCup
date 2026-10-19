@@ -24,10 +24,9 @@ Other things that shape which hotels get shown:
 |---|---|---|---|---|
 | Gemini | tool `google_search` | `url_citation` annotations, `google_search_call.queries`; `search_suggestions` HTML must be displayed per the ToS ([docs](https://ai.google.dev/gemini-api/docs/google-search)) | - | Gemini 3.x: 5,000 free searches/month, then $14 per 1k *queries* (one prompt can run several). Gemini 2.5: $35 per 1k prompts ([pricing](https://ai.google.dev/gemini-api/docs/pricing)). [Maps grounding](https://ai.google.dev/gemini-api/docs/maps-grounding) also exists; its price is UNVERIFIED |
 | Perplexity Sonar | chat completions | `search_results[]` {title, url, date, snippet}; the old `citations` field has been removed ([docs](https://docs.perplexity.ai/docs/sonar/quickstart)) | - | $1/$1 per M tokens plus $5/$8/$12 per 1k requests ([pricing](https://docs.perplexity.ai/getting-started/pricing)) |
-| Anthropic | `web_search_20250305` / `_20260318` | `web_search_result_location` {url, title, cited_text ≤150 chars} ([docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)) | `user_location` (approximate) | $10 per 1k searches plus tokens |
 | Google AI Mode (SerpApi) | `engine=google_ai_mode` with `q`, `location`/`uule`, `gl`, `hl`, `device` | `text_blocks`, `references`, `reconstructed_markdown` ([docs](https://serpapi.com/google-ai-mode-api)) | location / gl / hl | 1 credit per successful request; cached results are free ([SerpApi](https://serpapi.com/blog/calculating-search-credit-usage-with-serpapi/)). Plans run $25/1k to $150/15k ([pricing](https://serpapi.com/pricing)). AI Mode's exact credit cost is UNVERIFIED |
 | Google AI Overviews (SerpApi) | `engine=google_ai_overview` with a `page_token` from a normal Google search | `text_blocks`, `references` | via the parent search | ~2 requests per check (token expires in 1 minute) ([docs](https://serpapi.com/google-ai-overview-api)) |
-| Meta AI, Grok, consumer Claude apps | No official parity API. Scraping the apps is a ToS risk | - | - | Not recommended for v1. xAI API search: UNVERIFIED |
+| Meta AI, Grok and other consumer assistant apps | No official parity API. Scraping the apps is a ToS risk | - | - | Not recommended for v1. xAI API search: UNVERIFIED |
 
 **API answers are not app answers.** An [audit paper (arXiv 2609.18729)](https://arxiv.org/abs/2609.18729) found:
 - Overlap was 14.8% on Gemini's API.
@@ -93,7 +92,7 @@ Otterly adds that system prompts and settings differ between app and API.
 ## 6. Recommended "Visibility Radar" for Clefs
 
 **What it does**
-1. **Weekly run** on Gemini (Search grounding), Google AI Mode (SerpApi) and Perplexity Sonar. Leave out Claude, Grok and Meta AI in v1.
+1. **Weekly run** on Gemini (Search grounding), Google AI Mode (SerpApi) and Perplexity Sonar. Leave out Grok, Meta AI and the other assistants in v1.
 2. **Prompts generated automatically** from the hotel profile, the Demand Radar comp set and upcoming events. Run in English and Arabic, as the UAE plus the top source markets.
 3. **Outputs:**
    - Share of voice against the comp set, with confidence intervals.
