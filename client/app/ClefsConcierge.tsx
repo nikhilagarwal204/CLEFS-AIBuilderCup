@@ -10,6 +10,13 @@ import {
 import FoodMenu, { type MenuOrderLine } from "./stay/FoodMenu";
 import { resolveAssistantName } from "./lib/assistant";
 import { ApiError } from "./lib/api";
+
+// Start errors that HTTP chat cannot get around either: the session itself is
+// refused (consent, an outdated page, AI off, not live yet, rate limited).
+function isHardStartError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  return err.status === 429 || ["consent_required", "client_outdated", "ai_disabled", "concierge_not_live"].includes(err.code ?? "");
+}
 import { GUEST_LANGUAGES, makeT, resolveGuestLanguage, storeLang, langDir, ensureLangFont, langFontStack, type GuestLanguage } from "./stay/concierge/i18n";
 import { LivePeer, LiveChannel, LiveSender, armConnectProbe, isNetworkBlock } from "./stay/concierge/transport";
 import * as stayStore from "./stay/concierge/storage";
@@ -1581,7 +1588,11 @@ export default function ClefsConcierge({ roomNumber = null, hotelSlug = null, lo
               })
               .catch((err) => {
                 if (err === "Retry initiated") return;
-                if (err === "Live blocked") {
+                // Typed messages and chips never need Live: when it cannot
+                // start for a reason a retry would not fix on the guest's side
+                // (the voice service is down, out of quota or blocked), they
+                // carry on over HTTP chat, which mints its own session.
+                if (err === "Live blocked" || ((mode === "text" || mode === "chip") && !isHardStartError(err))) {
                   fallbackToHttp();
                   resolve();
                   return;
