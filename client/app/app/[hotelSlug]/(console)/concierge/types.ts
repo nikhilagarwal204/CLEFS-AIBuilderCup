@@ -185,7 +185,7 @@ export interface AfterHours { enabled: boolean; start: string | null; end: strin
 export interface VoiceLine {
   id: number;
   label: string;
-  project_id: string | null;
+  trunk_id: string | null;
   sip_uri: string | null;
   has_secret: boolean;
   line_secret_hint: string | null;
@@ -246,7 +246,7 @@ export interface WebhookEvent {
   event_type: string | null;
   call_id: string | null;
   voice_line_id: number | null;
-  project_id: string | null;
+  trunk_id: string | null;
   outcome: string;
   detail: Record<string, unknown>;
   received_at: string;

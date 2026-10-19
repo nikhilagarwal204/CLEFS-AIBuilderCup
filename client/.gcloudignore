@@ -1,0 +1,7 @@
+# What gcloud builds submit never uploads.
+.gcloudignore
+.env
+.env.*
+node_modules
+.next
+.vercel

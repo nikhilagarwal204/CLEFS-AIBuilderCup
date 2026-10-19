@@ -1,0 +1,6 @@
+# Never bake local secrets, dependencies or a stale build into the image.
+.env
+.env.*
+node_modules
+.next
+.vercel

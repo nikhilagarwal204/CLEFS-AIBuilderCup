@@ -1,0 +1,21 @@
+# Builds the web image: gcloud builds submit client --config client/cloudbuild.yaml
+# --substitutions=_API_ORIGIN=https://<api host>,_IMAGE=<registry>/web:<tag>
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_IMAGE}
+      - --build-arg
+      - CLEFS_API_ORIGIN=${_API_ORIGIN}
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=${_API_ORIGIN}
+      - .
+images:
+  - ${_IMAGE}
+substitutions:
+  _API_ORIGIN: https://clefs-api-632652019887.asia-south1.run.app
+  _IMAGE: asia-south1-docker.pkg.dev/disco-axis-442314-k2/clefs/web:latest
+options:
+  machineType: E2_HIGHCPU_8
+timeout: 1800s
