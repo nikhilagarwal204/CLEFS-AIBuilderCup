@@ -12,11 +12,11 @@ const SITE = "https://www.clefs.world";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   title: {
-    default: "Clefs - Profit and Service Control for Hotels",
+    default: "Clefs - The AI Guest Service Desk for Hotels",
     template: "%s | Clefs",
   },
   description:
-    "Clefs finds the profit leaks your hotel systems miss. It audits OTA payouts and rate integrity, spots local demand early, and sends the owner a morning brief of actions to approve. For hotels in the UAE.",
+    "Guests ask once, in their language, from the QR card in their room. Clefs sends each request to the right free staff member in their language and closes it only with photo proof. Built on Google Cloud with Gemini.",
   applicationName: "Clefs",
   authors: [{ name: "Clefs" }],
   creator: "Clefs",
@@ -35,9 +35,9 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Clefs - Find the profit leaks your hotel systems miss",
+    title: "Clefs - Ask once, in your language, and it gets done",
     description:
-      "OTA payout and rate integrity audits, a local demand radar and a morning owner brief of evidenced actions to approve. For hotels in the UAE.",
+      "The AI guest service desk for hotels: voice and text from a room QR code, dispatch in each staff member's language, escalation at 3, 5 and 10 minutes, and photo proof before a job closes.",
     url: SITE,
     siteName: "Clefs",
     locale: "en_US",
@@ -48,9 +48,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Clefs - Find the profit leaks your hotel systems miss",
+    title: "Clefs - Ask once, in your language, and it gets done",
     description:
-      "OTA payout and rate integrity audits, a local demand radar and a morning owner brief of evidenced actions to approve. For hotels in the UAE.",
+      "The AI guest service desk for hotels: voice and text from a room QR code, dispatch in each staff member's language, escalation at 3, 5 and 10 minutes, and photo proof before a job closes.",
   },
 };
 

@@ -21,7 +21,7 @@ def test_core_part_builds_the_property(cur):
     out = _seed(cur)
     assert out["created"] is True
     core = out["parts"]["core"]
-    assert core["rooms"] == 80 and core["staff"] == 16 and core["users"] == 5
+    assert core["rooms"] == 80 and core["staff"] == 18 and core["users"] == 6
     cur.execute("SELECT room_type_code, count(*) AS n FROM hotel_rooms WHERE hotel_slug = %s GROUP BY 1", (SLUG,))
     assert {r["room_type_code"]: r["n"] for r in cur.fetchall()} == {"STD_KING": 40, "STD_TWIN": 30, "FAM_2BR": 10}
     cur.execute("SELECT count(DISTINCT floor) AS f, count(*) FILTER (WHERE bedrooms = 2) AS fam FROM hotel_rooms "
@@ -33,8 +33,8 @@ def test_core_part_builds_the_property(cur):
     assert h["status"] == "demo" and h["star_rating"] == 3
     cur.execute("SELECT count(*) AS n FROM staff_members WHERE hotel_slug = %s "
                 "AND pin_hash IS NOT NULL", (SLUG,))
-    assert cur.fetchone()["n"] == 16
-    assert len(out["credentials"]["staff_pins"]) == 16
+    assert cur.fetchone()["n"] == 18
+    assert len(out["credentials"]["staff_pins"]) == 18
 
 
 def test_reseed_is_idempotent_and_refuses_real_hotels(cur, hotel_uae):
@@ -44,7 +44,7 @@ def test_reseed_is_idempotent_and_refuses_real_hotels(cur, hotel_uae):
     cur.execute("SELECT count(*) AS n FROM hotel_rooms WHERE hotel_slug = %s", (SLUG,))
     assert cur.fetchone()["n"] == 80
     cur.execute("SELECT count(*) AS n FROM staff_members WHERE hotel_slug = %s", (SLUG,))
-    assert cur.fetchone()["n"] == 16
+    assert cur.fetchone()["n"] == 18
     with pytest.raises(ClefsError) as exc:
         demo_uae.seed(cur, hotel_uae.slug, anchor=ANCHOR, parts=["core"])
     assert exc.value.code == "not_demo"
@@ -53,7 +53,7 @@ def test_reseed_is_idempotent_and_refuses_real_hotels(cur, hotel_uae):
 def test_catalog_part_writes_kb_menu_comps_and_contracts(cur):
     out = demo_uae.seed(cur, SLUG, anchor=ANCHOR, parts=["core", "core_catalog"], password="demo-pass-123")
     cat = out["parts"]["core_catalog"]
-    assert cat["kb_entries"] == 14 and cat["comp_set"] == 5 and cat["contracts"] == 3
+    assert cat["kb_entries"] == 16 and cat["comp_set"] == 5 and cat["contracts"] == 3
     assert cat["menu_items"] >= 20 and cat["pairings"] >= 6
     cur.execute("SELECT fact_key, fact_value FROM cc_kb_entries WHERE hotel_slug = %s AND status = 'approved' "
                 "AND fact_key IS NOT NULL", (SLUG,))
@@ -83,7 +83,7 @@ def test_full_reseed_across_parts_is_idempotent(cur):
     second = demo_uae.seed(cur, SLUG, anchor=ANCHOR, parts=parts, scale=0.05, password="demo-pass-123")
     assert second["created"] is False and second["parts"]["core_stays"] == first["parts"]["core_stays"]
     assert fingerprint() == before
-    assert second["parts"]["core_catalog"]["kb_entries"] == 14
+    assert second["parts"]["core_catalog"]["kb_entries"] == 16
 
 
 def test_the_wipe_empties_every_hotel_table(cur):

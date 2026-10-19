@@ -713,13 +713,17 @@ def recovery_case(s: Svc, request_id: int | None, *, room: str, guest_ref: str |
     return cid
 
 
-# minutes after 17:00 on the anchor, type, source, end state at 21:00
+# minutes after 17:00 on the anchor, type, source, end state at 21:00. What
+# is still open at 21:00 belongs to other departments: Housekeeping (Maria
+# and Priya) starts the demo fortnight with no open job, so the reviewer's
+# first towels request for Room 204 goes to Maria, the free attendant on
+# that floor (05 spec section 4).
 TAIL = ((5, "towels", "whatsapp", "completed"), (18, "ird", "voice", "completed"),
         (31, "water", "web", "completed"), (47, "checkout", "phone_desk", "completed"),
         (62, "amenities", "whatsapp", "completed"), (80, "drinks", "voice", "completed"),
-        (104, "make_up_room", "web", "completed"), (212, "make_up_room", "whatsapp", "acknowledged"),
+        (104, "make_up_room", "web", "completed"), (212, "plumbing", "whatsapp", "acknowledged"),
         (219, "front_desk", "phone_desk", "acknowledged"), (226, "ird", "voice", "acknowledged"),
-        (238, "towels", "whatsapp", "new"), (239, "water", "web", "new"))
+        (238, "billing", "whatsapp", "new"), (239, "wake_up", "web", "new"))
 
 
 def tail_steps(s: Svc) -> list[tuple[datetime, str, dict]]:
@@ -827,46 +831,83 @@ def complaint_live(ctx: Any, s: Svc, api: Any) -> None:
               note="Complaint via intake opens the case; gesture AED 120 within the duty manager's authority.")
 
 
-# staff (plain name), shift, shift role, floors. Six shifts a week each, the
-# day off rotating by position; the Friday evening plant is one attendant
-# short (Grace's evening shift is cancelled on Fridays). Each department has
-# a supervisor on every shift it staffs and the front office a duty manager
-# around the clock, so routing finds a person (In-Room Dining closes at
-# 23:00, Concierge requests go to the front desk). In-Room Dining runs two
-# shift leads per shift, so a lead's day off never leaves the dining orders
-# without a person (their days off never coincide). Elsewhere the day-off
-# rotation can leave a shift thin, which is realistic and shows in the
-# analytics.
+# staff (plain name), shift, shift role, floors: the history roster. Six
+# shifts a week each, the day off rotating by position; the Friday evening
+# plant is one attendant short (Priya's evening shift is cancelled on
+# Fridays). Housekeeping has its leads on the evening and night shifts and
+# the front office a duty manager around the clock, so routing finds a
+# person (In-Room Dining closes at 23:00, Concierge requests go to the front
+# desk). In-Room Dining runs two shift leads per shift, so a lead's day off
+# never leaves the dining orders without a person (their days off never
+# coincide). Elsewhere the day-off rotation can leave a shift thin, which is
+# realistic and shows in the analytics.
 ROSTER = (
-    ("Maria Santos", "morning", "supervisor", ()), ("Joy Dela Cruz", "morning", "attendant", ("1", "2")),
-    ("Anita Gurung", "morning", "attendant", ("3", "4")), ("Rekha Nair", "evening", "supervisor", ("5", "6")),
-    ("Grace Wanjiru", "evening", "attendant", ("7", "8")), ("Sunil Perera", "night", "supervisor", ()),
+    ("Joy Dela Cruz", "morning", "attendant", ("1", "2")), ("Anita Gurung", "morning", "attendant", ("3", "4")),
+    ("Grace Wanjiru", "morning", "attendant", ("5", "6", "7", "8")),
+    ("Maria Santos", "evening", "attendant", ("1", "2", "3", "4")),
+    ("Priya Sharma", "evening", "attendant", ("5", "6", "7", "8")),
+    ("Rekha Nair", "evening", "supervisor", ()), ("Sunil Perera", "night", "supervisor", ()),
     ("Arjun Menon", "morning", "supervisor", ()), ("Ahmed Farouk", "evening", "supervisor", ()),
     ("Kiran Thapa", "evening", "supervisor", ()), ("Ramesh Pillai", "morning", "supervisor", ()),
     ("Imran Qureshi", "morning", "supervisor", ()), ("Rajesh Kumar", "evening", "supervisor", ()),
     ("Bilal Hassan", "night", "supervisor", ()), ("Omar Khalid", "evening", "duty_manager", ()),
-    ("Priya Sharma", "morning", "duty_manager", ()), ("Mohammed Rafiq", "night", "duty_manager", ()),
+    ("Hessa Al Ali", "morning", "duty_manager", ()), ("Mohammed Rafiq", "night", "duty_manager", ()),
 )
 SHIFT_HOURS = {"morning": (7, 8), "evening": (15, 8), "night": (23, 8)}
+FRIDAY_SHORT = "Priya Sharma"
+
+# ─── The demo fortnight (05 spec section 4) ───
+# From the anchor day (the seed's "now" lies on it) for DEMO_DAYS more days
+# the deck cast is on shift around the clock, so a reviewer at any hour sees
+# the deck's story: a Housekeeping job for Room 204 reaches Maria (floors
+# 1-4), floors 5-8 reach Priya, the supervisor is told at 3 minutes and the
+# duty manager at 5. The other Housekeeping staff are off (on leave), so no
+# one else covers Maria's floors; every other department keeps its shifts,
+# with no day off, so routing never falls back. Omar is the only duty
+# manager rostered: the front-office leads work as agents.
+DEMO_DAYS = 14
+# name -> (shift role, floors); department from the staff row.
+DECK_ON_CALL = {
+    "Maria Santos": ("attendant", ("1", "2", "3", "4")),
+    "Priya Sharma": ("attendant", ("5", "6", "7", "8")),
+    "Rekha Nair": ("supervisor", ()),
+    "Omar Khalid": ("duty_manager", ()),
+}
+DEMO_LEAVE = frozenset({"Joy Dela Cruz", "Anita Gurung", "Grace Wanjiru", "Sunil Perera"})
+DEMO_AGENTS = frozenset({"Hessa Al Ali", "Mohammed Rafiq"})
 
 
 def seed_roster(ctx: Any, s: Svc, live_days: set[date]) -> int:
-    """The published roster from the first history day to a week ahead, so
-    routing finds people on shift (without it every request falls back and
-    raises service.understaffed). Days off rotate, except on the days the
-    live episodes replay, which run on a full roster (the Friday plant
-    aside), so routing never falls back in the story the owner reads."""
+    """The published roster from the first history day to DEMO_DAYS after
+    the anchor, so routing finds people on shift (without it every request
+    falls back and raises service.understaffed). Before the anchor days off
+    rotate, except on the days the live episodes replay, which run on a full
+    roster (the Friday plant aside), so routing never falls back in the
+    story the owner reads. From the anchor on it is the demo fortnight
+    (DECK_ON_CALL above)."""
     from psycopg2.extras import execute_values
 
     staff, depts = ctx.ids.get("staff") or {}, ctx.ids.get("staff_departments") or {}
     rows = []
     d = ctx.history_start
-    while d <= ctx.anchor + timedelta(days=7):
+    while d <= ctx.anchor + timedelta(days=DEMO_DAYS):
+        fortnight = d >= ctx.anchor
+        for name, (role, floors) in (DECK_ON_CALL.items() if fortnight else ()):
+            sid = staff.get(name)
+            if sid is not None:
+                rows.append((ctx.slug, sid, d, ctx.at(d, 0), ctx.at(d + timedelta(days=1), 0), depts.get(name),
+                             list(floors), role))
         for i, (name, shift, role, floors) in enumerate(ROSTER):
             sid = staff.get(name)
-            if sid is None or ((d.toordinal() + i) % 7 == 0 and d not in live_days):
+            if sid is None:
                 continue
-            if name == "Grace Wanjiru" and d.weekday() == 4:
+            if fortnight:
+                if name in DECK_ON_CALL or name in DEMO_LEAVE:
+                    continue
+                role = "attendant" if name in DEMO_AGENTS else role
+            elif (d.toordinal() + i) % 7 == 0 and d not in live_days:
+                continue
+            elif name == FRIDAY_SHORT and d.weekday() == 4:
                 continue
             h, length = SHIFT_HOURS[shift]
             start = ctx.at(d, h)
@@ -1091,8 +1132,9 @@ def link_amenity_requests(ctx: Any, api: Any, items: dict[str, dict], start: dat
     return out
 
 
+# The morning attendants who restock the floor closets (the history roster).
 FLOOR_ATTENDANT = {"1": "Joy Dela Cruz", "2": "Joy Dela Cruz", "3": "Anita Gurung", "4": "Anita Gurung",
-                   "5": "Rekha Nair", "6": "Rekha Nair", "7": "Grace Wanjiru", "8": "Grace Wanjiru"}
+                   "5": "Grace Wanjiru", "6": "Grace Wanjiru", "7": "Grace Wanjiru", "8": "Grace Wanjiru"}
 
 
 def _line(t: datetime, key: str, qty: int, floor: str | None, *, reason: str, staff: str | None,

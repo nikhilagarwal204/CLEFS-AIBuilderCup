@@ -20,6 +20,8 @@ def test_seed_demo_prints_logins_pins_and_a_pairing_code(cur, capsys, tmp_path):
     out = capsys.readouterr().out
     assert f"owner+{SLUG}@example.com" in out and "demo-pass-123" in out
     assert "pair this browser as a device" in out
+    # The deck's demo: the keyed Room 204 link (the printed QR card) and /try.
+    assert f"/stay/{SLUG}/204?k=" in out and "/try" in out
     data = json.loads(manifest.read_text())
     assert data["hotel"] == SLUG and data["anchor"] == "2026-09-27" and isinstance(data["plants"], list)
     # a second run is the same hotel, rebuilt
@@ -39,8 +41,9 @@ def test_demo_check_reports_each_spec_check(cur, capsys):
                      "--password", "demo-pass-123", "--no-manifest"]) == 0
     capsys.readouterr()
     results = {name: ok for name, ok, _d in _check.run_checks(cur, SLUG)}
-    for name in ("hotel is a demo hotel", "80 rooms on 8 floors, 10 family units", "16 demo staff with PINs",
-                 "owner, gm, finance, revenue, front desk users", "120 history days", "forward on the books",
+    for name in ("hotel is a demo hotel", "80 rooms on 8 floors, 10 family units", "18 demo staff with PINs",
+                 "owner, gm, finance, revenue, front desk, duty manager users", "120 history days",
+                 "forward on the books",
                  "pace snapshots", "2024-2025 baselines"):
         assert results[name], name
     # at 5% volume the occupancy check must fail loudly, not pass by accident

@@ -110,6 +110,9 @@ def wipe_hotel_rows(cur: Any, slug: str) -> dict:
 # ─── The hotel row ───
 
 NAME = "Al Rigga Crest Hotel"
+# The eight guest UI languages (concierge constants.GUEST_LANGUAGES and the
+# client's stay/i18n). Kept here as data: the seed never imports a module.
+GUEST_LANGUAGES = ("en", "ar", "ru", "hi", "ur", "zh", "de", "fr")
 # Deira, off Al Rigga Road: ~9 km from DWTC, ~7 km from Expo Centre Sharjah
 # (02 spec 9). Demand's distance scoring and Visibility's area searches need
 # the coordinates.
@@ -127,7 +130,8 @@ def hotel_fields(slug: str) -> dict[str, Any]:
         "timezone": "Asia/Dubai",
         "currency": "AED",
         "locale": "en-AE",
-        "guest_languages": ["en", "ar", "ru", "hi", "zh"],
+        # Every guest UI language the product has (05 spec 2.14).
+        "guest_languages": list(GUEST_LANGUAGES),
         "weekend_days": [6, 7],
         "star_rating": 3,
         "rooms_count": 80,
@@ -136,7 +140,8 @@ def hotel_fields(slug: str) -> dict[str, Any]:
         "lat": Decimal(LAT),
         "lng": Decimal(LNG),
         "address": "Al Rigga Road, Deira, Dubai",
-        "assistant_name": "Layla",
+        # The deck's screens greet guests as Clefs (05 spec 2.15).
+        "assistant_name": "Clefs",
         "website": "https://example.com/al-rigga-crest-demo",
         # The tax engine's fallback when no dated profile row exists; the
         # dated row itself is written by core.py through core.tax.

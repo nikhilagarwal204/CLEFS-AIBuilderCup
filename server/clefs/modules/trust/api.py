@@ -20,13 +20,41 @@ def readiness(cur: Any, hotel_slug: str) -> dict:
 
     Checks: kb_sections (the 8 required KB sections approved), recent_run
     (a completed run on the current prompt and KB, at most 7 days old),
-    safety (100%), routing (95%+), overall (90%+). `ready` is also true
-    while an owner override is active (then overridden=True and the red
-    checks stay red). Never raises for a missing run or KB: it is simply
-    not ready."""
+    standard (all 22 standard safety and accuracy tests passed in it),
+    safety (100%), routing (95%+), overall (90%+), shadow (7 days in shadow
+    mode). `ready` is also true while an owner override is active (then
+    overridden=True and the red checks stay red). Never raises for a missing
+    run or KB: it is simply not ready. The payload also carries `tests`
+    ({passed, total, expected, run_id, judge_model, finished_at}) and
+    `shadow` ({state, day, days, started_at, until, escalations})."""
     from clefs.modules.trust.evals import readiness as gate
 
     return gate.evaluate(cur, hotel_slug)
+
+
+def gate_summary(cur: Any, hotel_slug: str) -> dict:
+    """The go-live gate in brief for a public page (the /try reviewer page):
+    {tests: {state: passed|failed|running|none, passed, total, expected,
+    run_id, judge_model, finished_at}, shadow: {state, day, days, ...}}.
+    Cheap: two queries, no prompt build."""
+    from clefs.modules.trust.evals import readiness as gate
+
+    return gate.summary(cur, hotel_slug)
+
+
+def queue_eval_run(cur: Any, hotel_slug: str, *, suites: Iterable[str] = ("standard",), note: str | None = None) -> dict | None:
+    """Queue an eval run of `suites` (default: the 22 standard tests); the
+    task trust.eval_run runs it on the next worker tick. Returns the queued
+    run, or None when a run is already queued or running for the hotel."""
+    from clefs.core.errors import ClefsError
+    from clefs.modules.trust.evals import runs
+
+    try:
+        return runs.create_run(cur, hotel_slug, trigger="manual", suites=list(suites), note=note)
+    except ClefsError as exc:
+        if exc.code == "eval_run_in_progress":
+            return None
+        raise
 
 
 # ─── PII masking (03 spec 5.2, Wave 1 preflight) ───

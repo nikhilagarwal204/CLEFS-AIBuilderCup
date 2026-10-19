@@ -34,12 +34,18 @@ def core_checks(cur: Any, slug: str) -> list[Check]:
                   "FROM hotel_rooms WHERE hotel_slug = %s AND is_active", (slug,))
     out.append(("80 rooms on 8 floors, 10 family units", (r["n"], r["floors"], r["fam"]) == (80, 8, 10),
                 f"rooms={r['n']} floors={r['floors']} fam={r['fam']}"))
+    from clefs.seed.demo_uae.core import STAFF, USERS
+
     s = _one(cur, "SELECT count(*) AS n, count(*) FILTER (WHERE pin_hash IS NOT NULL) AS pins FROM staff_members "
                   "WHERE hotel_slug = %s", (slug,))
-    out.append(("16 demo staff with PINs", (s["n"], s["pins"]) == (16, 16), f"staff={s['n']} pins={s['pins']}"))
+    n_staff = len(STAFF)
+    out.append((f"{n_staff} demo staff with PINs", (s["n"], s["pins"]) == (n_staff, n_staff),
+                f"staff={s['n']} pins={s['pins']}"))
+    roles = [role for role, *_rest in USERS]
     u = _one(cur, "SELECT count(DISTINCT role) AS n FROM hotel_memberships WHERE hotel_slug = %s AND is_active "
-                  "AND role IN ('owner', 'gm', 'finance', 'revenue', 'front_desk')", (slug,))
-    out.append(("owner, gm, finance, revenue, front desk users", u["n"] == 5, f"roles={u['n']}"))
+                  "AND role = ANY(%s)", (slug, roles))
+    out.append(("owner, gm, finance, revenue, front desk, duty manager users", u["n"] == len(roles),
+                f"roles={u['n']}"))
     last = _one(cur, "SELECT max(date) AS d FROM occupancy_daily WHERE hotel_slug = %s AND source = 'DERIVED'",
                 (slug,))
     anchor = last.get("d")

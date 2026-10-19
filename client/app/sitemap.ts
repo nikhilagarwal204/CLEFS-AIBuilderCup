@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { OTA_AUDIT_LIVE, OTA_AUDIT_PATH, SITE } from "./lib/seo";
+import { SITE } from "./lib/seo";
 
 /**
  * Every publicly indexable URL. Private and per-visitor surfaces are absent on
@@ -14,15 +14,11 @@ import { OTA_AUDIT_LIVE, OTA_AUDIT_PATH, SITE } from "./lib/seo";
  */
 const PAGES: { path: string; priority: number; freq?: "weekly" | "monthly" }[] = [
   { path: "/", priority: 1 },
-  // Products
-  { path: "/profit-guard", priority: 0.9 },
-  { path: "/demand-radar", priority: 0.9 },
+  // The AI Builder Cup prototype is the guest service desk; the Profit
+  // Guard, Demand Radar and Google check pages redirect home (next.config.mjs)
+  // while their modules are switched off.
+  { path: "/try", priority: 0.9 },
   { path: "/service-control", priority: 0.9 },
-  // Lead magnets and next steps
-  // Listed only once Profit Guard ships the route (OTA_AUDIT_LIVE in lib/seo.ts).
-  ...(OTA_AUDIT_LIVE ? [{ path: OTA_AUDIT_PATH, priority: 0.9 }] : []),
-  { path: "/google-check", priority: 0.8 },
-  { path: "/demand-preview", priority: 0.7 },
   { path: "/pilot", priority: 0.8 },
   // Trust
   { path: "/security", priority: 0.7, freq: "monthly" },

@@ -62,6 +62,7 @@ CORE_ROUTER_HOOKS: tuple[str, ...] = (
     "clefs.core.ingest",
     "clefs.core.tax",
     "clefs.core.oauth",  # 04 spec F6: /hotels/{slug}/oauth/*, /public/oauth/{provider}/callback
+    "clefs.core.demo_access",  # 05 spec 5: /public/demo/{slug}[/staff-app|/console], demo hotels only
 )
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
