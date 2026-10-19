@@ -42,7 +42,7 @@ def test_every_1_7_job_is_registered_with_its_schedule():
     got = {j.name: j for j in core_jobs.registered_jobs() if j.name.startswith("service.")}
     assert set(got) == {"service.sla_sweep", "service.scheduled_release", "service.session_autologout",
                         "service.guest_confirm_expire", "service.repeat_fault_detect", "service.daily_rollup",
-                        "service.roster_labour_scan", "service.tracker_push"}
+                        "service.roster_labour_scan", "service.tracker_push", "service.proof_retention"}
     assert all(j.per_hotel for j in got.values())
 
 

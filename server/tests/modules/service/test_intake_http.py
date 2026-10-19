@@ -67,13 +67,15 @@ def test_device_feed_is_scoped_to_its_floors(device_client, cur, hotel_uae):
     assert TestClient(dev.app).get("/device/service/feed").status_code == 401
 
 
-def test_public_tracker_shows_progress_without_staff_names_and_confirms(client, cur, hotel_uae):
+def test_public_tracker_shows_progress_with_a_first_name_only_and_confirms(client, cur, hotel_uae):
     s = hotel_uae.slug
-    _staff(cur, s, "Amina")
+    _staff(cur, s, "Amina Khan")
     row = api.create_request(cur, s, room="101", type="towels", description="towels", source="web")
     token = row["tracking_token"]
     view = client.get(f"/public/r/{token}").json()
-    assert view["state"] == "assigned" and view["can_confirm"] is False and "Amina" not in str(view)
+    # 05 spec: the guest sees who is coming ("Amina is on her way"), never a surname
+    assert view["state"] == "assigned" and view["can_confirm"] is False and view["staff_first_name"] == "Amina"
+    assert "Khan" not in str(view) and "assigned_to" not in view and view["eta_minutes"] == 5
     assert client.get("/public/r/not-a-real-token").status_code == 404
     early = client.post(f"/public/r/{token}/confirm", json={"resolved": True})
     assert early.status_code == 409
@@ -83,4 +85,4 @@ def test_public_tracker_shows_progress_without_staff_names_and_confirms(client, 
     assert no.status_code == 200, no.text
     assert no.json()["state"] == "assigned" and no.json()["guest_confirmation"] == "no"
     cur.execute("SELECT reopen_count, guest_comment, assigned_to FROM staff_requests WHERE id = %s", (row["id"],))
-    assert dict(cur.fetchone()) == {"reopen_count": 1, "guest_comment": "still no towels", "assigned_to": "Amina"}
+    assert dict(cur.fetchone()) == {"reopen_count": 1, "guest_comment": "still no towels", "assigned_to": "Amina Khan"}

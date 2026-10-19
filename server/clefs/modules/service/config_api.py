@@ -112,7 +112,8 @@ def put_departments(slug: str, body: DepartmentsIn, ctx: HotelCtx = Depends(requ
 
 def list_request_types(cur: Any, hotel_slug: str) -> list[dict]:
     hotel_rows = _sources(cur, "svc_request_types", hotel_slug)
-    keys = ("label_en", "label_ar", "department_key", "default_severity", "is_amenity", "sensitive", "legacy_type", "active")
+    keys = ("label_en", "label_ar", "department_key", "default_severity", "is_amenity", "sensitive", "legacy_type", "active",
+            "needs_proof")
     out = [{"key": k, **{f: t.get(f) for f in keys}, "source": "hotel" if k in hotel_rows else "default"}
            for k, t in config.request_types(cur, hotel_slug).items()]
     return sorted(out, key=lambda t: (t["department_key"] or "", t["key"]))
@@ -128,6 +129,8 @@ class RequestTypeIn(BaseModel):
     sensitive: bool = False
     legacy_type: str | None = Field(None, max_length=80)
     active: bool = True
+    # None keeps the default (constants.PROOF_TYPES): "Mark as Done" needs a checked photo
+    needs_proof: bool | None = None
 
 
 class RequestTypesIn(BaseModel):
@@ -153,13 +156,15 @@ def put_request_types(slug: str, body: RequestTypesIn, ctx: HotelCtx = Depends(r
         for t in body.request_types:
             cur.execute(
                 """INSERT INTO svc_request_types (hotel_slug, key, label_en, label_ar, department_key, default_severity,
-                       is_amenity, sensitive, legacy_type, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                       is_amenity, sensitive, legacy_type, active, needs_proof)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                    ON CONFLICT (hotel_slug, key) DO UPDATE SET label_en = EXCLUDED.label_en, label_ar = EXCLUDED.label_ar,
                        department_key = EXCLUDED.department_key, default_severity = EXCLUDED.default_severity,
                        is_amenity = EXCLUDED.is_amenity, sensitive = EXCLUDED.sensitive,
-                       legacy_type = EXCLUDED.legacy_type, active = EXCLUDED.active, updated_at = NOW()""",
+                       legacy_type = EXCLUDED.legacy_type, active = EXCLUDED.active,
+                       needs_proof = EXCLUDED.needs_proof, updated_at = NOW()""",
                 (slug, t.key, t.label_en, t.label_ar, t.department_key, t.default_severity, t.is_amenity, t.sensitive,
-                 t.legacy_type, t.active),
+                 t.legacy_type, t.active, t.needs_proof),
             )
         after = list_request_types(cur, slug)
         audit(cur, ctx, "service.config.request_types", "svc_request_types", slug,

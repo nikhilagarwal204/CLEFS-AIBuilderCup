@@ -13,6 +13,11 @@ needs one import line to load all three.
 | service.repeat_fault_detect  | hourly (and reopen spikes)  |
 | service.daily_rollup         | 00:30 hotel time            |
 | service.roster_labour_scan   | 05:00 hotel time            |
+| service.proof_retention      | 03:10 hotel time            |
+| service.translate_job (task) | queued when a job changes hands |
+
+The sweep also closes completed jobs nobody answered for 30 minutes and
+moves unaccepted ones at the supervisor step (05 spec, sla.py).
 
 Every job is per hotel (the owning module must be on for that hotel) and
 runs in its own transaction (JobCtx.cur). Each step that could fail on one
@@ -206,6 +211,35 @@ def daily_rollup(ctx: jobs.JobCtx) -> dict:
     today = htime.local_date(ctx.hotel)
     days = [today - timedelta(days=1), today - timedelta(days=2)]
     return {str(d): rollup_day(ctx.cur, ctx.hotel, d) for d in days}
+
+
+@jobs.scheduled("service.proof_retention", jobs.daily_at("03:10"))
+def proof_retention(ctx: jobs.JobCtx) -> dict:
+    """Completion photos are kept 7 days (05 spec, decision 9): drop the
+    bytes (Postgres) or the object (the bucket, whose own lifecycle rule
+    does the same) and keep the row as the record of the check."""
+    from clefs.modules.service import proof
+
+    return {"deleted": proof.purge(ctx.cur, ctx.hotel_slug)}
+
+
+@jobs.task("service.translate_job", max_attempts=2, backoff_s=30)
+def translate_job(ctx: jobs.JobCtx, payload: dict) -> dict:
+    """A job's title and text in its holder's language, ahead of their
+    first look (queued by staff_lang.prewarm when the holder changes)."""
+    from clefs.modules.service import staff_lang
+
+    from clefs.modules.service import constants as C
+
+    row = state.load(ctx.cur, ctx.hotel_slug, int(payload["request_id"]))
+    if row is None:
+        return {"skipped": "gone"}
+    if row.get("state") not in C.OPEN_STATES:
+        # finished before the queue reached it (a replayed seed history):
+        # nobody will read it, so no model call
+        return {"skipped": "closed"}
+    out = staff_lang.translate_job(ctx.hotel_slug, row, payload.get("lang") or "en", cur=ctx.cur, timeout_s=8.0)
+    return {"translated": out.get("display_translated")}
 
 
 @jobs.scheduled("service.roster_labour_scan", jobs.daily_at("05:00"))

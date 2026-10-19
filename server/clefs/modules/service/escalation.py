@@ -260,6 +260,39 @@ def coalesce_key(hotel_slug: str, p: Person, escalation_ids: list[int]) -> str:
     return f"svc.esc:{hotel_slug}:{p.key}:{minute}:{ids}"
 
 
+def alert(cur: Any, hotel: Any, role: str, row: dict, text: str, *, key: str, live: bool) -> list[Person]:
+    """One message outside the ladder to whoever holds `role` for this
+    request right now (the roster): a completion photo that did not match
+    goes to the supervisor, a recovery case to approve to the duty manager.
+    The ladder's channels per role (a supervisor on a live device gets the
+    device feed event only); shadow mode (live=False) sends nothing. `text`
+    names rooms and job types, never the guest's words. -> the people found."""
+    people = people_for(cur, hotel.slug, role, row)
+    if not live:
+        return people
+    from clefs import notify
+
+    for p in people:
+        channels = channels_for(p, role)
+        if not channels:
+            continue
+        try:
+            notify.notify(
+                notify.Recipient(phone=p.phone, email=p.email, name=p.name, user_id=p.user_id),
+                notify.Message(
+                    purpose=PURPOSE, hotel_slug=hotel.slug, category="utility", sender="platform", whatsapp_text=text,
+                    whatsapp_template={"name": TEMPLATE, "lang": "en", "params": [hotel.name[:60], text[:900]]},
+                    sms_text=text[:300], email_subject=f"{hotel.name}: {text[:80]}", email_text=text,
+                    idempotency_key=f"{key}:{p.key}",
+                ),
+                channels=channels,
+                cur=cur,
+            )
+        except Exception as exc:  # a provider fault never undoes the caller's work
+            log.warning("%s alert to %s failed for %s: %s", role, p.key, hotel.slug, exc)
+    return people
+
+
 def send_digest(cur: Any, hotel: Any, p: Person, items: list[dict], escalation_ids: list[int], *, live: bool) -> dict:
     """One message to one person for everything this sweep escalated to them.
     Shadow mode (live=False) computes the channels and sends nothing.

@@ -291,6 +291,7 @@ def transition(
     legacy: bool = False,
     publish: bool = True,
     extra: dict | None = None,
+    keep_clock: bool = False,
 ) -> dict:
     """Apply one action. -> {row, event, replayed}.
 
@@ -299,6 +300,14 @@ def transition(
     person who declined or handed off). `resolved_at` is the legacy PATCH's
     own completion instant (the old dashboard sends it). A replayed
     `client_event_id` returns the original outcome and changes nothing.
+    `keep_clock` (the sweep's automatic reassignment at the supervisor step)
+    hands the job over without restarting the escalation ladder, so the duty
+    manager and GM steps still count from the guest's request.
+
+    Every change of holder stores the new ETA (eta_minutes, eta_at; 05 spec
+    decision 6). Cancel and the guest's confirm close the job (closed_at,
+    closure_reason); a reopen clears closure and the last photo check, so the
+    next "Mark as Done" needs a new photo.
     """
     if client_event_id:
         try:
@@ -324,7 +333,7 @@ def transition(
         _check_reopen(row, actor, now_ms)
     hotel = get_hotel(cur, hotel_slug)
     changes = _changes(cur, hotel, row, action, to, actor, now_ms, target=target, resolution_code=resolution_code,
-                       resolved_at=resolved_at)
+                       resolved_at=resolved_at, keep_clock=keep_clock)
     changes.update({"state": to, "status": legacy_status(to), "version": int(row["version"]) + 1})
     cols = list(changes)
     cur.execute(
@@ -340,9 +349,17 @@ def transition(
             payload[k] = changes[k]
     if changes.get("flags", {}).get("took_over_from") and changes["flags"] != row.get("flags"):
         payload["took_over_from"] = changes["flags"]["took_over_from"]
+    if "eta_minutes" in changes and changes["eta_minutes"] is not None:
+        payload["eta_minutes"] = changes["eta_minutes"]
     ev = record_event(cur, new, "transition", actor, action=action, from_state=state, to_state=to, payload=payload,
                       client_event_id=client_event_id, client_at=client_at)
     _audit(cur, actor, action, new, row, {"note": note} if note else None)
+    if new.get("assigned_staff_id") and new.get("assigned_staff_id") != row.get("assigned_staff_id"):
+        # The new holder's language: translate the job ahead of their first
+        # look (05 decision 10), queued so no AI call runs in this transaction.
+        from clefs.modules.service import staff_lang  # staff_lang reads rows through this module
+
+        guarded(cur, "translate_prewarm", staff_lang.prewarm, cur, new)
     # Subscribers (service.api.on_request_state: Upsell's order follows its
     # linked request) hear every real transition, each in its own savepoint.
     # A replay returned above and never gets here: nothing changed, so
@@ -400,9 +417,17 @@ def _holder(cur: Any, hotel: Any, row: dict, action: str, target: dict | None) -
     return {"staff_id": pick.get("staff_id"), "device_id": pick.get("device_id")}
 
 
+def _eta(cur: Any, hotel: Any, row: dict, staff_id: int | None, device_id: int | None) -> dict:
+    """The holder's ETA (routing.eta_for), as the columns to write."""
+    from clefs.modules.service import routing  # routing never imports state at module level
+
+    minutes, at = routing.eta_for(cur, hotel, row, staff_id=staff_id, device_id=device_id)
+    return {"eta_minutes": minutes, "eta_at": at}
+
+
 def _changes(
     cur: Any, hotel: Any, row: dict, action: str, to: str, actor: Actor, now_ms: int, *,
-    target: dict | None, resolution_code: str | None, resolved_at: int | None,
+    target: dict | None, resolution_code: str | None, resolved_at: int | None, keep_clock: bool = False,
 ) -> dict:
     ch: dict[str, Any] = {}
     flags = dict(row.get("flags") or {})
@@ -414,11 +439,13 @@ def _changes(
         # accepted_at is the documented deprecated alias of assigned_at, so
         # the legacy analytics keep meaning what they always meant.
         ch["assigned_at"] = ch["accepted_at"] = now_ms
-        if action != "assign":
+        ch.update(_eta(cur, hotel, row, ch["assigned_staff_id"], ch["assigned_device_id"]))
+        if action != "assign" and not keep_clock:
             # A new person after a decline, handoff or reassignment gets a
             # fresh ack clock. The first assignment keeps the one counted
             # from creation (or release / reopen): the guest has been
-            # waiting since then, whoever picks it up.
+            # waiting since then, whoever picks it up. So does the sweep's
+            # own reassignment at the supervisor step (keep_clock).
             ch.update(_restart_ladder(cur, hotel, row, now_ms, resolve_too=False))
     elif action == "ack":
         ch["acknowledged_at"] = row.get("acknowledged_at") or now_ms
@@ -431,6 +458,7 @@ def _changes(
             ch["assigned_staff_id"] = actor.staff_id
             ch["assigned_to"] = _staff_name(cur, hotel.slug, actor.staff_id)
             ch["assigned_device_id"] = None
+            ch.update(_eta(cur, hotel, row, actor.staff_id, None))
     elif action == "start":
         ch["started_at"] = now_ms
         ch["acknowledged_at"] = row.get("acknowledged_at") or now_ms
@@ -446,11 +474,14 @@ def _changes(
     elif action == "cancel":
         ch["cancelled_at"] = now_ms
         ch["resolution_code"] = "cancelled"
+        ch["closed_at"], ch["closure_reason"] = now_ms, "cancelled"
     elif action == "reopen":
         ch["reopen_count"] = int(row.get("reopen_count") or 0) + 1
         ch["resolved_at"] = None
         ch["cancelled_at"] = None
         ch["resolution_code"] = None
+        ch.update({"closed_at": None, "closure_reason": None, "proof_status": None, "proof_reason": None,
+                   "proof_id": None, "eta_minutes": None, "eta_at": None})
         if actor.type == "guest":
             ch["guest_confirmation"] = "no"
             ch["guest_confirmed_at"] = now_ms
@@ -458,11 +489,12 @@ def _changes(
     elif action == "confirm":
         ch["guest_confirmation"] = "yes"
         ch["guest_confirmed_at"] = now_ms
+        ch["closed_at"], ch["closure_reason"] = now_ms, "guest_confirmed"
     elif action == "release":
         ch.update(_restart_ladder(cur, hotel, row, now_ms, resolve_too=True))
     elif action == "unassign":
         ch.update({"assigned_staff_id": None, "assigned_device_id": None, "assigned_to": None,
-                   "assigned_at": None, "accepted_at": None})
+                   "assigned_at": None, "accepted_at": None, "eta_minutes": None, "eta_at": None})
     if flags != (row.get("flags") or {}):
         ch["flags"] = flags
     return ch

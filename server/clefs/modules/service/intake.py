@@ -89,6 +89,13 @@ class IntakeIn:
     severity_hint: str | None = None  # L1 | L2 | L3 from a caller that knows
     sensitivity_hint: str | None = None  # a safety level the caller already found
     sensitive_kind_hint: str | None = None
+    # The guest's own words when the caller already wrote the English
+    # description (the concierge's create_job; translate=False then).
+    original_text: str | None = None
+    # The guest's mood and frustration (0..1) and the concierge session.
+    mood: str | None = None
+    frustration: float | None = None
+    session_id: str | None = None
     # Door-specific behaviour
     allow_merge: bool = True
     rate_limit: bool | None = None  # None: guest sources only
@@ -448,7 +455,8 @@ _INSERT_COLUMNS = (
     "location_slug", "department_key", "request_type_key", "amenity_item_id", "quantity", "severity",
     "sensitivity", "sensitive_kind", "assigned_staff_id", "assigned_at", "scheduled_for", "ladder_started_at",
     "ack_due_at", "resolve_due_at", "sla_policy_ref", "shift_key", "created_by_staff_id", "created_by_user_id",
-    "completed_by_staff_id", "resolution_code", "verified_room", "flags",
+    "completed_by_staff_id", "resolution_code", "verified_room", "flags", "mood", "frustration", "session_id",
+    "needs_proof",
 )
 
 
@@ -565,8 +573,22 @@ def _persist(
     now_ms = clock.now_ms()
     ts = p.timestamp if isinstance(p.timestamp, int) and 0 < p.timestamp < 2**53 else now_ms
     scheduled = p.scheduled_for if (p.scheduled_for or 0) > now_ms else None
+    given = (p.original_text or "").strip()[:DESCRIPTION_MAX] or None
+    if given is not None and translated is None:
+        # The caller translated (create_job): keep the guest's words beside
+        # the English the staff app and the console read.
+        original, translated = given, (True if given.lower() != text_en.strip().lower() else None)
+    frustration = None
+    if p.frustration is not None:
+        try:
+            frustration = min(1.0, max(0.0, float(p.frustration)))
+        except (TypeError, ValueError):
+            frustration = None
     values: dict[str, Any] = {
-        "hotel_slug": slug, "room": norm["room"], "type": res["legacy_type"], "subtype": (p.subtype or None) and p.subtype[:100],
+        # the legacy column is NOT NULL: a request with no room (a lobby
+        # location, a caller that does not know it) is stored as ""
+        "hotel_slug": slug, "room": norm["room"] or "", "type": res["legacy_type"],
+        "subtype": (p.subtype or None) and p.subtype[:100],
         "description": text_en, "category": res["category"], "priority": prio, "status": "new", "timestamp": ts,
         "intake_version": 2, "state": "scheduled" if scheduled else "new", "source": p.source[:40],
         "channel_ref": (p.channel_ref or None) and p.channel_ref[:200],
@@ -580,6 +602,9 @@ def _persist(
         "scheduled_for": scheduled, "ladder_started_at": scheduled or now_ms, "shift_key": norm["shift_key"],
         "created_by_staff_id": p.created_by_staff_id, "created_by_user_id": p.created_by_user_id,
         "verified_room": norm["verified_room"], "flags": norm["flags"],
+        "mood": (p.mood or None) and str(p.mood)[:20], "frustration": frustration,
+        "session_id": (p.session_id or None) and str(p.session_id)[:80],
+        "needs_proof": bool(res["type_info"].get("needs_proof")),
     }
     legacy_route = p.legacy_status not in (None, "new") or bool(p.legacy_assigned_to)
     if legacy_route:
@@ -604,6 +629,15 @@ def _persist(
         _open_incident(cur, row, safety, actor)
     if severity == "L1":
         state.guarded(cur, "l1_signal", _l1_signal, cur, hotel, row)
+    from clefs.modules.service import escalation, sla  # sla reads what intake wrote; imported where it is used
+
+    if escalation.is_urgent(row) and row.get("state") in C.UNACKED_STATES:
+        # Safety first (05 spec): an emergency or sensitive request pages
+        # Security, the duty manager and (L1) the GM now, in this transaction,
+        # not at the next minute's sweep. svc_escalations' unique key keeps
+        # the sweep from paging the same step twice.
+        if state.guarded(cur, "page_now", sla.page_now, cur, slug, row["id"]) is not None:
+            row = state.load(cur, slug, row["id"]) or row
     if row.get("request_type_key") == "complaint":
         # 03 spec 1.5: every complaint opens a LEARN recovery case. Guarded:
         # the case is follow-up work, never a reason to lose the request.

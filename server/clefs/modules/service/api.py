@@ -6,6 +6,10 @@ intake pipeline (intake.py), state machine (state.py) and routing
 (routing.py). The journey-era functions (create_followup and the stay
 queries) keep their working defaults until the Service lane's later parts
 replace the bodies, never the signatures (FROZEN_API).
+
+The guest service desk (05 spec, section 3) adds create_job, dispatch_info,
+flag_recovery, guest_feedback and guest_messages (dispatch.py, recovery.py,
+staff_lang.py); the frozen functions above are untouched.
 """
 
 from __future__ import annotations
@@ -242,6 +246,94 @@ def guest_view(row: dict) -> dict:
         "guest_confirmation": None if can_confirm else answer,
         "cancelled": state == "cancelled",
     }
+
+
+# ─── The guest service desk (05 spec, section 3) ───
+
+
+def create_job(cur: Any, hotel_slug: str, *, room: str, request_type: str, quantity: int | None,
+               description_en: str, original_text: str | None, guest_language: str | None,
+               priority: str = "normal", mood: str | None = None, frustration: float | None = None,
+               session_id: str | None = None, guest_ref: str | None = None, channel: str = "concierge",
+               idempotency_key: str | None = None) -> dict:
+    """Create, route and dispatch one job. Returns dispatch_info(...) of the new request.
+
+    `request_type` is a request-type key ("towels") or a legacy type
+    ("Towel"); `description_en` the English text staff read (not translated
+    again); `original_text` and `guest_language` the guest's own words and
+    language (the job's language: staff replies and gestures reach the guest
+    in it). priority: normal (the rules decide) | high (URGENT) | low.
+    mood: calm|happy|neutral|confused|impatient|annoyed|angry|distressed;
+    frustration 0..1. `channel` is a SOURCES value ("concierge" files as web:
+    the guest channel's room limit applies). `idempotency_key` replays like
+    create_request's ("cc:tool:<call_id>"). Routing gives it to the best free
+    person and stores the ETA. Adds "merged" and "replayed" to the
+    dispatch_info keys."""
+    from clefs.modules.service import dispatch
+
+    return dispatch.create_job(cur, hotel_slug, room=room, request_type=request_type, quantity=quantity,
+                               description_en=description_en, original_text=original_text,
+                               guest_language=guest_language, priority=priority, mood=mood, frustration=frustration,
+                               session_id=session_id, guest_ref=guest_ref, channel=channel,
+                               idempotency_key=idempotency_key)
+
+
+def dispatch_info(cur: Any, hotel_slug: str, request_id: int) -> dict:
+    """{request_id, tracking_token, item_label, quantity, room, department_key, department_label,
+        staff_id, staff_first_name, eta_minutes, eta_at, created_at, accepted_at, state, status,
+        proof_status, guest_confirmed_at, closed_at}  (staff_* None when nobody is assigned yet)
+
+    Instants are epoch ms; accepted_at is when a staff member accepted the
+    job (null until then). tracking_token is a fresh token for the request.
+    404 for another hotel's request."""
+    from clefs.modules.service import dispatch
+
+    return dispatch.dispatch_info(cur, hotel_slug, request_id)
+
+
+def flag_recovery(cur: Any, hotel_slug: str, *, kind: str, room: str | None, summary: str,
+                  request_id: int | None = None, session_id: str | None = None,
+                  guest_language: str | None = None) -> dict:
+    """kind: not_fixed | frustration | never_arrived. Opens (or reuses) a recovery case with an
+    AI-suggested gesture awaiting the duty manager's approval; alerts the duty manager.
+
+    Reuses the conversation's open case (session_id), else the request's,
+    else the room's for the same kind within the hour. -> {case_id, created,
+    kind, reason, status, approval_status, request_id, room, session_id,
+    summary, suggested_gesture, suggested_kind, suggested_value_minor,
+    suggested_value, currency, suggestion_source}."""
+    from clefs.modules.service import recovery
+
+    return recovery.flag(cur, hotel_slug, kind=kind, room=room, summary=summary, request_id=request_id,
+                         session_id=session_id, guest_language=guest_language)
+
+
+def guest_feedback(cur: Any, hotel_slug: str, tracking_token: str, *, fixed: bool, comment: str | None = None) -> dict:
+    """fixed=True: confirm (closed). fixed=False: reopen + flag_recovery(kind='not_fixed').
+
+    Allowed while the tracker asks (a completed job, unanswered, within 24
+    hours): 409 cannot_confirm otherwise, 404 for an unknown token. After
+    checkout "not fixed" flags recovery without reopening. -> the tracker
+    view (GET /public/r/{token})."""
+    from clefs.modules.service import dispatch, public_api
+
+    row = dispatch.load_by_token(cur, hotel_slug, tracking_token)
+    checked_out = (not fixed) and public_api._checked_out(cur, hotel_slug, row)
+    after = dispatch.feedback(cur, hotel_slug, row, fixed=fixed, comment=comment, checked_out=checked_out)
+    return dispatch.tracker_view(cur, hotel_slug, after)
+
+
+def guest_messages(cur: Any, hotel_slug: str, tracking_token: str) -> list[dict]:
+    """Staff replies and approved gestures for the guest, already in the guest's language:
+    [{at, kind: staff_reply|gesture|status, text, staff_first_name}]
+
+    Oldest first; `at` is epoch ms (each also carries id and language).
+    Includes gestures for the job's conversation that filed no job of their
+    own. 404 for an unknown token."""
+    from clefs.modules.service import dispatch, staff_lang
+
+    row = dispatch.load_by_token(cur, hotel_slug, tracking_token)
+    return staff_lang.messages_for(cur, hotel_slug, row)
 
 
 # ─── Follow-ups and stay queries (04 spec 7.2) ───

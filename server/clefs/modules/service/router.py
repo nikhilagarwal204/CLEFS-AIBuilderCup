@@ -5,6 +5,14 @@ request_events feed. A paired device may call the work routes too (its
 acting staff member comes from X-Clefs-Staff, checked against its open PIN
 shifts). Public tracker routes live in router_public.py, the device feed in
 router_device.py.
+
+The guest service desk (05 spec, section 3) adds to every card: the ETA,
+the guest's mood, the photo check (with a 5-minute photo link), closure,
+escalation_level as the role reached (supervisor | duty_manager | gm) and
+accepted_at as the moment a staff member accepted the job. Plus GET
+.../requests/{id}/free-staff (the "Choose staff" list), GET
+.../requests/{id}/proof-photo and, for demo hotels only, POST
+.../requests/{id}/demo-advance.
 """
 
 from __future__ import annotations
@@ -13,14 +21,17 @@ from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from clefs import db
-from clefs.auth.deps import HotelCtx, acting_staff, require_perm_or_device
+from clefs.audit import audit
+from clefs.auth.deps import (HotelCtx, acting_staff, current_principal, device_principal, require_perm,
+                             require_perm_or_device, resolve_ctx)
 from clefs.core.errors import ClefsError
+from clefs.core.hotels import get_hotel
 from clefs.modules.service import constants as C
-from clefs.modules.service import intake, state
+from clefs.modules.service import intake, proof, routing, staff_lang, state
 
 router = APIRouter(prefix="/hotels/{slug}/service", tags=["service"])
 
@@ -34,13 +45,34 @@ CARD_KEYS = (
     "acknowledged_at", "ack_implicit", "started_at", "cancelled_at", "scheduled_for", "ack_due_at", "resolve_due_at",
     "sla_policy_ref", "sla_ack_breached", "sla_resolve_breached", "escalation_level", "reopen_count", "merged_count",
     "guest_confirmation", "guest_confirmed_at", "shift_key", "resolution_code", "verified_room", "incident_id", "flags",
+    "eta_minutes", "eta_at", "mood", "frustration", "needs_proof", "proof_status", "proof_reason", "closed_at",
+    "closure_reason",
 )
 EVENT_KEYS = ("id", "request_id", "at", "kind", "action", "from_state", "to_state", "version", "actor_type",
               "actor_staff_id", "actor_user_id", "device_id", "actor_label", "late_sync", "floor", "department_key", "payload")
 
 
 def card(row: dict) -> dict:
-    return {k: row.get(k) for k in CARD_KEYS}
+    out = {k: row.get(k) for k in CARD_KEYS}
+    step = int(row.get("escalation_level") or 0)
+    out.update({
+        # 05 spec 3 and decision 13: accepted_at is when a staff member
+        # accepted the job ("Accepted in 00:41"), not the legacy column of
+        # that name (the deprecated alias of assigned_at, still on the row).
+        "accepted_at": row.get("acknowledged_at"),
+        # the role the ladder reached, never L1-L3 (the severity scale); the
+        # number stays as escalation_step
+        "escalation_level": C.ESCALATION_LABEL.get(step),
+        "escalation_step": step,
+        "guest_language": row.get("language"),
+        "staff_first_name": routing.first_name(row.get("assigned_to")) if row.get("assigned_staff_id") else None,
+        # decision 11: URGENT is priority high; an emergency is its own flag
+        "urgent": row.get("priority") == "high",
+        "emergency": row.get("sensitivity") == "emergency",
+        "awaiting_guest": row.get("state") == "completed" and row.get("closed_at") is None,
+        "proof_photo_url": proof.photo_path(row) if row.get("proof_id") else None,
+    })
+    return out
 
 
 def event_out(ev: dict) -> dict:
@@ -56,9 +88,23 @@ def _actor(ctx: HotelCtx, request: Request) -> state.Actor:
 # ─── Queue ───
 
 
+def _device_reader(ctx: HotelCtx, request: Request, cur: Any) -> str | None:
+    """The reading language of the person working a paired device (named by
+    X-Clefs-Staff; English without one), or None for a console user. A
+    stale header reads English rather than failing the list."""
+    if ctx.principal.kind != "device":
+        return None
+    try:
+        staff_id = acting_staff(ctx, request)
+    except ClefsError:
+        staff_id = None
+    return staff_lang.reading_language(cur, ctx.hotel.slug, staff_id)
+
+
 @router.get("/queue")
 def queue(
     slug: str,
+    request: Request,
     state_filter: Literal["open", "all", "closed"] = Query("open", alias="state"),
     dept: str | None = None,
     floor: str | None = None,
@@ -67,7 +113,9 @@ def queue(
     ctx: HotelCtx = Depends(require_perm_or_device("service.view")),
 ) -> list[dict]:
     """Open work by default (every open request, however old), most urgent
-    first: L1 before L2 before L3, then the earliest ack due."""
+    first: L1 before L2 before L3, then the earliest ack due. For a paired
+    device each card also carries display_title and display_text in the
+    worker's language (as GET /device/service/requests does)."""
     sql = ["SELECT * FROM staff_requests WHERE hotel_slug = %s"]
     params: list[Any] = [slug]
     if state_filter == "open":
@@ -89,7 +137,12 @@ def queue(
     params.append(limit)
     with db.db(readonly=True) as cur:
         cur.execute(" ".join(sql), params)
-        return [card(dict(r)) for r in cur.fetchall()]
+        rows = [dict(r) for r in cur.fetchall()]
+        lang = _device_reader(ctx, request, cur)
+    if lang is None:
+        return [card(r) for r in rows]
+    display = staff_lang.display_fields(slug, rows, lang)  # outside the read: it may call the model
+    return [{**card(r), **display[r["id"]]} for r in rows]
 
 
 # ─── Filing ───
@@ -136,13 +189,94 @@ def create(slug: str, body: RequestIn, request: Request,
 
 
 @router.get("/requests/{request_id}")
-def get_one(slug: str, request_id: int, ctx: HotelCtx = Depends(require_perm_or_device("service.view"))) -> dict:
+def get_one(slug: str, request_id: int, request: Request,
+            ctx: HotelCtx = Depends(require_perm_or_device("service.view"))) -> dict:
     with db.db(readonly=True) as cur:
         row = state.load(cur, slug, request_id)
         if row is None:
             raise ClefsError(404, "Request not found", "request_not_found")
         evs = state.events_after(cur, slug, 0, request_id=request_id, limit=500)
-    return {"request": card(row), "events": [event_out(e) for e in evs]}
+        lang = _device_reader(ctx, request, cur)
+    out = card(row)
+    if lang is not None:
+        out.update(staff_lang.translate_job(slug, row, lang))
+    return {"request": out, "events": [event_out(e) for e in evs]}
+
+
+@router.get("/requests/{request_id}/free-staff")
+def free_staff(slug: str, request_id: int, ctx: HotelCtx = Depends(require_perm_or_device("service.view"))) -> dict:
+    """The manager's "Choose staff" list (05 spec, decision 5): {free: the
+    free people best first, the same order auto-assignment uses, each with
+    open_jobs, floor_distance, idle_min and the eta_minutes they would get;
+    others: everyone else active, with the reason they are not free}."""
+    with db.db(readonly=True) as cur:
+        row = state.load(cur, slug, request_id)
+        if row is None:
+            raise ClefsError(404, "Request not found", "request_not_found")
+        return routing.staff_options(cur, get_hotel(cur, slug), row)
+
+
+@router.get("/requests/{request_id}/proof-photo")
+def proof_photo(slug: str, request_id: int, request: Request, t: str | None = None,
+                proof_id: int | None = None) -> Response:
+    """The completion photo. A card's proof_photo_url carries a 5-minute
+    ticket (t) that works in an <img> without a session; otherwise a user
+    with service.view or a paired device of the hotel may read any of the
+    request's photos (proof_id, else the latest)."""
+    granted = proof.verify_link(slug, request_id, t) if t else None
+    if t and granted is None:
+        raise ClefsError(401, "Photo link expired or invalid", "invalid_ticket")
+    with db.db(readonly=True) as cur:
+        if granted is None:
+            principal = current_principal(request)
+            ctx = resolve_ctx(principal, slug, cur=cur)
+            dev = device_principal(request)
+            if not (ctx.can("service.view") or (dev is not None and dev.device_hotel == slug)):
+                if not principal.is_authenticated:
+                    raise ClefsError(401, "Sign in required", "unauthorized")
+                raise ClefsError(403, "You cannot open this photo", "forbidden")
+        row = proof.photo_row(cur, slug, request_id, granted or proof_id)
+    data = proof.photo_bytes(row)
+    return Response(content=data, media_type=row["content_type"],
+                    headers={"Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"})
+
+
+class DemoAdvanceIn(BaseModel):
+    minutes: int = Field(..., ge=1, le=240)
+
+
+# Every instant of a request that the ladder, the SLA and closure read.
+_CLOCK_COLUMNS = ('"timestamp"', "ladder_started_at", "ack_due_at", "resolve_due_at", "assigned_at", "accepted_at",
+                  "acknowledged_at", "started_at", "resolved_at", "eta_at")
+
+
+@router.post("/requests/{request_id}/demo-advance")
+def demo_advance(slug: str, request_id: int, body: DemoAdvanceIn,
+                 ctx: HotelCtx = Depends(require_perm("service.manage"))) -> dict:
+    """Demo hotels only (hotel status demo; 404 elsewhere): move one job's
+    clock back `minutes`, as if the guest had asked that much earlier, and
+    sweep the hotel at once, so the escalation ladder (supervisor at 3,
+    duty manager at 5, GM at 10) and the 30-minute closure can be shown
+    live. Audited. -> {request, sweep}."""
+    from clefs.modules.service import sla
+
+    with db.db() as cur:
+        if get_hotel(cur, slug).status != "demo":
+            raise ClefsError(404, "Not found", "not_found")
+        row = state.load(cur, slug, request_id, lock=True)
+        if row is None:
+            raise ClefsError(404, "Request not found", "request_not_found")
+        shift = body.minutes * 60_000
+        cur.execute(
+            f"UPDATE staff_requests SET {', '.join(f'{c} = {c} - %s' for c in _CLOCK_COLUMNS)} WHERE id = %s",
+            [shift] * len(_CLOCK_COLUMNS) + [request_id],
+        )
+        audit(cur, ctx, "service.request.demo_advance", "staff_request", request_id,
+              before={"timestamp": row["timestamp"]}, after={"minutes": body.minutes}, hotel_slug=slug)
+        result = sla.sweep(cur, slug)
+        row = state.load(cur, slug, request_id)
+        state.publish_changed(cur, row, "demo_advance")
+        return {"request": card(row), "sweep": result}
 
 
 # ─── Transitions and notes ───

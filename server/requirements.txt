@@ -39,3 +39,6 @@ websockets>=13,<16
 rapidfuzz>=3.9,<4
 pyyaml>=6.0,<7
 python-dateutil>=2.9,<3
+# Completion photos in a Cloud Storage bucket when PROOF_BUCKET is set
+# (service/proof.py imports it only then; without it photos stay in Postgres).
+google-cloud-storage>=2.18,<4
