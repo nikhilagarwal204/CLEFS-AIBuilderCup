@@ -150,3 +150,36 @@ def test_strict_schema_handles_nested_models():
     s = ai.strict_schema(Outer)
     inner = s["$defs"]["Inner"]
     assert inner["additionalProperties"] is False and inner["required"] == ["a"] and "default" not in inner["properties"]["a"]
+
+
+def test_overloaded_model_retries_once_on_the_fallback(monkeypatch):
+    calls = []
+
+    class Overloaded(Exception):
+        code = 504
+
+    class Models:
+        def generate_content(self, *, model, contents, config):
+            calls.append((model, config["http_options"]["timeout"], contents))
+            if len(calls) == 1:
+                raise Overloaded("deadline expired")
+            return SimpleNamespace(model_dump=lambda **_: {
+                "response_id": "r2", "model_version": model,
+                "candidates": [{"content": {"role": "model", "parts": [{"text": "hello"}]}}],
+                "usage_metadata": {"prompt_token_count": 3, "candidates_token_count": 1},
+            })
+
+    monkeypatch.setenv("AI_MODEL_FALLBACK", "gemini-3.1-flash-lite")
+    backend = ai.GeminiBackend.__new__(ai.GeminiBackend)
+    backend._client = SimpleNamespace(models=Models())
+    items = [{"type": "function_call", "name": "lookup", "arguments": "{}", "call_id": "c1", "thought_signature": "c2ln"},
+             {"type": "function_call_output", "call_id": "c1", "output": "{}"}]
+    out = backend.respond(ai.AIRequest(task="t", kind="raw", model="gemini-3.5-flash", system=None, input=items, timeout_s=20))
+    assert out.output_text == "hello" and out.model == "gemini-3.1-flash-lite"
+    assert [(m, t) for m, t, _ in calls] == [("gemini-3.5-flash", 12000), ("gemini-3.1-flash-lite", 8000)]
+    assert calls[1][2][0]["parts"][0]["thought_signature"] == b"skip_thought_signature_validator"
+
+
+def test_no_fallback_for_the_fallback_model_itself(monkeypatch):
+    monkeypatch.setenv("AI_MODEL_FALLBACK", "gemini-3.1-flash-lite")
+    assert ai.fallback_model("gemini-3.1-flash-lite") is None and ai.fallback_model("gemini-3.5-flash") == "gemini-3.1-flash-lite"
